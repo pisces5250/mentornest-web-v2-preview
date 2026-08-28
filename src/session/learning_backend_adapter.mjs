@@ -144,7 +144,17 @@ export class FixtureBackendAdapter {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Adapter selection — VITE_USE_FIXTURES drives the choice.
+ * Adapter selection.
+ *
+ * This repository IS the standalone preview build (mentornest-web-v2-preview
+ * → Zeabur). It only ships the FixtureBackendAdapter. There is no production
+ * adapter in this repo; production wiring lives in mentornest-web (out of scope
+ * here).
+ *
+ * Default: FixtureBackendAdapter (so the standalone preview always renders
+ *         something instead of throwing a confusing adapter error).
+ * Opt-out: explicit `opts.useFixtures === false` for test-only paths that want
+ *         to exercise the throw branch.
  * ────────────────────────────────────────────────────────────────────────── */
 
 /**
@@ -154,13 +164,9 @@ export class FixtureBackendAdapter {
  * @returns {LearningBackendAdapter}
  */
 export function createBackendAdapter(opts = {}) {
-  const env = (typeof import.meta !== "undefined" && import.meta.env) || {};
-  const useFixtures =
-    opts.useFixtures ??
-    (env.VITE_USE_FIXTURES === "true" ||
-      env.VITE_USE_FIXTURES === "1" ||
-      env.VITE_USE_FIXTURES === true ||
-      env.MODE === "preview");
+  // Default behavior for this preview repo: fixtures. Test paths that want to
+  // assert the production-mode throw can pass { useFixtures: false }.
+  const useFixtures = opts.useFixtures !== false;
 
   if (useFixtures) {
     return new FixtureBackendAdapter();
