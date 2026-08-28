@@ -1,16 +1,13 @@
 // src/session/SessionSummaryView.tsx
 //
-// Phase 5C-1.1 — Child-facing session summary.
+// Phase 5C-1.1 Round 4 — Quiet Graph Session Summary.
 //
-// Children must never see raw KP IDs (e.g. "math.G5.FRAC.add-unlike-denom").
-// This view-layer map turns internal KP IDs into short, plain zh-TW phrases.
-// The map is intentionally local to this file:
-//   - fixtures.mjs is frozen for this round
-//   - subject_specialist owns canonical topic_label_zh (deferred to 5C-2)
-//   - the map here is the single child-facing phrase source for now
+// Children must never see raw KP IDs.  View-layer KP→phrase map is the
+// single child-facing source.  Anything not in the map falls back to a
+// generic phrase so the child never sees machine identifiers.
 //
-// Anything not in the map falls back to a generic phrase so the child never
-// sees machine identifiers.
+// Quiet Graph language: 4 px moss left accent bar on the recommendation
+// panel; stat rows separated by hairlines; mono numerics throughout.
 
 import React from "react";
 import { recommendNext, type SessionSummary } from "./session-state.mjs";
@@ -21,7 +18,6 @@ export interface SessionSummaryViewProps {
   studentId: string;
 }
 
-// View-layer KP ID → child-facing zh-TW phrase.  Expand as fixtures grow.
 const KP_PHRASE_ZH: Record<string, string> = {
   "math.G3.MULT.two-digit": "兩位數乘法",
   "math.G4.DIV.estimate":  "除法的估算",
@@ -46,17 +42,33 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
 
   return (
     <section
-      className="mn-card mn-summary-card"
+      className="mn-summary-card"
       data-testid="session-summary"
       data-age-band={ageBand}
     >
       <h2 data-testid="summary-headline">{headline}</h2>
+
       <dl className="mn-summary-stats" data-testid="summary-stats">
-        <div><dt>完成題數</dt><dd data-testid="stat-total">{summary.total_steps}</dd></div>
-        <div><dt>一次就答對</dt><dd data-testid="stat-first-attempt">{summary.first_attempt_correct}</dd></div>
-        <div><dt>看了提示</dt><dd data-testid="stat-hints">{summary.hints_used_total}</dd></div>
-        <div><dt>換了表示法</dt><dd data-testid="stat-switches">{summary.representation_switches_total}</dd></div>
-        <div><dt>練習時間</dt><dd data-testid="stat-duration">{summary.duration_seconds} 秒</dd></div>
+        <div>
+          <dt>完成題數</dt>
+          <dd data-testid="stat-total">{summary.total_steps}</dd>
+        </div>
+        <div>
+          <dt>一次就答對</dt>
+          <dd data-testid="stat-first-attempt">{summary.first_attempt_correct}</dd>
+        </div>
+        <div>
+          <dt>看了提示</dt>
+          <dd data-testid="stat-hints">{summary.hints_used_total}</dd>
+        </div>
+        <div>
+          <dt>換了表示法</dt>
+          <dd data-testid="stat-switches">{summary.representation_switches_total}</dd>
+        </div>
+        <div>
+          <dt>練習時間</dt>
+          <dd data-testid="stat-duration">{summary.duration_seconds} 秒</dd>
+        </div>
       </dl>
 
       {summary.weak_kps.length > 0 && (
