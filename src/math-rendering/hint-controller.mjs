@@ -2,8 +2,9 @@
 //
 // Phase 5B — Hint escalation controller for the G5 FRAC add-unlike-denom flow.
 //
-// Wraps plugins/mentornest-learning/lib/math_hint_ladder_v2.mjs to produce
-// a `hint_state` that the vertical slice can render.
+// Wraps the local preview-compatible hint ladder (see file header in
+// math_hint_ladder_v2.mjs in this directory) to produce a `hint_state`
+// that the vertical slice can render.
 //
 // Rules (per user constraint):
 //   - first wrong answer → short conceptual hint (level 1, text only, NO SVG)
@@ -12,7 +13,7 @@
 //   - Hint must NOT reveal final answer immediately (level 4 is reserved for
 //     a tutor/parent escalation, not for in-flow auto-display).
 
-import { nextMathHint } from "../../../../plugins/mentornest-learning/lib/math_hint_ladder_v2.mjs";
+import { nextMathHint } from "./math_hint_ladder_v2.mjs";
 
 export const HINT_STAGES = Object.freeze({
   TEXT_ONLY: "text_only",

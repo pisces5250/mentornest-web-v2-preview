@@ -1,15 +1,21 @@
 // src/input/answer-validator.mjs
 //
-// Phase 5B — Thin wrapper around plugins/mentornest-learning/lib/math_validator.mjs
-// so the React layer can import it without resolving the plugin path directly.
+// Phase 5B — Thin wrapper around the local math validator (preview build).
 //
-// CONTRACT: This wrapper is pass-through.  It does NOT add new validation logic.
-// Every verdict is produced by `validateMathAnswer` (deterministic, no LLM).
+// This wrapper imports from src/foundation/math_validator.mjs, which is a
+// PREVIEW COMPATIBILITY IMPLEMENTATION of the production math validator
+// contract (see plugins/mentornest-learning/lib/math_validator.mjs in the
+// main workspace). The production plugin remains authoritative for
+// production runtime; this file is the standalone-preview shim.
+//
+// CONTRACT: This wrapper is pass-through. It does NOT add new validation
+// logic. Every verdict is produced by `validateMathAnswer` (deterministic,
+// no LLM).
 //
 // Accepts: a KeypadValue (from NativeMathKeypad) + the expected canonical answer.
 // Returns: { verdict, reason, compare_steps, ... }
 
-import { validateMathAnswer, parseAnswer } from "../../../../plugins/mentornest-learning/lib/math_validator.mjs";
+import { validateMathAnswer, parseAnswer } from "../foundation/math_validator.mjs";
 
 /**
  * Convert a KeypadValue to the canonical string form expected by math_validator.

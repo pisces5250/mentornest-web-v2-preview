@@ -151,16 +151,42 @@ test("vertical: roving tabindex pattern (selected choice is tabindex=0, others -
 
 test("vertical: mentornest-web production NOT touched (workspace data unchanged)", async () => {
   const fs = await import("node:fs");
-  // Confirm the production mentornest-web path does not exist (or is unchanged from kickoff baseline).
-  const prodExists = fs.existsSync("/home/node/.openclaw/plugins/mentornest-web");
-  // Phase 5: production web stays untouched. Whatever its state was at kickoff, it must be the same now.
-  // Snapshot baseline:
-  const baseline = "/home/node/.openclaw/workspace/architecture/_backups/20260827T1620Z_phase5_kickoff";
-  assert_.ok(fs.existsSync(baseline), "phase5_kickoff snapshot missing");
-  // workspace data must be unchanged (test snapshot)
-  // (Other tests assert MD5 baselines directly.)
-  // The mere fact that we're not even creating /home/node/.openclaw/plugins/mentornest-web in this round is sufficient.
-  assert_.ok(true, "by-construction: phase 5 creates mentornest-web-v2/, not plugins/mentornest-web/");
+  const path = await import("node:path");
+  const url = await import("node:url");
+  // PREVIEW COMPATIBILITY: this test must NOT depend on the OpenClaw
+  // workspace layout.  Instead it checks the local repo boundary:
+  //   1. standalone preview fixture exists in src/session/fixtures.mjs
+  //   2. no source/test in this repo references an OpenClaw-workspace
+  //      absolute path (the sentinel substring below).
+  const SENTINEL = "/home/node/.openclaw/";  // presence of this substring in source = leak
+  const here = path.dirname(url.fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(here, "..", "..");
+  const fixturePath = path.join(repoRoot, "src", "session", "fixtures.mjs");
+  assert_.ok(fs.existsSync(fixturePath), "standalone fixture missing");
+
+  // Sanity: scan src/ and test/ for any escaped absolute path to the
+  // OpenClaw workspace.  This must come up clean for the standalone preview.
+  // (Test file itself is allowed to contain the SENTINEL via the var above.)
+  function* walk(dir) {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name === "node_modules" || ent.name === "dist" || ent.name === ".git") continue;
+      const p = path.join(dir, ent.name);
+      if (ent.isDirectory()) yield* walk(p);
+      else yield p;
+    }
+  }
+  const offenders = [];
+  const isThisTestFile = (p) => path.resolve(p) === path.resolve(here, "multiple_choice_basic.test.mjs");
+  for (const f of walk(path.join(repoRoot, "src"))) {
+    const txt = fs.readFileSync(f, "utf8");
+    if (txt.includes(SENTINEL)) offenders.push(path.relative(repoRoot, f));
+  }
+  for (const f of walk(path.join(repoRoot, "test"))) {
+    if (isThisTestFile(f)) continue;
+    const txt = fs.readFileSync(f, "utf8");
+    if (txt.includes(SENTINEL)) offenders.push(path.relative(repoRoot, f));
+  }
+  assert_.deepEqual(offenders, [], `workspace-absolute paths leaked: ${offenders.join(", ")}`);
 });
 
 test("vertical: all fake IDs use Phase 5 _t_phase5_ prefix; never student_001/002", () => {
@@ -175,7 +201,12 @@ test("vertical: all fake IDs use Phase 5 _t_phase5_ prefix; never student_001/00
 
 test("vertical: app.css grid is responsive (1 col mobile, 2 col ≥600px)", async () => {
   const fs = await import("node:fs");
-  const css = fs.readFileSync("/home/node/.openclaw/workspace/mentornest-web-v2/src/styles/app.css", "utf8");
+  const path = await import("node:path");
+  const url = await import("node:url");
+  const here = path.dirname(url.fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(here, "..", "..");
+  const cssPath = path.join(repoRoot, "src", "styles", "app.css");
+  const css = fs.readFileSync(cssPath, "utf8");
   // mobile_first is in responsive_rules
   assert_.ok(css.includes("@media"), "no @media query");
   // Has a min-width breakpoint at 600
@@ -188,6 +219,11 @@ test("vertical: app.css grid is responsive (1 col mobile, 2 col ≥600px)", asyn
 
 test("vertical: app.css respects prefers-reduced-motion", async () => {
   const fs = await import("node:fs");
-  const css = fs.readFileSync("/home/node/.openclaw/workspace/mentornest-web-v2/src/styles/app.css", "utf8");
+  const path = await import("node:path");
+  const url = await import("node:url");
+  const here = path.dirname(url.fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(here, "..", "..");
+  const cssPath = path.join(repoRoot, "src", "styles", "app.css");
+  const css = fs.readFileSync(cssPath, "utf8");
   assert_.ok(css.match(/@media[^{]*prefers-reduced-motion[^{]*reduce/));
 });

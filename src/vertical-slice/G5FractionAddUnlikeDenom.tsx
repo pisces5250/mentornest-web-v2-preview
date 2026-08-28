@@ -19,7 +19,7 @@
 // Expected answer: 5/6 (also accepts 10/12, 15/18, etc.)
 //
 // Production safety: all student identifiers are fake (t_phase5b_*); no
-// writes to /home/node/.openclaw/workspace/data/.
+// writes to the production student-data directory.
 
 import React, { useState, useMemo, useCallback } from "react";
 import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
@@ -34,7 +34,7 @@ import {
   renderFractionBar,
   generateVisualSVG,
   svgValidityCheck,
-} from "../../../../plugins/mentornest-learning/lib/math_visual_engine.mjs";
+} from "../math-rendering/math_visual_engine_render.mjs";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Question fixture (G5 FRAC add-unlike-denom)

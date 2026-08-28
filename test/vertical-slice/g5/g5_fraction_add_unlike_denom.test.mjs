@@ -27,7 +27,7 @@ import {
   renderBarModel,
   generateVisualSVG,
   svgValidityCheck,
-} from "../../../../../plugins/mentornest-learning/lib/math_visual_engine.mjs";
+} from "../../../src/math-rendering/math_visual_engine_render.mjs";
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1. Orchestrator integration

@@ -21,7 +21,7 @@ import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
 import { validateKeypadAnswer } from "../input/answer-validator.mjs";
-import { nextMathHint } from "../../../../plugins/mentornest-learning/lib/math_hint_ladder_v2.mjs";
+import { nextMathHint } from "../math-rendering/math_hint_ladder_v2.mjs";
 import {
   renderFractionBar,
   renderNumberLine,
@@ -29,7 +29,7 @@ import {
   generateFractionBarSVG,
   generateNumberLineSVG,
   generateAreaModelSVG,
-} from "../../../../plugins/mentornest-learning/lib/math_visual_engine.mjs";
+} from "../math-rendering/math_visual_engine_render.mjs";
 
 export type QuestionType =
   | "multiple_choice"
