@@ -1,9 +1,16 @@
 // src/session/SessionSummaryView.tsx
 //
-// Phase 5C-1 — Child-facing session summary at the end of a session.
-// Stays friendly and concise; never surfaces license/provenance to the child.
+// Phase 5C-1.1 — Child-facing session summary.
 //
-// The richer Parent Summary is built in 5C-3 from the same summary object.
+// Children must never see raw KP IDs (e.g. "math.G5.FRAC.add-unlike-denom").
+// This view-layer map turns internal KP IDs into short, plain zh-TW phrases.
+// The map is intentionally local to this file:
+//   - fixtures.mjs is frozen for this round
+//   - subject_specialist owns canonical topic_label_zh (deferred to 5C-2)
+//   - the map here is the single child-facing phrase source for now
+//
+// Anything not in the map falls back to a generic phrase so the child never
+// sees machine identifiers.
 
 import React from "react";
 import { recommendNext, type SessionSummary } from "./session-state.mjs";
@@ -12,6 +19,18 @@ export interface SessionSummaryViewProps {
   summary: SessionSummary;
   ageBand: string;
   studentId: string;
+}
+
+// View-layer KP ID → child-facing zh-TW phrase.  Expand as fixtures grow.
+const KP_PHRASE_ZH: Record<string, string> = {
+  "math.G3.MULT.two-digit": "兩位數乘法",
+  "math.G4.DIV.estimate":  "除法的估算",
+  "math.G5.FRAC.add-unlike-denom": "分數加法（不同分母）",
+  "math.G5.DEC.add":       "小數加法",
+};
+
+function kpToPhrase(kp: string): string {
+  return KP_PHRASE_ZH[kp] ?? "這一題";
 }
 
 export function SessionSummaryView(props: SessionSummaryViewProps) {
@@ -41,22 +60,22 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
       </dl>
 
       {summary.weak_kps.length > 0 && (
-        <section data-testid="weak-kps-section" aria-label="需要再練習的知識點">
+        <section data-testid="weak-kps-section" aria-label="需要再練習的部分">
           <h3>需要再練習</h3>
           <ul>
             {summary.weak_kps.map((kp) => (
-              <li key={kp} data-testid={`weak-kp-${kp}`}>{kp}</li>
+              <li key={kp} data-testid={`weak-kp-${kp}`}>{kpToPhrase(kp)}</li>
             ))}
           </ul>
         </section>
       )}
 
       {summary.mastered_kps.length > 0 && (
-        <section data-testid="mastered-kps-section" aria-label="一次就答對的知識點">
+        <section data-testid="mastered-kps-section" aria-label="一次就答對的部分">
           <h3>已經掌握</h3>
           <ul>
             {summary.mastered_kps.map((kp) => (
-              <li key={kp} data-testid={`mastered-kp-${kp}`}>{kp}</li>
+              <li key={kp} data-testid={`mastered-kp-${kp}`}>{kpToPhrase(kp)}</li>
             ))}
           </ul>
         </section>
@@ -66,12 +85,14 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
         <strong>下一步建議：</strong>{recommendation.reason}
       </p>
 
-      <button
-        type="button"
-        className="mn-button mn-button--primary"
-        data-testid="back-to-home"
-        onClick={() => window.location.reload()}
-      >回到首頁</button>
+      <div className="mn-actions">
+        <button
+          type="button"
+          className="mn-button mn-button--primary"
+          data-testid="back-to-home"
+          onClick={() => window.location.reload()}
+        >回到首頁</button>
+      </div>
     </section>
   );
 }

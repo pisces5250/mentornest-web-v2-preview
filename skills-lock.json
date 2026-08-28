@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "design-critique": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "design-ops/skills/design-critique/SKILL.md",
+      "computedHash": "453dde9c728dee56786c9cffc331230f42f562cdc9360e5fe806f743c201ca5b"
+    },
+    "heuristic-evaluation": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "prototyping-testing/skills/heuristic-evaluation/SKILL.md",
+      "computedHash": "46977b283602707446508f145de877387bad5b77f367c36e2232cc7ccbed20ed"
+    },
+    "illustration-style": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "ui-design/skills/illustration-style/SKILL.md",
+      "computedHash": "085cef377895daf3fbdcba21c00089329dd631dd5469d24c667fc48c963fc108"
+    },
+    "spacing-system": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "ui-design/skills/spacing-system/SKILL.md",
+      "computedHash": "c92cabb28d763a64dbeb81579433337a5c3592fd665a00550cd91853ed7b9808"
+    },
+    "visual-hierarchy": {
+      "source": "owl-listener/designer-skills",
+      "sourceType": "github",
+      "skillPath": "ui-design/skills/visual-hierarchy/SKILL.md",
+      "computedHash": "82681317a11c4a286658bd740be38c90481fe2ec3220ea7c983b223e1b231629"
+    }
+  }
+}

@@ -1,9 +1,13 @@
 // src/session/ChildHome.tsx
 //
-// Phase 5C-1 — Child Home view.  Minimal entry point:
-//   - "start today's learning" button
-//   - on click, calls buildSessionFromLearningDirector (adapter)
-//   - hands the resulting session to SessionView
+// Phase 5C-1.1 — Child Home view.
+//
+// One primary CTA only:
+//   - no resume state?        CTA label = "開始今天的學習"
+//   - resumable session?      CTA label = "繼續上次的學習" (same single button)
+// Resume is announced as a single line of microcopy BELOW the goal row,
+// never as a second affordance.  This honours the INV-CL-2 spirit
+// ("one decision per screen") for G5-G6.
 //
 // All learning authority is delegated to the plugin via the adapter; this
 // component only orchestrates UI.
@@ -33,6 +37,7 @@ export function ChildHome(props: ChildHomeProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resumeAvailable, setResumeAvailable] = useState(false);
+  const [resumeAtIndex, setResumeAtIndex] = useState<number | null>(null);
 
   // Detect a previously in-progress session for this student on mount.
   useEffect(() => {
@@ -44,6 +49,9 @@ export function ChildHome(props: ChildHomeProps) {
       if (!parsed || parsed.student_id !== studentId) return;
       if (parsed.status === "completed" || parsed.status === "abandoned") return;
       setResumeAvailable(true);
+      if (typeof parsed.current_index === "number") {
+        setResumeAtIndex(parsed.current_index + 1);
+      }
     } catch (e) {
       // ignore
     }
@@ -98,24 +106,48 @@ export function ChildHome(props: ChildHomeProps) {
     );
   }
 
+  // INV-CL-2: ONE primary CTA.  Resume availability only changes the label
+  // and adds a single microcopy line.  No second button.
+  const ctaLabel = loading
+    ? "準備中…"
+    : resumeAvailable
+      ? "繼續上次的學習"
+      : "開始今天的學習";
+
   return (
     <section
       className="mn-card mn-home-card"
       data-testid="child-home"
       data-age-band={ageBand}
       data-student-id={studentId}
+      data-resume-available={resumeAvailable ? "true" : "false"}
     >
       <header className="mn-card-header">
         <span className="mn-tag">今日練習</span>
       </header>
-      <h1 data-testid="home-headline">{resumeAvailable ? "繼續上次的練習" : "準備好了嗎？"}</h1>
-      <p data-testid="home-body">{resumeAvailable ? "我們會從你上次停下的地方繼續。" : "我們會根據你最近的練習，選出今天適合做的題目。"}</p>
-      {resumeAvailable && (
-        <p className="mn-home-resume-note" data-testid="home-resume-note">偵測到上次未完成的練習，按下方按鈕繼續。</p>
+      <h1 data-testid="home-headline">
+        {resumeAvailable ? "歡迎回來" : "嗨，今天準備好了嗎？"}
+      </h1>
+      <p data-testid="home-body">
+        {resumeAvailable
+          ? "從上次停下的地方接著練習就好。"
+          : "我們會根據你最近的練習，選出今天適合做的題目。"}
+      </p>
+
+      {/* Resume as microcopy, never as a second affordance. */}
+      {resumeAvailable && resumeAtIndex !== null && (
+        <p
+          className="mn-home-resume-note"
+          data-testid="home-resume-note"
+        >
+          你上次停在第 {resumeAtIndex} 題，按下「繼續上次的學習」就會自動接上。
+        </p>
       )}
+
       {error && (
         <div className="mn-error" role="alert" data-testid="home-error">{error}</div>
       )}
+
       <div className="mn-actions">
         <button
           type="button"
@@ -123,10 +155,12 @@ export function ChildHome(props: ChildHomeProps) {
           data-testid="start-session"
           onClick={handleStart}
           disabled={loading}
+          aria-label={ctaLabel}
         >
-          {loading ? "準備中…" : "開始今天的學習"}
+          {ctaLabel}
         </button>
       </div>
+
       <span role="status" aria-live="polite" className="mn-sr-only" data-testid="sr-status-home">
         {loading ? "正在載入今天的題目。" : "點按按鈕開始今天的學習。"}
       </span>

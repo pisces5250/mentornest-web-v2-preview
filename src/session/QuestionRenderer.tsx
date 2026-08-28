@@ -1,19 +1,27 @@
 // src/session/QuestionRenderer.tsx
 //
-// Phase 5C-1 — Data-driven dispatcher that maps a session step to the
-// right rendering subtree.  One main instructional step at a time.
+// Phase 5C-1.1 — Data-driven dispatcher.
+//
+// Maps a session step to the right rendering subtree.  One main instructional
+// step at a time.
+//
+// Phase 5C-1.1 INV-AP-56-2 enforcement:
+//   First-incorrect feedback does NOT reveal the expected answer.
+//   The primary next action is "看提示" (看提示 CTA, ghost button).
+//   The expected answer is revealed only AFTER one of:
+//     - hintsUsed >= 1     (a hint has been revealed)
+//     - review_needed      (the session machine flagged review state)
+//
+// Child-facing copy contract:
+//   - No KP IDs, no license, no source, no fixture / debug strings
+//   - No VOCAB_CEILING or other lint codes shown to the child
+//   - Header tag is the age band (e.g. "G5-G6") and a friendly goal phrase
 //
 // Mappings (Phase 5C-1 scope):
 //   multiple_choice  → MC renderer (inline; same a11y as 5A slice)
-//   fraction_input   → NativeMathKeypad + MathVisualRenderer (when
-//                      representation_type is fraction_bar/number_line/
-//                      area_model)
+//   fraction_input   → NativeMathKeypad + MathVisualRenderer
 //   integer_input    → NativeMathKeypad with mode="integer"
 //   decimal_input    → NativeMathKeypad with mode="decimal"
-//
-// NOT in this round (deferred to 5C-2 / 5C-3 / later):
-//   short_answer (text), true_false, matching, ordering, drag_drop,
-//   handwriting, voice.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
@@ -31,12 +39,26 @@ import {
   generateAreaModelSVG,
 } from "../math-rendering/math_visual_engine_render.mjs";
 
+// ─── KP ID → child-facing zh-TW phrase (view-layer only) ──────────────────
+const KP_PHRASE_ZH: Record<string, string> = {
+  "math.G3.MULT.two-digit": "兩位數乘法",
+  "math.G4.DIV.estimate":  "除法的估算",
+  "math.G5.FRAC.add-unlike-denom": "分數加法（不同分母）",
+  "math.G5.DEC.add":       "小數加法",
+};
+function kpToPhrase(kp: string | undefined | null): string {
+  if (!kp) return "這一題";
+  return KP_PHRASE_ZH[kp] ?? "這一題";
+}
+
+// Maximum hint escalation level.  INV-IP-HINT-1.
+const MAX_HINT_LEVEL = 3;
+
 export type QuestionType =
   | "multiple_choice"
   | "fraction_input"
   | "integer_input"
   | "decimal_input"
-  // 5C-2 / 5C-3 deferred:
   | "short_answer"
   | "true_false";
 
@@ -58,7 +80,6 @@ export interface QuestionRendererProps {
   step: SessionStep;
   ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
   studentId: string;
-  // Callbacks the SessionView owns:
   onSubmit: (args: {
     verdict: "correct" | "incorrect" | "unverifiable";
     error_type?: string | null;
@@ -79,93 +100,26 @@ export interface QuestionRendererProps {
     | "completed";
 }
 
-export function QuestionRenderer(props: QuestionRendererProps) {
-  const { step, ageBand, studentId, onSubmit, onHint, onRepresentationSwitch, onRetry, hintsUsed, attemptsCount, lastVerdict, phase } = props;
-
-  // 1) Presentation orchestrator (presentation-time decision only).
-  //    Phase 5C-1 maps our richer question_type to the orchestrator's
-  //    presentation taxonomy: MC stays MC; typed numeric / fraction inputs
-  //    map to fill_in_blank (which is what the existing 5B slice uses).
-  const orchQuestionType =
-    step.question_type === "multiple_choice" ? "multiple_choice" : "fill_in_blank";
-  const request = useMemo(() => {
-    return buildPresentationRequest({
-      subject: step.subject,
-      grade: ageBandToGradeNumber(ageBand),
-      question_type: orchQuestionType,
-      representation_type: step.representation_type === "text" && step.question_type === "fraction_input" ? "fraction_bar" : step.representation_type,
-      learning_goal: step.knowledge_point,
-      interaction_required: step.question_type === "multiple_choice" ? "single_tap" : "type",
-      hint_level: phase === "hint_level_2" || phase === "hint_level_3" ? Math.min(3, hintsUsed + 1) : hintsUsed,
-    });
-  }, [step.subject, step.question_type, step.knowledge_point, step.representation_type, ageBand, phase, hintsUsed, orchQuestionType]);
-
-  const ageResolution = useMemo(
-    () => resolveAgeProfile(ageBandToGradeNumber(ageBand)),
-    [ageBand]
-  );
-
-  const spec = request.ok ? request.render_spec : {
-    age_band: ageBand,
-    child_copy: step.knowledge_point,
-    component_type: "GenericQuestion",
-    layout: "structured_compact",
-    interaction_pattern: "single_tap_choice",
-  };
-
-  // 2) Pick the renderer subtree.
-  if (step.question_type === "multiple_choice") {
-    return (
-      <MultipleChoiceSubtree
-        step={step}
-        spec={spec}
-        ageBand={ageBand}
-        lastVerdict={lastVerdict}
-        phase={phase}
-        onSubmit={onSubmit}
-        onRetry={onRetry}
-        attemptsCount={attemptsCount}
-      />
-    );
-  }
-
-  if (
-    step.question_type === "fraction_input" ||
-    step.question_type === "integer_input" ||
-    step.question_type === "decimal_input"
-  ) {
-    return (
-      <InputSubtree
-        step={step}
-        spec={spec}
-        ageBand={ageBand}
-        studentId={studentId}
-        lastVerdict={lastVerdict}
-        phase={phase}
-        hintsUsed={hintsUsed}
-        attemptsCount={attemptsCount}
-        onSubmit={onSubmit}
-        onHint={onHint}
-        onRetry={onRetry}
-        onRepresentationSwitch={onRepresentationSwitch}
-      />
-    );
-  }
-
-  return (
-    <UnsupportedNotice
-      step={step}
-      reason={`question_type "${step.question_type}" is not yet supported in Phase 5C-1 (deferred to 5C-2/5C-3).`}
-    />
-  );
+// ─── Reveal-answer policy (INV-AP-56-2) ────────────────────────────────────
+// Returns true only when:
+//   - student is on the feedback phase (an answer was submitted), AND
+//   - EITHER at least one hint has been revealed (hintsUsed >= 1)
+//   - OR the session machine explicitly flagged review_needed.
+// In all other cases (especially first-incorrect) we hide the expected
+// answer and surface "看提示" as the next primary action.
+function shouldRevealAnswer(
+  phase: string,
+  hintsUsed: number,
+  lastVerdict: string | null,
+  reviewNeeded: boolean,
+): boolean {
+  if (phase !== "feedback") return false;
+  if (hintsUsed >= 1) return true;
+  if (reviewNeeded) return true;
+  return false;
 }
 
-// ─── Subtree: multiple choice ──────────────────────────────────────────────
-
 // Helper: build a math visual descriptor + sanitized SVG from a step.
-// Returns null if the visual can't be derived from the step (e.g. missing
-// operands).  Phase 5C-1 only handles fraction_bar / number_line / bar_model
-// from stem-parsed operands; richer visuals come in 5C-2.
 function buildMathVisual(step: SessionStep): null | {
   primitive: "fraction_bar" | "number_line" | "bar_model";
   descriptor: any;
@@ -174,7 +128,6 @@ function buildMathVisual(step: SessionStep): null | {
 } {
   try {
     const stem = String(step.stem ?? "");
-    // fraction operand pattern: a/b + c/d (or a/b - c/d)
     const fracMatch = stem.match(/(\d+)\s*\/\s*(\d+)\s*([+\-×x*\/÷])\s*(\d+)\s*\/\s*(\d+)/);
     if (fracMatch) {
       const [, an, ad, op, bn, bd] = fracMatch;
@@ -182,14 +135,12 @@ function buildMathVisual(step: SessionStep): null | {
       const denominator_a = parseInt(ad, 10);
       const numerator_b = parseInt(bn, 10);
       const denominator_b = parseInt(bd, 10);
-      // 1) Validate via descriptor engine.
       const desc = renderFractionBar({
         numerator: numerator_a,
         denominator: denominator_a,
         label: `${numerator_a}/${denominator_a}`,
       });
       if (desc?.constraints_check?.violations?.length) return null;
-      // 2) Generate SVG from validated inputs.
       const svgResult = generateFractionBarSVG({
         numerator: numerator_a,
         denominator: denominator_a,
@@ -203,7 +154,6 @@ function buildMathVisual(step: SessionStep): null | {
         aria_label: `分數圖示：${numerator_a}/${denominator_a} ${op} ${numerator_b}/${denominator_b}`,
       };
     }
-    // integer addition: "23 + 17" or "23 × 4" etc.
     const intMatch = stem.match(/(\d+)\s*([+\-×x*])\s*(\d+)/);
     if (intMatch && step.representation_type === "bar_model") {
       const [, an, , cn] = intMatch;
@@ -230,6 +180,96 @@ function buildMathVisual(step: SessionStep): null | {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Top-level dispatch
+// ─────────────────────────────────────────────────────────────────────────
+
+export function QuestionRenderer(props: QuestionRendererProps) {
+  const { step, ageBand, studentId, onSubmit, onHint, onRepresentationSwitch, onRetry, hintsUsed, attemptsCount, lastVerdict, phase } = props;
+
+  const orchQuestionType =
+    step.question_type === "multiple_choice" ? "multiple_choice" : "fill_in_blank";
+  const request = useMemo(() => {
+    return buildPresentationRequest({
+      subject: step.subject,
+      grade: ageBandToGradeNumber(ageBand),
+      question_type: orchQuestionType,
+      representation_type: step.representation_type === "text" && step.question_type === "fraction_input" ? "fraction_bar" : step.representation_type,
+      learning_goal: step.knowledge_point,
+      interaction_required: step.question_type === "multiple_choice" ? "single_tap" : "type",
+      hint_level: phase === "hint_level_2" || phase === "hint_level_3" ? Math.min(MAX_HINT_LEVEL, hintsUsed + 1) : hintsUsed,
+    });
+  }, [step.subject, step.question_type, step.knowledge_point, step.representation_type, ageBand, phase, hintsUsed, orchQuestionType]);
+
+  const ageResolution = useMemo(
+    () => resolveAgeProfile(ageBandToGradeNumber(ageBand)),
+    [ageBand]
+  );
+
+  const spec = request.ok ? request.render_spec : {
+    age_band: ageBand,
+    child_copy: step.knowledge_point,
+    component_type: "GenericQuestion",
+    layout: "structured_compact",
+    interaction_pattern: "single_tap_choice",
+  };
+
+  // Children never see internal KP IDs, lint codes, or fixture strings.
+  // Goal tag is derived from a view-layer phrase map.
+  const goalPhrase = kpToPhrase(step.knowledge_point);
+
+  if (step.question_type === "multiple_choice") {
+    return (
+      <MultipleChoiceSubtree
+        step={step}
+        spec={spec}
+        ageBand={ageBand}
+        lastVerdict={lastVerdict}
+        phase={phase}
+        onSubmit={onSubmit}
+        onRetry={onRetry}
+        onHint={onHint}
+        attemptsCount={attemptsCount}
+        hintsUsed={hintsUsed}
+        goalPhrase={goalPhrase}
+      />
+    );
+  }
+
+  if (
+    step.question_type === "fraction_input" ||
+    step.question_type === "integer_input" ||
+    step.question_type === "decimal_input"
+  ) {
+    return (
+      <InputSubtree
+        step={step}
+        spec={spec}
+        ageBand={ageBand}
+        studentId={studentId}
+        lastVerdict={lastVerdict}
+        phase={phase}
+        hintsUsed={hintsUsed}
+        attemptsCount={attemptsCount}
+        onSubmit={onSubmit}
+        onHint={onHint}
+        onRetry={onRetry}
+        onRepresentationSwitch={onRepresentationSwitch}
+        goalPhrase={goalPhrase}
+      />
+    );
+  }
+
+  return (
+    <UnsupportedNotice
+      step={step}
+      reason={`question_type "${step.question_type}" is not yet supported in Phase 5C-1.1 (deferred to 5C-2/5C-3).`}
+    />
+  );
+}
+
+// ─── Subtree: multiple choice ─────────────────────────────────────────────
+
 function MultipleChoiceSubtree(props: {
   step: SessionStep;
   spec: any;
@@ -237,10 +277,13 @@ function MultipleChoiceSubtree(props: {
   lastVerdict: string | null;
   phase: string;
   attemptsCount: number;
+  hintsUsed: number;
+  goalPhrase: string;
   onSubmit: (args: any) => void;
   onRetry: () => void;
+  onHint: () => void;
 }) {
-  const { step, spec, lastVerdict, phase, attemptsCount, onSubmit, onRetry } = props;
+  const { step, spec, lastVerdict, phase, attemptsCount, hintsUsed, goalPhrase, onSubmit, onRetry, onHint } = props;
   const choices = step.choices ?? [];
   const correctIndex = useMemo(() => {
     if (typeof step.expected_answer === "number") return step.expected_answer;
@@ -249,14 +292,15 @@ function MultipleChoiceSubtree(props: {
   }, [step.expected_answer, choices]);
   const [selected, setSelected] = useState<number | null>(null);
 
-  // Feedback is shown whenever the student has submitted at least once.
-  // We use the prop's `attemptsCount` value (read into a local const so
-  // destructuring is unambiguous at the bundle layer) as the source of
-  // truth rather than `phase`, so wrong submissions show feedback
-  // immediately regardless of hint escalation phase.
   const mcAttempts = typeof attemptsCount === "number" ? attemptsCount : 0;
   const hasAttempt = mcAttempts > 0;
   const feedback = hasAttempt;
+
+  // Reset selection when the step changes.
+  useEffect(() => { setSelected(null); }, [step.step_id]);
+
+  // Reveal-answer policy.
+  const reveal = shouldRevealAnswer(phase, hintsUsed, lastVerdict, false);
 
   const handleSubmit = useCallback(() => {
     if (selected === null) return;
@@ -276,10 +320,11 @@ function MultipleChoiceSubtree(props: {
       data-testid={`question-${step.step_id}`}
       data-knowledge-point={step.knowledge_point}
       data-question-type={step.question_type}
+      aria-label={`${goalPhrase} 選擇題`}
     >
       <header className="mn-card-header">
         <span className="mn-tag" data-testid="age-band">{spec.age_band}</span>
-        <span className="mn-tag">目標：{spec.child_copy.replace(/^目標：/, "")}</span>
+        <span className="mn-tag">主題：{goalPhrase}</span>
       </header>
       <h2 id={`stem-${step.step_id}`} className="mn-question-stem" data-testid="question-stem">
         {step.stem}
@@ -324,33 +369,39 @@ function MultipleChoiceSubtree(props: {
           );
         })}
       </div>
+
       {feedback ? (
         <>
-          <div
-            className={`mn-feedback mn-feedback--${ariaCorrectness}`}
-            data-testid={`feedback-${ariaCorrectness}`}
-            data-state={ariaCorrectness}
-          >
-            {lastVerdict === "correct" ? (
-              <>
-                <span className="mn-feedback-icon" aria-hidden="true">✓</span>
-                <span>答對了！{choices[correctIndex]} 是正確答案。</span>
-              </>
-            ) : (
-              <>
-                <span className="mn-feedback-icon" aria-hidden="true">✗</span>
-                <span>再想想，正確答案是 {choices[correctIndex]}。</span>
-              </>
-            )}
-          </div>
-          {lastVerdict === "incorrect" && (
+          {/* INV-AP-56-2 — first-incorrect: hide answer; primary next action = 看提示 */}
+          {lastVerdict === "incorrect" && !reveal ? (
             <div className="mn-actions">
               <button
                 type="button"
-                className="mn-button"
+                className="mn-button mn-button--primary"
+                data-testid="hint-cta"
+                onClick={onHint}
+              >看提示</button>
+              <button
+                type="button"
+                className="mn-button mn-button--ghost"
                 data-testid="retry-button"
                 onClick={onRetry}
-              >再試一次</button>
+              >換一個答案</button>
+            </div>
+          ) : (
+            <div
+              className={`mn-feedback mn-feedback--${ariaCorrectness}`}
+              data-testid={`feedback-${ariaCorrectness}`}
+              data-state={ariaCorrectness}
+            >
+              <span className="mn-feedback-icon" aria-hidden="true">
+                {lastVerdict === "correct" ? "✓" : "✓"}
+              </span>
+              <span>
+                {lastVerdict === "correct"
+                  ? "答對了！"
+                  : `正確答案是 ${choices[correctIndex]}。`}
+              </span>
             </div>
           )}
         </>
@@ -363,8 +414,15 @@ function MultipleChoiceSubtree(props: {
             disabled={selected === null}
             onClick={handleSubmit}
           >送出</button>
+          <button
+            type="button"
+            className="mn-button mn-button--ghost"
+            data-testid="hint-toggle"
+            onClick={onHint}
+          >看提示</button>
         </div>
       )}
+
       <span role="status" aria-live="polite" className="mn-sr-only" data-testid={`sr-status-${step.step_id}`}></span>
     </section>
   );
@@ -381,12 +439,13 @@ function InputSubtree(props: {
   phase: string;
   hintsUsed: number;
   attemptsCount: number;
+  goalPhrase: string;
   onSubmit: (args: any) => void;
   onHint: () => void;
   onRetry: () => void;
   onRepresentationSwitch: (to: SessionStep["representation_type"]) => void;
 }) {
-  const { step, spec, lastVerdict, phase, hintsUsed, attemptsCount, studentId, onSubmit, onHint, onRetry, onRepresentationSwitch } = props;
+  const { step, spec, lastVerdict, phase, hintsUsed, attemptsCount, studentId, onSubmit, onHint, onRetry, onRepresentationSwitch, goalPhrase } = props;
 
   const mode = step.question_type === "fraction_input" ? "fraction"
              : step.question_type === "decimal_input"  ? "decimal"
@@ -395,7 +454,19 @@ function InputSubtree(props: {
   const submitted = phase === "feedback";
   const showVisual = (phase === "hint_level_2" || phase === "hint_level_3") && step.representation_type !== "text";
 
-  // Hint text from the engine (Phase 5B pattern, now driven by data).
+  // Reveal-answer policy.
+  const reveal = shouldRevealAnswer(phase, hintsUsed, lastVerdict, false);
+
+  // Decide keypad default visibility:
+  //   - desktop users typically have a physical keyboard; default collapse.
+  //   - mobile / tablet users may want the keypad; default open.
+  // Phase 5C-1.1 honours the parent's responsibility: caller passes
+  // `toggleable + default_visible`.  When NOT collapsible, the keypad is
+  // always visible (no regression for callers that don't pass toggleable).
+  const isFraction = step.question_type === "fraction_input";
+  const toggleable = isFraction; // Phase 5C-1.1 ships collapse only for fraction_input
+  const default_visible = true;   // Default-open keeps the path simple; user collapses via toggle.
+
   const hintText = useMemo(() => {
     if (hintsUsed === 0) return null;
     try {
@@ -408,11 +479,11 @@ function InputSubtree(props: {
         representation_used: step.representation_type,
         stem: step.stem,
       });
-      console.log("[QR]", step.knowledge_point, "hintsUsed="+hintsUsed, "subject="+step.subject, "studentId="+studentId, "result="+JSON.stringify(result).slice(0,250)); return result?.hint_text_zh ?? null;
+      return result?.hint_text_zh ?? null;
     } catch (e) {
       return null;
     }
-  }, [step.subject, step.knowledge_point, step.stem, step.representation_type, hintsUsed]);
+  }, [step.subject, step.knowledge_point, step.stem, step.representation_type, hintsUsed, studentId]);
 
   const handleSubmit = useCallback((value: KeypadValue) => {
     const result = validateKeypadAnswer({
@@ -425,10 +496,9 @@ function InputSubtree(props: {
     });
   }, [step.expected_answer, onSubmit]);
 
-  // Live region message for SR.
   const liveMsg = submitted && lastVerdict
-    ? lastVerdict === "correct" ? `答對了！${step.expected_answer} 是正確答案。`
-    : lastVerdict === "incorrect" ? `還不對，再試一次。`
+    ? lastVerdict === "correct" ? `答對了！`
+    : lastVerdict === "incorrect" ? `還不對，看下面的提示。`
     : "已收到答案。"
     : "";
 
@@ -440,10 +510,11 @@ function InputSubtree(props: {
       data-knowledge-point={step.knowledge_point}
       data-question-type={step.question_type}
       data-representation={step.representation_type}
+      aria-label={`${goalPhrase} 輸入題`}
     >
       <header className="mn-card-header">
         <span className="mn-tag" data-testid="age-band">{spec.age_band}</span>
-        <span className="mn-tag">目標：{spec.child_copy.replace(/^目標：/, "")}</span>
+        <span className="mn-tag">主題：{goalPhrase}</span>
         {step.representation_type !== "text" && (
           <button
             type="button"
@@ -477,6 +548,8 @@ function InputSubtree(props: {
       <NativeMathKeypad
         key={step.step_id}
         mode={mode}
+        toggleable={toggleable}
+        default_visible={default_visible}
         on_submit={handleSubmit}
         submit_label={submitted ? "已送出" : "送出"}
         submit_disabled={submitted}
@@ -489,49 +562,64 @@ function InputSubtree(props: {
           data-stage={phase}
           aria-label="提示"
         >
-          <span className="mn-hint-icon" aria-hidden="true">💡</span>
-          <span id={`hint-text-${step.step_id}`}>{hintText}</span>
+          <span className="mn-hint-pill" aria-hidden="true">提示 {Math.min(hintsUsed, MAX_HINT_LEVEL)}/{MAX_HINT_LEVEL}</span>
+          <p id={`hint-text-${step.step_id}`} className="mn-hint-panel__text">{hintText}</p>
         </aside>
       )}
 
+      {/* First-incorrect: primary CTA = 看提示 (NOT submit) */}
       {!hintText && !submitted && (attemptsCount > 0 || phase === "presenting") && (
         <button
           type="button"
-          className="mn-button mn-button--ghost"
-          data-testid="hint-toggle"
+          className="mn-button mn-button--primary"
+          data-testid="hint-cta"
           onClick={onHint}
-          aria-expanded={false}
         >看提示</button>
       )}
 
-      {submitted && lastVerdict === "incorrect" && (
+      {/* After submit: primary action depends on verdict + reveal policy */}
+      {submitted && lastVerdict === "incorrect" && !reveal && (
         <div className="mn-actions">
           <button
             type="button"
-            className="mn-button"
+            className="mn-button mn-button--primary"
+            data-testid="hint-cta-after"
+            onClick={onHint}
+          >看提示</button>
+          <button
+            type="button"
+            className="mn-button mn-button--ghost"
             data-testid="retry-button"
             onClick={onRetry}
-          >再試一次</button>
+          >換一個答案</button>
         </div>
       )}
 
-      {submitted && (
+      {submitted && reveal && (
         <div
           className={`mn-feedback mn-feedback--${lastVerdict === "correct" ? "correct" : "incorrect"}`}
           data-testid={`feedback-${lastVerdict === "correct" ? "correct" : "incorrect"}`}
           data-state={lastVerdict === "correct" ? "correct" : "incorrect"}
         >
-          {lastVerdict === "correct" ? (
-            <>
-              <span className="mn-feedback-icon" aria-hidden="true">✓</span>
-              <span>答對了！{step.expected_answer} 是正確答案。</span>
-            </>
-          ) : (
-            <>
-              <span className="mn-feedback-icon" aria-hidden="true">✗</span>
-              <span>再試一次，正確答案是 {step.expected_answer}。</span>
-            </>
-          )}
+          <span className="mn-feedback-icon" aria-hidden="true">{lastVerdict === "correct" ? "✓" : "✓"}</span>
+          <span>
+            {lastVerdict === "correct"
+              ? `答對了！${step.expected_answer} 是正確答案。`
+              : `正確答案是 ${step.expected_answer}。`}
+          </span>
+        </div>
+      )}
+
+      {submitted && lastVerdict === "correct" && !reveal && (
+        // Defensive: correct should always reveal, but if hintsUsed is 0 for
+        // some reason, we still want the success message.
+        <div
+          className="mn-feedback mn-feedback--correct"
+          data-testid="feedback-correct"
+          data-state="correct"
+        >
+          <span className="mn-feedback-icon" aria-hidden="true">✓</span>
+          <span>答對了！</span>
         </div>
       )}
 
@@ -543,16 +631,18 @@ function InputSubtree(props: {
 // ─── Subtree: unsupported (deferred to 5C-2/5C-3) ──────────────────────────
 
 function UnsupportedNotice(props: { step: SessionStep; reason: string }) {
+  // No internal reason text exposed to children.
   return (
     <section
       className="mn-card mn-question-card"
       data-testid={`question-${props.step.step_id}`}
       data-state="unsupported"
+      aria-label="本題暫不支援"
     >
       <header className="mn-card-header">
         <span className="mn-tag">本題暫不支援</span>
       </header>
-      <p data-testid="unsupported-reason">{props.reason}</p>
+      <p>老師正在準備這個題型，請先練習別的題目。</p>
     </section>
   );
 }

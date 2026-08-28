@@ -576,8 +576,114 @@ body {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Phase 5C-1 — Child Home + Session + Summary styles
+   Phase 5C-1.1 — Child Home + Session + Summary styles
    ────────────────────────────────────────────────────────────────────────── */
+
+/* Quiet, warm header.  No wordmark, no tabs, no colour-mode toggle inline. */
+.mn-app-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--mn-semantic_colors-roles-border, #E4E7EB);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--mn-semantic_colors-roles-surface, #FFFFFF);
+}
+
+.mn-app-header--quiet {
+  padding-block: 0.5rem;
+}
+
+.mn-app-header__brand {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--mn-border_radius-scale_rem-md, 0.5rem);
+  background: var(--mn-semantic_colors-roles-primary_button, #1d5fb6);
+  color: var(--mn-semantic_colors-roles-text_inverse, #FFFFFF);
+  font-weight: var(--mn-typography-weight_tokens-bold, 700);
+}
+
+.mn-app-header__brand-mark {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.mn-app-header__title {
+  margin: 0;
+  flex: 1;
+  font-size: calc(var(--mn-typography-scale_rem-body_lg, 1.125) * 1rem);
+  font-weight: var(--mn-typography-weight_tokens-semibold, 600);
+}
+
+.mn-app-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mn-app-header__gear {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--mn-border_radius-scale_rem-md, 0.5rem);
+  background: transparent;
+  color: var(--mn-semantic_colors-roles-text_primary, #1F2933);
+  cursor: pointer;
+}
+
+.mn-app-header__gear:hover {
+  background: var(--mn-semantic_colors-roles-surface_alt, #F5F7FA);
+}
+
+/* Quiet header during question focus — collapses to a slim progress strip.
+   Applied via [data-mode="question-focus"] on body.  Currently a no-op in
+   the React tree; reserved for future orchestrator integration. */
+body[data-mode="question-focus"] .mn-app-header {
+  padding-block: 0.25rem;
+}
+body[data-mode="question-focus"] .mn-app-header__brand,
+body[data-mode="question-focus"] .mn-app-header__title {
+  display: none;
+}
+
+.mn-keypad__toggle {
+  width: 100%;
+  margin-top: 0.25rem;
+  border: 1px dashed var(--mn-semantic_colors-roles-border, #E4E7EB);
+  background: transparent;
+}
+
+.mn-keypad__hint {
+  margin: 0.25rem 0 0;
+  font-size: calc(var(--mn-typography-scale_rem-body_sm, 0.875) * 1rem);
+  color: var(--mn-semantic_colors-roles-text_secondary, #52606D);
+}
+
+.mn-keypad--collapsed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mn-hint-pill {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: var(--mn-typography-weight_tokens-bold, 700);
+  background: var(--mn-state_colors-hint-base, #F9A825);
+  color: var(--mn-semantic_colors-roles-text_inverse, #FFFFFF);
+  border-radius: 999px;
+}
+
+.mn-hint-panel__text {
+  margin: 0.25rem 0 0;
+}
 
 .mn-tabs {
   display: flex;
@@ -668,4 +774,99 @@ body {
 
 .mn-error-card {
   border: 2px solid var(--mn-state_colors-error-text, #7F0000);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Phase 5C-1.1 — Settings dialog
+   ────────────────────────────────────────────────────────────────────────── */
+
+.mn-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 41, 51, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.mn-settings-dialog {
+  max-width: 28rem;
+  width: 100%;
+  background: var(--mn-semantic_colors-roles-surface, #FFFFFF);
+  border: 1px solid var(--mn-semantic_colors-roles-border, #E4E7EB);
+  border-radius: var(--mn-border_radius-scale_rem-lg, 0.75rem);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.mn-settings-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mn-settings-dialog__title {
+  margin: 0;
+  font-size: calc(var(--mn-typography-scale_rem-body_lg, 1.125) * 1rem);
+}
+
+.mn-settings-dialog__close {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--mn-border_radius-scale_rem-md, 0.5rem);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--mn-semantic_colors-roles-text_primary, #1F2933);
+}
+
+.mn-settings-dialog__close:hover {
+  background: var(--mn-semantic_colors-roles-surface_alt, #F5F7FA);
+}
+
+.mn-settings-dialog__desc {
+  margin: 0;
+  font-size: calc(var(--mn-typography-scale_rem-body_sm, 0.875) * 1rem);
+  color: var(--mn-semantic_colors-roles-text_secondary, #52606D);
+}
+
+.mn-settings-dialog__modes {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mn-settings-dialog__mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--mn-semantic_colors-roles-border, #E4E7EB);
+  border-radius: var(--mn-border_radius-scale_rem-md, 0.5rem);
+  cursor: pointer;
+}
+
+.mn-settings-dialog__mode-option:has(input:checked) {
+  border-color: var(--mn-semantic_colors-roles-primary_button, #1d5fb6);
+  background: var(--mn-semantic_colors-roles-surface_alt, #F5F7FA);
+}
+
+.mn-settings-dialog__mode-label {
+  font-weight: var(--mn-typography-weight_tokens-semibold, 600);
+}
+
+.mn-settings-dialog__mode-desc {
+  font-size: calc(var(--mn-typography-scale_rem-body_sm, 0.875) * 1rem);
+  color: var(--mn-semantic_colors-roles-text_secondary, #52606D);
 }

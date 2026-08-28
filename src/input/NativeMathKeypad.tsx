@@ -41,6 +41,19 @@ export interface NativeMathKeypadProps {
   submit_disabled?: boolean;
   /** Submit button label. */
   submit_label?: string;
+  /**
+   * Phase 5C-1.1: collapse-control.
+   * If `toggleable === true`, a single "顯示 / 隱藏 數字鍵盤" ghost button
+   * is rendered. `default_visible` controls initial state.
+   * When `toggleable === false` (default), the keypad is always visible
+   * and the collapse toggle is not shown.
+   *
+   * INV-CL-3 + INV-CL-4 spirit: the keypad must never dominate the
+   * question card.  Mobile/tablet callers pass `default_visible = true`;
+   * desktop callers pass `default_visible = false`.
+   */
+  toggleable?: boolean;
+  default_visible?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -334,6 +347,32 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
 
   const displayIsEmpty = state.value.kind === "empty" || state.value.kind === "fraction_partial";
 
+  // Phase 5C-1.1 — collapse control (child input contract).
+  const collapsible = props.toggleable === true;
+  const [visible, setVisible] = useState<boolean>(props.default_visible ?? true);
+
+  // When the keypad is hidden, render only the toggle button + a short
+  // status hint.  Otherwise render the full keypad.
+  if (collapsible && !visible) {
+    return (
+      <div className="mn-keypad mn-keypad--collapsed" data-testid="native-math-keypad" data-mode={props.mode ?? "any"} data-collapsed="true">
+        <button
+          type="button"
+          className="mn-button mn-button--ghost mn-keypad__toggle"
+          data-testid="keypad-toggle"
+          aria-expanded={false}
+          aria-controls="native-math-keypad-panel"
+          onClick={() => setVisible(true)}
+        >
+          顯示數字鍵盤
+        </button>
+        <p className="mn-keypad__hint" id="native-math-keypad-panel-hint">
+          你也可以直接用裝置的鍵盤輸入。
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
       className="mn-keypad"
@@ -345,6 +384,8 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
       data-mode={props.mode ?? "any"}
       data-value-kind={state.value.kind}
       data-display-empty={displayIsEmpty}
+      id="native-math-keypad-panel"
+      aria-describedby={collapsible ? "native-math-keypad-panel-hint" : undefined}
     >
       <div
         className="mn-keypad__display"
@@ -414,6 +455,23 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
       >
         {props.submit_label ?? "送出"}
       </button>
+      {collapsible && (
+        <button
+          type="button"
+          className="mn-button mn-button--ghost mn-keypad__toggle"
+          data-testid="keypad-toggle"
+          aria-expanded={true}
+          aria-controls="native-math-keypad-panel"
+          onClick={() => setVisible(false)}
+        >
+          隱藏數字鍵盤
+        </button>
+      )}
+      {collapsible && (
+        <p className="mn-keypad__hint" id="native-math-keypad-panel-hint">
+          你也可以直接用裝置的鍵盤輸入。
+        </p>
+      )}
     </div>
   );
 }
