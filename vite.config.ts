@@ -4,7 +4,16 @@ import path from 'node:path';
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5173, strictPort: false },
+  server: {
+    port: 5173,
+    strictPort: false,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
   build: { outDir: 'dist', sourcemap: true },
   resolve: {
     alias: {

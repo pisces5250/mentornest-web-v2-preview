@@ -39,6 +39,9 @@ import {
   generateFractionBarSVG,
   generateAreaModelSVG,
 } from "../math-rendering/math_visual_engine_render.mjs";
+import { OpenResponseComposer } from "../input/OpenResponseComposer";
+import { VoiceRecorder } from "../input/VoiceRecorder";
+import { TTSPlayer } from "../input/TTSPlayer";
 
 // View-layer KP ID → child-facing zh-TW phrase.
 const KP_PHRASE_ZH: Record<string, string> = {
@@ -60,7 +63,9 @@ export type QuestionType =
   | "integer_input"
   | "decimal_input"
   | "short_answer"
-  | "true_false";
+  | "true_false"
+  | "open_response"
+  | "voice_response";
 
 export interface SessionStep {
   step_id: string;
@@ -264,6 +269,27 @@ export function QuestionRenderer(props: QuestionRendererProps) {
         onHint={onHint}
         onRetry={onRetry}
         onRepresentationSwitch={onRepresentationSwitch}
+        goalPhrase={goalPhrase}
+      />
+    );
+  }
+
+  if (
+    step.question_type === "open_response" ||
+    step.question_type === "voice_response"
+  ) {
+    return (
+      <OpenResponseSubtree
+        step={step}
+        spec={spec}
+        ageBand={ageBand}
+        lastVerdict={lastVerdict}
+        phase={phase}
+        hintsUsed={hintsUsed}
+        attemptsCount={attemptsCount}
+        onSubmit={onSubmit}
+        onRetry={onRetry}
+        onHint={onHint}
         goalPhrase={goalPhrase}
       />
     );
@@ -739,6 +765,205 @@ function InputSubtree(props: {
       </div>
 
       <span role="status" aria-live="polite" className="mn-sr-only" data-testid={`sr-status-${step.step_id}`}>{liveMsg}</span>
+    </section>
+  );
+}
+
+// ─── Subtree: open response / voice response ───────────────────────────────
+//
+// Phase 5C-2 — Text explain-thinking + voice capture.  Quiet Graph layout
+// (single column, no decorative chrome).  Same hint/feedback row as the
+// other subtrees so INV-AP-56-2 (no answer reveal on first incorrect)
+// carries across.
+
+function OpenResponseSubtree(props: {
+  step: SessionStep;
+  spec: any;
+  ageBand: string;
+  lastVerdict: string | null;
+  phase: string;
+  attemptsCount: number;
+  hintsUsed: number;
+  goalPhrase: string;
+  onSubmit: (args: any) => void;
+  onRetry: () => void;
+  onHint: () => void;
+}) {
+  const {
+    step, lastVerdict, phase, attemptsCount, hintsUsed, goalPhrase,
+    onSubmit, onRetry, onHint,
+  } = props;
+  const [mode, setMode] = useState<"text" | "voice">(
+    step.question_type === "voice_response" ? "voice" : "text"
+  );
+
+  // Open response is rubric-graded; we never claim correct/incorrect.
+  // We surface a "received" verdict that drives hint row / advance flow.
+  const submitted = lastVerdict !== null;
+
+  const handleTextSubmit = useCallback((text: string) => {
+    onSubmit({
+      verdict: "unverifiable", // rubric interpretation deferred to specialist
+      error_type: null,
+      response_kind: "open_response_text",
+      response_length_chars: text.length,
+      response_text: text, // session input only; never persisted
+    });
+  }, [onSubmit]);
+
+  const handleVoiceSubmit = useCallback((transcript: string) => {
+    onSubmit({
+      verdict: "unverifiable",
+      error_type: null,
+      response_kind: "open_response_voice",
+      response_length_chars: transcript.length,
+      transcript: transcript, // session input only; never persisted
+      transcript_hash: null,
+    });
+  }, [onSubmit]);
+
+  // Hint row: same semantics as MC / InputSubtree.
+  const hintActive = lastVerdict === "incorrect" && !shouldRevealAnswer(phase, hintsUsed, lastVerdict, false);
+  const hintLabel =
+    lastVerdict === "correct" ? "答對了"
+    : submitted ? "已收到你的回答"
+    : hintActive ? "再試一次"
+    : hintsUsed > 0 ? `提示 ${Math.min(hintsUsed, MAX_HINT_LEVEL)}/${MAX_HINT_LEVEL}`
+    : null;
+  const hintBody =
+    lastVerdict === "correct" ? "很好，繼續下一題。"
+    : submitted ? "老師會看你的回答，再給你回饋。"
+    : hintActive ? "再仔細看看題目，或者按下面的「看提示」。"
+    : null;
+  const hintTone =
+    lastVerdict === "correct" ? "moss"
+    : submitted ? "ink"
+    : hintActive ? "amber"
+    : hintsUsed > 0 ? (hintsUsed >= 2 ? "amber" : "moss")
+    : "ink";
+
+  return (
+    <section
+      className="mn-question-card"
+      data-testid={`question-${step.step_id}`}
+      data-question-type={step.question_type}
+      data-state={submitted ? "submitted" : "presented"}
+      aria-label={`題目：${step.stem}`}
+    >
+      <div className="mn-question-card__meta">
+        <div className="mn-question-card__meta-left">
+          <span className="mn-tag">
+            {goalPhrase}
+          </span>
+          <span className="mn-tag mn-tag--quiet">
+            {step.question_type === "voice_response" ? "語音回答" : "文字回答"}
+          </span>
+        </div>
+        <div className="mn-question-card__meta-right">
+          <TTSPlayer text={step.stem} ariaLabel="朗讀題目" />
+        </div>
+      </div>
+
+      <div className="mn-question-card__stem-wrap">
+        <p className="mn-question-card__stem">{step.stem}</p>
+      </div>
+
+      {/* Hint / feedback row (zero layout when no hint) */}
+      {hintLabel && (
+        <div
+          className={`mn-hint-row mn-hint-row--${hintTone}`}
+          data-testid={`hint-row-${step.step_id}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="mn-hint-row__label">{hintLabel}</span>
+          {hintBody && <span className="mn-hint-row__body">{hintBody}</span>}
+        </div>
+      )}
+
+      <div className="mn-question-card__answer-area">
+        {!submitted && step.question_type === "open_response" && (
+          <OpenResponseComposer
+            stepId={step.step_id}
+            ariaLabel="寫下你的想法"
+            prompt="在這裡寫下你的想法…"
+            maxLength={500}
+            recommendedLength={120}
+            onSubmit={handleTextSubmit}
+          />
+        )}
+        {!submitted && step.question_type === "voice_response" && (
+          <>
+            {mode === "voice" ? (
+              <VoiceRecorder
+                stepId={step.step_id}
+                language="auto"
+                ariaLabel="用說的"
+                onSubmit={handleVoiceSubmit}
+              />
+            ) : (
+              <OpenResponseComposer
+                stepId={step.step_id}
+                ariaLabel="寫下你的想法"
+                prompt="在這裡寫下你的想法…"
+                maxLength={500}
+                recommendedLength={120}
+                onSubmit={handleTextSubmit}
+              />
+            )}
+            <div className="mn-question-card__mode-switch">
+              {mode === "voice" ? (
+                <button
+                  type="button"
+                  className="mn-action mn-action--ghost"
+                  onClick={() => setMode("text")}
+                  data-testid="switch-to-text"
+                >
+                  改用文字回答
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="mn-action mn-action--ghost"
+                  onClick={() => setMode("voice")}
+                  data-testid="switch-to-voice"
+                >
+                  改用語音回答
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {submitted && (
+          <div className="mn-question-card__submitted" role="status">
+            <CheckIcon />
+            <span>已收到你的回答。</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mn-question-card__actions">
+        <button
+          type="button"
+          className="mn-action mn-action--ghost"
+          onClick={onRetry}
+          data-testid="reset-question"
+          disabled={!submitted}
+        >
+          重來
+        </button>
+        {!submitted && (
+          <button
+            type="button"
+            className="mn-action mn-action--primary"
+            onClick={onHint}
+            data-testid="show-hint"
+          >
+            看提示
+          </button>
+        )}
+      </div>
     </section>
   );
 }

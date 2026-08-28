@@ -15,11 +15,31 @@
 import React, { useRef, useState } from "react";
 import { ChildHome } from "../session/ChildHome";
 import { FIXTURE_G5_FRAC } from "../session/fixtures.mjs";
+import { FIXTURE_P5C2 } from "../session/fixtures_p5c2.mjs";
 import { ColorModeController } from "../components/ColorMode";
 import { SettingsDialog, type ColorMode } from "../components/SettingsDialog";
 import { GridBackground } from "../components/GridBackground";
 
 const USE_FIXTURES = true;
+const ALL_FIXTURES = [...FIXTURE_G5_FRAC, ...FIXTURE_P5C2];
+
+// Phase 5C-2 acceptance: ?qtype=open_response|voice_response|english
+// maps to a fixture step_id so the acceptance script can target a
+// specific question_type without rebuilding the session flow.
+function resolveAcceptanceOverride(): { kp: string; stepId: string } | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const qtype = params.get("qtype");
+  if (!qtype) return null;
+  const map: Record<string, { kp: string; stepId: string }> = {
+    open_response: { kp: "math.G5.FRAC.add-unlike-denom", stepId: "p5c2_open_text_g5_001" },
+    voice_response: { kp: "math.G5.FRAC.add-unlike-denom", stepId: "p5c2_open_voice_g5_001" },
+    english_voice: { kp: "english.G5.READ.passage-read-aloud", stepId: "p5c2_eng_read_g5_001" },
+  };
+  return map[qtype] || null;
+}
+
+const acceptance = resolveAcceptanceOverride();
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -66,11 +86,12 @@ export function App() {
               <ChildHome
                 studentId="student_t_phase5c_session"
                 ageBand="G5-G6"
-                defaultSubject="math"
-                defaultKnowledgePoint="math.G5.FRAC.add-unlike-denom"
+                defaultSubject={acceptance ? (acceptance.stepId.startsWith("p5c2_eng_") ? "english" : "math") : "math"}
+                defaultKnowledgePoint={acceptance ? acceptance.kp : "math.G5.FRAC.add-unlike-denom"}
                 sessionStorageKey="mentornest.session.v1"
                 useFixtures={USE_FIXTURES}
-                fixtureSteps={USE_FIXTURES ? FIXTURE_G5_FRAC : undefined}
+                fixtureSteps={USE_FIXTURES ? ALL_FIXTURES : undefined}
+                forcedStepId={acceptance?.stepId}
               />
             </main>
             <SettingsDialog

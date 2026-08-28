@@ -63,10 +63,12 @@ export interface ChildHomeProps {
   onSessionEnd?: (finalSession: SessionState) => void;
   useFixtures?: boolean;
   fixtureSteps?: ReadonlyArray<any>;
+  /** Phase 5C-2 acceptance-only: pin session to one specific fixture step_id. */
+  forcedStepId?: string | null;
 }
 
 export function ChildHome(props: ChildHomeProps) {
-  const { studentId, ageBand, defaultSubject = "math", defaultKnowledgePoint = "", sessionStorageKey = "mentornest.session.v1", onSessionEnd, useFixtures = false, fixtureSteps } = props;
+  const { studentId, ageBand, defaultSubject = "math", defaultKnowledgePoint = "", sessionStorageKey = "mentornest.session.v1", onSessionEnd, useFixtures = false, fixtureSteps, forcedStepId = null } = props;
 
   const [session, setSession] = useState<SessionState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,7 +128,33 @@ export function ChildHome(props: ChildHomeProps) {
         useFixtures,
         fixtureSteps,
       });
-      setSession(built);
+      // Phase 5C-2 acceptance-only: if forcedStepId is set, swap the
+      // session to a single-step session pinned to that fixture.
+      let finalSession = built;
+      if (forcedStepId && Array.isArray(fixtureSteps)) {
+        const pinned = fixtureSteps.find((s: any) => s.step_id === forcedStepId);
+        if (pinned) {
+          // Re-normalize through sessionInitial so the step carries
+          // attempts/hints_used/representation_switches/last_verdict/phase.
+          finalSession = {
+            ...built,
+            steps: [pinned],
+            current_index: 0,
+          };
+          try {
+            const { sessionInitial } = await import("./session-state.mjs");
+            finalSession = sessionInitial({
+              student_id: studentId,
+              age_band: ageBand,
+              session_id: built.session_id,
+              steps: [pinned],
+            });
+          } catch (e) {
+            // fall through to the manually-shaped finalSession
+          }
+        }
+      }
+      setSession(finalSession);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     } finally {
