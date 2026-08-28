@@ -412,8 +412,6 @@ a { color: inherit; }
   gap: var(--mn-qg-sp-3);
   align-items: center;
 }
-.mn-actions--home { flex-direction: column; align-items: stretch; }
-.mn-actions--home .mn-button--primary { min-height: 52px; font-size: 1rem; font-weight: 600; }
 .mn-actions--cta-right { justify-content: space-between; }
 .mn-actions--cta-right .mn-button--primary { margin-left: auto; }
 
@@ -447,100 +445,110 @@ a { color: inherit; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
- * CHILD HOME — three viewports
- * Layout: desktop two-column with hairline divider; tablet narrower
- * two-column; mobile single-column with explicit hairline rules between
- * regions (per sign-off 2026-08-28 13:29 UTC).
+ * CHILD HOME — single-column flow (Round 7, post-anchor feedback).
+ *
+ * Three regions stacked vertically:
+ *   1. .mn-home__header  — tag strip + headline + subhead
+ *   2. .mn-home__plan    — surface lift + plan rows + progress + resume
+ *   3. .mn-home__actions — single primary CTA
+ *
+ * No decorative tiles (Round 5 + − × ÷ anchor removed in Round 7).
  * ───────────────────────────────────────────────────────────────────── */
 
-.mn-home-card {
-  display: grid;
-  gap: var(--mn-qg-sp-6);
-}
-
-/* Desktop + tablet default = two columns. */
-.mn-home-card__grid {
-  display: grid;
-  gap: var(--mn-qg-sp-7);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
-  align-items: start;
-}
-
-.mn-home-card__identity {
+.mn-home {
   display: flex;
   flex-direction: column;
-  gap: var(--mn-qg-sp-4);
+  gap: var(--mn-qg-sp-7);
+  padding: var(--mn-qg-sp-6) 0;
 }
 
-.mn-home-card__meta-strip {
-  font-family: var(--mn-qg-font-mono);
-  font-size: var(--mn-qg-fs-mono-cap);
-  letter-spacing: 0.06em;
-  color: var(--mn-qg-ink-faint);
-  text-transform: uppercase;
+.mn-home__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mn-qg-sp-3);
+  max-width: 56ch;
 }
 
-.mn-home-card__headline {
-  font-size: var(--mn-qg-fs-title-lg);
+.mn-home__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-3);
+  flex-wrap: wrap;
+}
+
+.mn-home__headline {
+  font-size: var(--mn-qg-fs-display);
   font-weight: 600;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--mn-qg-ink);
+  max-width: 24ch;
 }
 
-.mn-home-card__body {
+.mn-home__subhead {
   font-size: var(--mn-qg-fs-body-lg);
   color: var(--mn-qg-ink-soft);
   margin: 0;
-  max-width: 36ch;
+  max-width: 56ch;
 }
 
-.mn-home-card__practice {
-  display: flex;
-  flex-direction: column;
+.mn-home__plan {
+  display: grid;
   gap: var(--mn-qg-sp-4);
   padding: var(--mn-qg-sp-5);
   background: var(--mn-qg-surface);
   border: var(--mn-qg-border-1);
   border-radius: var(--mn-qg-radius);
+  max-width: 640px;
 }
 
-.mn-home-card__info-row {
+.mn-home__plan-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mn-qg-sp-3);
+  padding-bottom: var(--mn-qg-sp-3);
+  border-bottom: var(--mn-qg-border-1);
+}
+
+.mn-home__plan-title {
+  font-size: var(--mn-qg-fs-title-sm);
+  font-weight: 600;
+  margin: 0;
+  color: var(--mn-qg-ink);
+}
+
+.mn-home__plan-rows {
   display: grid;
   grid-template-columns: max-content 1fr;
-  column-gap: var(--mn-qg-sp-4);
+  column-gap: var(--mn-qg-sp-5);
   row-gap: var(--mn-qg-sp-3);
   align-items: baseline;
 }
 
-.mn-home-card__info-item {
-  display: contents;
-}
-
-.mn-home-card__info-label {
+.mn-home__plan-label {
   font-family: var(--mn-qg-font-mono);
   font-size: var(--mn-qg-fs-mono-cap);
   letter-spacing: 0.06em;
   color: var(--mn-qg-ink-faint);
   text-transform: uppercase;
-  align-self: baseline;
 }
 
-.mn-home-card__info-value {
+.mn-home__plan-value {
   font-family: var(--mn-qg-font-mono);
   font-size: var(--mn-qg-fs-body);
   color: var(--mn-qg-ink);
 }
 
-.mn-home-card__progress {
+.mn-home__progress {
   position: relative;
-  height: 6px;
-  background: rgba(34, 40, 49, 0.08);
+  height: 4px;
+  background: rgba(34, 40, 49, 0.10);
   border-radius: var(--mn-qg-radius-disc);
   overflow: hidden;
-  margin-top: var(--mn-qg-sp-2);
 }
-.mn-home-card__progress-fill {
+
+.mn-home__progress-fill {
   position: absolute;
   inset: 0 auto 0 0;
   background: var(--mn-qg-moss);
@@ -548,38 +556,33 @@ a { color: inherit; }
   transition: width var(--mn-qg-dur-layout) var(--mn-qg-ease);
 }
 
-.mn-home-card__resume-note {
-  font-family: var(--mn-qg-font-mono);
-  font-size: var(--mn-qg-fs-mono-small);
-  color: var(--mn-qg-ink-soft);
-  margin: 0;
+.mn-home__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mn-qg-sp-3);
+  max-width: 640px;
 }
 
-/* Mobile = single column with hairline rules between regions. */
-@media (max-width: 720px) {
-  .mn-app-header { height: 48px; padding: 0 var(--mn-qg-sp-4); }
-  .mn-app-main { padding: var(--mn-qg-sp-4) var(--mn-qg-sp-4); }
-  .mn-home-card__grid {
-    grid-template-columns: 1fr;
-    gap: var(--mn-qg-sp-5);
-  }
-  .mn-home-card__identity {
-    padding-bottom: var(--mn-qg-sp-5);
-    border-bottom: var(--mn-qg-border-1);
-  }
-  .mn-home-card__headline { font-size: var(--mn-qg-fs-title-md); }
-  .mn-home-card__practice {
-    padding: var(--mn-qg-sp-4);
-  }
-  .mn-app-header__progress-rule { display: none; }
+.mn-home__status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-3);
+  flex-wrap: wrap;
+}
 
-  /* Round 5: nudge body + stem + headline up one step on mobile so
-   * G5-G6 readers on a 390px viewport get ≥16px body and ≥1.5rem stem. */
-  body { font-size: 1.0625rem; }
-  .mn-home-card__headline { font-size: 1.625rem; }
-  .mn-home-card__body { font-size: 1.0625rem; }
-  .mn-question-stem { font-size: 1.5rem; }
-  .mn-question-card__stem-wrap { padding: var(--mn-qg-sp-4) 0; }
+/* Mobile = headline down one step, plan rows collapse to single column. */
+@media (max-width: 720px) {
+  .mn-home {
+    gap: var(--mn-qg-sp-6);
+    padding: var(--mn-qg-sp-5) 0;
+  }
+  .mn-home__headline { font-size: var(--mn-qg-fs-title-lg); }
+  .mn-home__plan { padding: var(--mn-qg-sp-4); }
+  .mn-home__plan-rows {
+    grid-template-columns: 1fr;
+    row-gap: var(--mn-qg-sp-1);
+  }
+  .mn-home__plan-label { padding-top: var(--mn-qg-sp-2); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -1496,37 +1499,10 @@ a { color: inherit; }
   font-feature-settings: "tnum" 1;
 }
 
-/* Round 5: home visual anchor (decorative geometric pattern on the
- * identity column).  Pure CSS, no SVG asset, no mascot. */
-.mn-home-anchor {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--mn-qg-sp-3);
-  margin-top: var(--mn-qg-sp-3);
-}
-.mn-home-anchor__tile {
-  aspect-ratio: 1 / 1;
-  border: 1px solid var(--mn-qg-hairline);
-  border-radius: var(--mn-qg-radius);
-  background: var(--mn-qg-surface);
-  display: grid;
-  place-items: center;
-  font-family: var(--mn-qg-font-mono);
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--mn-qg-ink-soft);
-}
-.mn-home-anchor__tile[data-tone="moss"] {
-  border-color: var(--mn-qg-moss);
-  color: var(--mn-qg-moss);
-}
-
-/* Round 5: home CTA primary must be heavier.  Already primary fills
- * via .mn-button--primary; here we ensure the home layout stacks
- * primary above secondary with proper spacing. */
-.mn-actions--home { gap: var(--mn-qg-sp-3); }
-.mn-actions--home .mn-button--primary { min-height: 56px; font-size: 1.0625rem; font-weight: 600; }
-.mn-actions--home .mn-button--secondary { min-height: 40px; }
+/* Round 5 home anchor (.mn-home-anchor / .mn-home-anchor__tile) and
+ * .mn-actions--home were removed in Round 7 (2026-08-28) — anchor
+ * tiles looked like functional UI to parents/children, so they were
+ * dropped to honour Quiet Graph's no-decoration principle. */
 
 /* Round 5: full-width primary CTA for SessionSummaryView "back to home". */
 .mn-summary-cta-row {

@@ -164,98 +164,98 @@ export function ChildHome(props: ChildHomeProps) {
 
   return (
     <section
-      className="mn-home-card"
+      className="mn-home"
       data-testid="child-home"
       data-age-band={ageBand}
       data-student-id={studentId}
       data-resume-available={resumeAvailable ? "true" : "false"}
     >
-      <div className="mn-home-card__grid">
-        {/* Identity column: tag, headline, body, mono meta strip,
-         * plus the Round-5 visual anchor (decorative 2x2 tile block).
-         * The anchor fills the empty whitespace that the Round-4
-         * screenshot flagged as "wireframe-y"; no mascot, no
-         * illustration asset — pure CSS geometric tiles. */}
-        <div className="mn-home-card__identity">
+      {/* Identity block: tag + headline + body.  No decorative tiles
+       * (Round 7 designer feedback: the + − × ÷ anchor block looked
+       * like functional UI to parents/children, but it was pure
+       * decoration; removed to honour Quiet Graph's no-decoration
+       * principle). */}
+      <header className="mn-home__header">
+        <div className="mn-home__meta">
           <span className="mn-tag">今日練習</span>
-          <h1 className="mn-home-card__headline" data-testid="home-headline">
-            {resumeAvailable ? "歡迎回來" : "嗨，今天準備好了嗎？"}
-          </h1>
-          <p className="mn-home-card__body" data-testid="home-body">
-            {resumeAvailable
-              ? "從上次停下的地方接著練習就好。"
-              : "今天的練習是為你準備的，慢慢寫就好。"}
-          </p>
-          <span className="mn-home-card__meta-strip">
+          <span className="mn-status-badge">
             {`GRADE ${ageBand.replace("G", "")} · ${(defaultSubject ?? "math").toUpperCase()}`}
           </span>
-          <div className="mn-home-anchor" aria-hidden="true" data-testid="home-anchor">
-            <span className="mn-home-anchor__tile" data-tone="moss">+</span>
-            <span className="mn-home-anchor__tile">−</span>
-            <span className="mn-home-anchor__tile">×</span>
-            <span className="mn-home-anchor__tile">÷</span>
-          </div>
+        </div>
+        <h1 className="mn-home__headline" data-testid="home-headline">
+          {resumeAvailable ? "歡迎回來" : "嗨，今天準備好了嗎？"}
+        </h1>
+        <p className="mn-home__subhead" data-testid="home-body">
+          {resumeAvailable
+            ? "從上次停下的地方接著練習就好。"
+            : "今天的練習是為你準備的，慢慢寫就好。"}
+        </p>
+      </header>
+
+      {/* Practice card: surface lift + hairline + plan rows. */}
+      <div className="mn-home__plan" data-testid="home-plan">
+        <div className="mn-home__plan-head">
+          <h2 className="mn-home__plan-title">今天要做什麼</h2>
         </div>
 
-        {/* Practice column: surface_alt + hairline.  Single primary CTA. */}
-        <div className="mn-home-card__practice">
-          <div className="mn-home-card__info-row" data-testid="home-info-row">
-            <span className="mn-home-card__info-label">主題</span>
-            <span className="mn-home-card__info-value" data-testid="home-topic">{topicPhrase}</span>
-            <span className="mn-home-card__info-label">預估時間</span>
-            <span className="mn-home-card__info-value" data-testid="home-duration">{durationLabel}</span>
-            {progressFraction !== null && (
-              <>
-                <span className="mn-home-card__info-label">上次進度</span>
-                <span className="mn-home-card__info-value" data-testid="home-progress-label">
-                  {`已完成 ${Math.max(0, (resumeAtIndex ?? 1) - 1)} / ${resumeSteps} 題`}
-                </span>
-              </>
-            )}
-          </div>
+        <div className="mn-home__plan-rows" data-testid="home-info-row">
+          <span className="mn-home__plan-label">主題</span>
+          <span className="mn-home__plan-value" data-testid="home-topic">{topicPhrase}</span>
+
+          <span className="mn-home__plan-label">預估時間</span>
+          <span className="mn-home__plan-value" data-testid="home-duration">{durationLabel}</span>
 
           {progressFraction !== null && (
-            <div
-              className="mn-home-card__progress"
-              role="progressbar"
-              aria-label="上次進度"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progressPercent}
-              data-testid="home-progress"
-            >
-              <span
-                className="mn-home-card__progress-fill"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          )}
-
-          {resumeAvailable && resumeAtIndex !== null && (
-            <p className="mn-home-card__resume-note" data-testid="home-resume-note">
-              <span className="mn-status-badge mn-status-badge--mono" data-tone="ink">
-                從第 {resumeAtIndex} 題接上
+            <>
+              <span className="mn-home__plan-label">上次進度</span>
+              <span className="mn-home__plan-value" data-testid="home-progress-label">
+                {`已完成 ${Math.max(0, (resumeAtIndex ?? 1) - 1)} / ${resumeSteps} 題`}
               </span>
-            </p>
+            </>
           )}
-
-          {error && (
-            <div className="mn-error" role="alert" data-testid="home-error">{error}</div>
-          )}
-
-          <div className="mn-actions mn-actions--home">
-            <button
-              type="button"
-              className="mn-button mn-button--primary"
-              data-testid="start-session"
-              onClick={handleStart}
-              disabled={loading}
-              aria-label={ctaLabel}
-            >
-              {ctaLabel}
-            </button>
-          </div>
         </div>
+
+        {progressFraction !== null && (
+          <div
+            className="mn-home__progress"
+            role="progressbar"
+            aria-label="上次進度"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            data-testid="home-progress"
+          >
+            <span
+              className="mn-home__progress-fill"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        )}
+
+        {resumeAvailable && resumeAtIndex !== null && (
+          <div className="mn-home__status-row" data-testid="home-resume-note">
+            <span className="mn-status-badge" data-tone="moss">
+              {`從第 ${resumeAtIndex} 題接上`}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Primary CTA.  Single button, full-width on mobile. */}
+      <div className="mn-home__actions">
+        {error && (
+          <div className="mn-error" role="alert" data-testid="home-error">{error}</div>
+        )}
+        <button
+          type="button"
+          className="mn-button mn-button--primary mn-button--lg"
+          data-testid="start-session"
+          onClick={handleStart}
+          disabled={loading}
+          aria-label={ctaLabel}
+        >
+          {ctaLabel}
+        </button>
       </div>
 
       <span role="status" aria-live="polite" className="mn-sr-only" data-testid="sr-status-home">
