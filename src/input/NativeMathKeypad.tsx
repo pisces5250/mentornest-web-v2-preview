@@ -366,24 +366,78 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
     setVisible(v);
   }, []);
 
-  // When the keypad is hidden, render only the toggle button + a short
-  // status hint.  Otherwise render the full keypad.
-  if (collapsible && !visible) {
-    return (
-      <div className="mn-keypad mn-keypad--collapsed" data-testid="native-math-keypad" data-mode={props.mode ?? "any"} data-collapsed="true">
+  // When the keypad is hidden, render the input fields (still the primary
+  // input) + a small toggle to bring back the on-screen keypad.  Otherwise
+  // render the input fields AND the keypad beneath them.  The fields are
+  // always present so the input is the primary visual at every viewport.
+  const renderDisplayFields = () => (
+    <div
+      className="mn-keypad__display"
+      aria-live="polite"
+      aria-atomic="true"
+      data-testid="keypad-display"
+    >
+      <div className="mn-keypad__field-row" data-active={state.active_field === "numerator"}>
+        <span className="mn-keypad__display-label">分子</span>
         <button
           type="button"
-          className="mn-button mn-button--ghost mn-keypad__toggle"
-          data-testid="keypad-toggle"
-          aria-expanded={false}
-          aria-controls="native-math-keypad-panel"
-          onClick={() => setVisibleAndMark(true)}
+          className="mn-keypad__field-button"
+          data-active={state.active_field === "numerator"}
+          onClick={() => dispatch({ type: "focus_field", field: "numerator" })}
+          aria-label="分子"
+          data-testid="keypad-numerator"
         >
-          顯示數字鍵盤
+          {numeratorBuf || "—"}
         </button>
-        <p className="mn-keypad__hint" id="native-math-keypad-panel-hint">
-          你也可以直接用裝置的鍵盤輸入。
-        </p>
+      </div>
+      <div className="mn-keypad__field-row" data-active={state.active_field === "denominator"}>
+        <span className="mn-keypad__display-label">分母</span>
+        <button
+          type="button"
+          className="mn-keypad__field-button"
+          data-active={state.active_field === "denominator"}
+          onClick={() => dispatch({ type: "focus_field", field: "denominator" })}
+          aria-label="分母"
+          data-testid="keypad-denominator"
+        >
+          {denominatorBuf || "—"}
+        </button>
+      </div>
+      <div className="mn-keypad__display-row" data-testid="keypad-preview" data-empty={displayIsEmpty}>
+        <span className="mn-keypad__display-label">結果</span>
+        <span className="mn-keypad__display-value">{renderValueDisplay()}</span>
+      </div>
+    </div>
+  );
+
+  if (collapsible && !visible) {
+    return (
+      <div
+        className="mn-keypad mn-keypad--collapsed"
+        data-testid="native-math-keypad"
+        data-mode={props.mode ?? "any"}
+        data-collapsed="true"
+        data-value-kind={state.value.kind}
+        data-display-empty={displayIsEmpty}
+        id="native-math-keypad-panel"
+        aria-describedby={collapsible ? "native-math-keypad-panel-hint" : undefined}
+      >
+        {renderDisplayFields()}
+        <div className="mn-keypad__toolbar">
+          <button
+            type="button"
+            className="mn-button mn-button--ghost mn-keypad__toggle"
+            data-testid="keypad-toggle"
+            aria-expanded={false}
+            aria-controls="native-math-keypad-panel"
+            onClick={() => setVisibleAndMark(true)}
+          >
+            顯示數字鍵盤
+          </button>
+          <p className="mn-keypad__hint" id="native-math-keypad-panel-hint">
+            你也可以直接用裝置的鍵盤輸入。
+          </p>
+        </div>
       </div>
     );
   }
@@ -419,43 +473,7 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
           </p>
         </div>
       )}
-      <div
-        className="mn-keypad__display"
-        aria-live="polite"
-        aria-atomic="true"
-        data-testid="keypad-display"
-      >
-        <div className="mn-keypad__field-row" data-active={state.active_field === "numerator"}>
-          <span className="mn-keypad__display-label">分子</span>
-          <button
-            type="button"
-            className="mn-keypad__field-button"
-            data-active={state.active_field === "numerator"}
-            onClick={() => dispatch({ type: "focus_field", field: "numerator" })}
-            aria-label="分子"
-            data-testid="keypad-numerator"
-          >
-            {numeratorBuf || "—"}
-          </button>
-        </div>
-        <div className="mn-keypad__field-row" data-active={state.active_field === "denominator"}>
-          <span className="mn-keypad__display-label">分母</span>
-          <button
-            type="button"
-            className="mn-keypad__field-button"
-            data-active={state.active_field === "denominator"}
-            onClick={() => dispatch({ type: "focus_field", field: "denominator" })}
-            aria-label="分母"
-            data-testid="keypad-denominator"
-          >
-            {denominatorBuf || "—"}
-          </button>
-        </div>
-        <div className="mn-keypad__display-row" data-testid="keypad-preview" data-empty={displayIsEmpty}>
-          <span className="mn-keypad__display-label">結果</span>
-          <span className="mn-keypad__display-value">{renderValueDisplay()}</span>
-        </div>
-      </div>
+      {renderDisplayFields()}
 
       <div className="mn-keypad__keypad" role="group" aria-label="按鍵">
         {KEYPAD_KEYS.map((row, ri) => (
