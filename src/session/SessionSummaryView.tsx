@@ -1,13 +1,16 @@
 // src/session/SessionSummaryView.tsx
 //
-// Phase 5C-1.1 Round 4 — Quiet Graph Session Summary.
+// Phase 5C-1.1 Round 5 — Quiet Graph Session Summary.
 //
 // Children must never see raw KP IDs.  View-layer KP→phrase map is the
 // single child-facing source.  Anything not in the map falls back to a
 // generic phrase so the child never sees machine identifiers.
 //
-// Quiet Graph language: 4 px moss left accent bar on the recommendation
-// panel; stat rows separated by hairlines; mono numerics throughout.
+// Quiet Graph language: stat cards in a responsive grid (1 col mobile,
+// 2 col tablet, 5 col desktop); ✓ / ✗ mono-cap discs on KP rows;
+// full-width primary "back to home" CTA centered; duration formatted
+// human-friendly ("約 4 分鐘" not "14737 秒").  All formatting lives
+// in the view; reducer is untouched.
 
 import React from "react";
 import { recommendNext, type SessionSummary } from "./session-state.mjs";
@@ -27,6 +30,31 @@ const KP_PHRASE_ZH: Record<string, string> = {
 
 function kpToPhrase(kp: string): string {
   return KP_PHRASE_ZH[kp] ?? "這一題";
+}
+
+// Format seconds as a human-friendly zh-TW phrase.
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "少於 1 分鐘";
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  if (hours > 0 && minutes > 0) return `約 ${hours} 小時 ${minutes} 分`;
+  if (hours > 0) return `約 ${hours} 小時`;
+  if (minutes > 0) return `約 ${minutes} 分鐘`;
+  return `${secs} 秒`;
+}
+
+// Small visual icons rendered inline as text (no SVG assets).
+function CheckGlyph() {
+  return (
+    <span aria-hidden="true" data-glyph="check">✓</span>
+  );
+}
+function CrossGlyph() {
+  return (
+    <span aria-hidden="true" data-glyph="cross">✗</span>
+  );
 }
 
 export function SessionSummaryView(props: SessionSummaryViewProps) {
@@ -49,25 +77,25 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
       <h2 data-testid="summary-headline">{headline}</h2>
 
       <dl className="mn-summary-stats" data-testid="summary-stats">
-        <div>
-          <dt>完成題數</dt>
-          <dd data-testid="stat-total">{summary.total_steps}</dd>
+        <div className="mn-stat-card">
+          <dt className="mn-stat-card__label">完成題數</dt>
+          <dd className="mn-stat-card__value" data-testid="stat-total">{summary.total_steps}</dd>
         </div>
-        <div>
-          <dt>一次就答對</dt>
-          <dd data-testid="stat-first-attempt">{summary.first_attempt_correct}</dd>
+        <div className="mn-stat-card">
+          <dt className="mn-stat-card__label">一次就答對</dt>
+          <dd className="mn-stat-card__value" data-testid="stat-first-attempt">{summary.first_attempt_correct}</dd>
         </div>
-        <div>
-          <dt>看了提示</dt>
-          <dd data-testid="stat-hints">{summary.hints_used_total}</dd>
+        <div className="mn-stat-card">
+          <dt className="mn-stat-card__label">看了提示</dt>
+          <dd className="mn-stat-card__value" data-testid="stat-hints">{summary.hints_used_total}</dd>
         </div>
-        <div>
-          <dt>換了表示法</dt>
-          <dd data-testid="stat-switches">{summary.representation_switches_total}</dd>
+        <div className="mn-stat-card">
+          <dt className="mn-stat-card__label">換了表示法</dt>
+          <dd className="mn-stat-card__value" data-testid="stat-switches">{summary.representation_switches_total}</dd>
         </div>
-        <div>
-          <dt>練習時間</dt>
-          <dd data-testid="stat-duration">{summary.duration_seconds} 秒</dd>
+        <div className="mn-stat-card">
+          <dt className="mn-stat-card__label">練習時間</dt>
+          <dd className="mn-stat-card__value" data-testid="stat-duration">{formatDuration(summary.duration_seconds)}</dd>
         </div>
       </dl>
 
@@ -76,7 +104,12 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
           <h3>需要再練習</h3>
           <ul>
             {summary.weak_kps.map((kp) => (
-              <li key={kp} data-testid={`weak-kp-${kp}`}>{kpToPhrase(kp)}</li>
+              <li className="mn-kp-row" key={kp} data-testid={`weak-kp-${kp}`}>
+                <span className="mn-icon-disc" data-tone="amber" aria-hidden="true">
+                  <CrossGlyph />
+                </span>
+                <span className="mn-kp-row__label">{kpToPhrase(kp)}</span>
+              </li>
             ))}
           </ul>
         </section>
@@ -87,7 +120,12 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
           <h3>已經掌握</h3>
           <ul>
             {summary.mastered_kps.map((kp) => (
-              <li key={kp} data-testid={`mastered-kp-${kp}`}>{kpToPhrase(kp)}</li>
+              <li className="mn-kp-row" key={kp} data-testid={`mastered-kp-${kp}`}>
+                <span className="mn-icon-disc" data-tone="moss" aria-hidden="true">
+                  <CheckGlyph />
+                </span>
+                <span className="mn-kp-row__label">{kpToPhrase(kp)}</span>
+              </li>
             ))}
           </ul>
         </section>
@@ -97,7 +135,7 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
         <strong>下一步建議：</strong>{recommendation.reason}
       </p>
 
-      <div className="mn-actions">
+      <div className="mn-summary-cta-row">
         <button
           type="button"
           className="mn-button mn-button--primary"

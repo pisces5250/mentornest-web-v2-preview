@@ -171,7 +171,11 @@ export function ChildHome(props: ChildHomeProps) {
       data-resume-available={resumeAvailable ? "true" : "false"}
     >
       <div className="mn-home-card__grid">
-        {/* Identity column: tag, headline, body, mono meta strip */}
+        {/* Identity column: tag, headline, body, mono meta strip,
+         * plus the Round-5 visual anchor (decorative 2x2 tile block).
+         * The anchor fills the empty whitespace that the Round-4
+         * screenshot flagged as "wireframe-y"; no mascot, no
+         * illustration asset — pure CSS geometric tiles. */}
         <div className="mn-home-card__identity">
           <span className="mn-tag">今日練習</span>
           <h1 className="mn-home-card__headline" data-testid="home-headline">
@@ -185,6 +189,12 @@ export function ChildHome(props: ChildHomeProps) {
           <span className="mn-home-card__meta-strip">
             {`GRADE ${ageBand.replace("G", "")} · ${(defaultSubject ?? "math").toUpperCase()}`}
           </span>
+          <div className="mn-home-anchor" aria-hidden="true" data-testid="home-anchor">
+            <span className="mn-home-anchor__tile" data-tone="moss">+</span>
+            <span className="mn-home-anchor__tile">−</span>
+            <span className="mn-home-anchor__tile">×</span>
+            <span className="mn-home-anchor__tile">÷</span>
+          </div>
         </div>
 
         {/* Practice column: surface_alt + hairline.  Single primary CTA. */}
@@ -223,7 +233,9 @@ export function ChildHome(props: ChildHomeProps) {
 
           {resumeAvailable && resumeAtIndex !== null && (
             <p className="mn-home-card__resume-note" data-testid="home-resume-note">
-              {`你上次停在第 ${resumeAtIndex} 題，按下「繼續上次的學習」就會自動接上。`}
+              <span className="mn-status-badge mn-status-badge--mono" data-tone="ink">
+                從第 {resumeAtIndex} 題接上
+              </span>
             </p>
           )}
 

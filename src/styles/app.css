@@ -32,7 +32,7 @@
   --mn-qg-hairline:        #D9D2BF;
   --mn-qg-ink:             #222831;
   --mn-qg-ink-soft:        #56606D;
-  --mn-qg-ink-faint:       #8A8275;
+  --mn-qg-ink-faint:       #6E6655;
   --mn-qg-moss:            #2E5D3A;
   --mn-qg-moss-hover:      #26492D;
   --mn-qg-moss-pressed:    #1E3825;
@@ -131,7 +131,7 @@ html, body, #root {
 body {
   font-family: var(--mn-qg-font-sans);
   font-size: var(--mn-qg-fs-body);
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--mn-qg-ink);
   background-color: var(--mn-qg-paper);
   /* Grid rendered as background-image on a separate fixed-position
@@ -166,11 +166,24 @@ a { color: inherit; }
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2764%27%20height%3D%2764%27%20viewBox%3D%270%200%2064%2064%27%3E%3Cpath%20d%3D%27M64%200%20L0%200%20L0%2064%27%20fill%3D%27none%27%20stroke%3D%27%23C9C2B2%27%20stroke-width%3D%271%27%2F%3E%3Cpath%20d%3D%27M16%200%20L16%2064%20M32%200%20L32%2064%20M48%200%20L48%2064%20M0%2016%20L64%2016%20M0%2032%20L64%2032%20M0%2048%20L64%2048%27%20fill%3D%27none%27%20stroke%3D%27%23D9D2BF%27%20stroke-width%3D%270.5%27%20opacity%3D%270.55%27%2F%3E%3C%2Fsvg%3E");
+  /* Round 5 (2026-08-28 14:25): softened grid lines so the paper
+   * texture stays as Quiet Graph visual identity without competing
+   * with text and button borders.  See GridBackground.tsx for the
+   * SVG data URI.  Major grid stroke = #DCD6C8 @ 0.75; minor grid
+   * stroke = #E2DCCB @ 0.6.  Total page contrast still feels like
+   * graph paper without hurting reading. */
+  background-image: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2764%27%20height%3D%2764%27%20viewBox%3D%270%200%2064%2064%27%3E%3Cpath%20d%3D%27M64%200%20L0%200%20L0%2064%27%20fill%3D%27none%27%20stroke%3D%27%23DCD6C8%27%20stroke-width%3D%270.75%27%2F%3E%3Cpath%20d%3D%27M16%200%20L16%2064%20M32%200%20L32%2064%20M48%200%20L48%2064%20M0%2016%20L64%2016%20M0%2032%20L64%2032%20M0%2048%20L64%2048%27%20fill%3D%27none%27%20stroke%3D%27%23E2DCCB%27%20stroke-width%3D%270.5%27%20opacity%3D%270.6%27%2F%3E%3C%2Fsvg%3E");
   background-size: 64px 64px;
   background-repeat: repeat;
-  opacity: 1;
+  opacity: 0.85;
   transition: opacity var(--mn-qg-dur-color) var(--mn-qg-ease);
+}
+
+/* Round 5: at mobile widths the grid becomes distracting, drop it
+ * entirely.  Mobile surfaces lean on hairlines + padding to hold
+ * their shape. */
+@media (max-width: 720px) {
+  .mn-grid-background { display: none; }
 }
 
 /* All content above the grid. */
@@ -559,6 +572,14 @@ a { color: inherit; }
     padding: var(--mn-qg-sp-4);
   }
   .mn-app-header__progress-rule { display: none; }
+
+  /* Round 5: nudge body + stem + headline up one step on mobile so
+   * G5-G6 readers on a 390px viewport get ≥16px body and ≥1.5rem stem. */
+  body { font-size: 1.0625rem; }
+  .mn-home-card__headline { font-size: 1.625rem; }
+  .mn-home-card__body { font-size: 1.0625rem; }
+  .mn-question-stem { font-size: 1.5rem; }
+  .mn-question-card__stem-wrap { padding: var(--mn-qg-sp-4) 0; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -572,6 +593,10 @@ a { color: inherit; }
 .mn-question-card {
   display: grid;
   gap: 0;
+  padding: var(--mn-qg-sp-5);
+  background: var(--mn-qg-surface);
+  border: var(--mn-qg-border-1);
+  border-radius: var(--mn-qg-radius);
 }
 
 .mn-question-card__meta {
@@ -626,6 +651,39 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--mn-qg-sp-3);
+}
+
+/* Round 5: full question card frame (1px hairline outline + paper fill)
+ * so the stem + meta + answer + CTA feel like a worksheet panel rather
+ * than floating text.  Frame is set on .mn-question-card root; the
+ * inner regions keep their own borders for grid alignment. */
+.mn-question-card__meta {
+  margin: calc(var(--mn-qg-sp-5) * -1) calc(var(--mn-qg-sp-5) * -1) 0;
+  padding: var(--mn-qg-sp-3) var(--mn-qg-sp-5);
+  border-bottom: var(--mn-qg-border-1);
+}
+.mn-question-card__answer-area {
+  margin-left: calc(var(--mn-qg-sp-5) * -1);
+  margin-right: calc(var(--mn-qg-sp-5) * -1);
+  border-radius: 0;
+  border-left: 4px solid var(--mn-qg-moss);
+  border-top: var(--mn-qg-border-1);
+  border-bottom: var(--mn-qg-border-1);
+  border-right: 0;
+}
+.mn-question-card__cta-row {
+  margin-left: calc(var(--mn-qg-sp-5) * -1);
+  margin-right: calc(var(--mn-qg-sp-5) * -1);
+  padding: var(--mn-qg-sp-3) var(--mn-qg-sp-5);
+}
+.mn-question-card__hint-row {
+  margin-left: calc(var(--mn-qg-sp-5) * -1);
+  margin-right: calc(var(--mn-qg-sp-5) * -1);
+  padding: var(--mn-qg-sp-3) var(--mn-qg-sp-5);
+}
+.mn-question-card__hint-row[data-active="false"] {
+  margin: 0;
+  padding: 0;
 }
 
 .mn-question-card__hint-row {
@@ -852,13 +910,13 @@ a { color: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--mn-qg-radius-disc);
   background: var(--mn-qg-paper);
   color: var(--mn-qg-ink);
   font-family: var(--mn-qg-font-mono);
-  font-size: var(--mn-qg-fs-mono-small);
+  font-size: 0.875rem;
   font-weight: 600;
   border: 1px solid var(--mn-qg-hairline);
   transition: background-color var(--mn-qg-dur-color) var(--mn-qg-ease),
@@ -900,9 +958,9 @@ a { color: inherit; }
 
 @media (max-width: 480px) {
   .mn-choice { grid-template-columns: 28px 1fr 36px; gap: var(--mn-qg-sp-2); padding: var(--mn-qg-sp-3) var(--mn-qg-sp-2); }
-  .mn-choice-key { width: 22px; height: 22px; }
+  .mn-choice-key { width: 28px; height: 28px; }
   .mn-choice__state-label { display: none; }
-  .mn-choice__state-icon { width: 16px; height: 16px; }
+  .mn-choice__state-icon { width: 18px; height: 18px; }
 }
 
 /* Old class names retained for compatibility with old code paths;
@@ -1107,6 +1165,17 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--mn-qg-sp-4);
+}
+
+/* Round 5: session meta row carries the 题目 N / M badge + resumed
+ * badge together with proper hairline separation. */
+.mn-session-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--mn-qg-sp-3);
+  border-bottom: var(--mn-qg-border-1);
 }
 .mn-session-progress {
   font-family: var(--mn-qg-font-mono);
@@ -1328,4 +1397,166 @@ a { color: inherit; }
   font-size: 0.875rem;
   color: var(--mn-qg-ink-soft);
   line-height: 1.45;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Round 5 utility classes.
+ *   - .mn-status-badge   — meta / progress / resumed notification
+ *                          pills with mono-cap label
+ *   - .mn-icon-disc      — round icon container (✓ ✗ □) with tone
+ *   - .mn-kp-row         — summary KP row with disc + label
+ *   - .mn-stat-card      — single stat box in summary
+ * ───────────────────────────────────────────────────────────────────── */
+
+.mn-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-2);
+  padding: 4px 10px;
+  font-family: var(--mn-qg-font-mono);
+  font-size: var(--mn-qg-fs-mono-cap);
+  letter-spacing: 0.06em;
+  color: var(--mn-qg-ink-soft);
+  border: 1px solid var(--mn-qg-hairline);
+  border-radius: var(--mn-qg-radius-disc);
+  background: transparent;
+  text-transform: uppercase;
+}
+.mn-status-badge--mono {
+  font-feature-settings: "tnum" 1;
+}
+
+.mn-icon-disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--mn-qg-radius-disc);
+  font-family: var(--mn-qg-font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid var(--mn-qg-hairline);
+  background: var(--mn-qg-paper);
+  color: var(--mn-qg-ink-soft);
+  flex-shrink: 0;
+}
+.mn-icon-disc[data-tone="moss"] {
+  background: var(--mn-qg-moss);
+  color: var(--mn-qg-paper);
+  border-color: var(--mn-qg-moss);
+}
+.mn-icon-disc[data-tone="amber"] {
+  background: var(--mn-qg-amber);
+  color: var(--mn-qg-paper);
+  border-color: var(--mn-qg-amber);
+}
+.mn-icon-disc[data-tone="ink"] {
+  background: var(--mn-qg-ink);
+  color: var(--mn-qg-paper);
+  border-color: var(--mn-qg-ink);
+}
+
+.mn-kp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-3);
+  padding: var(--mn-qg-sp-2) 0;
+  border-bottom: var(--mn-qg-border-1);
+}
+.mn-kp-row:last-child { border-bottom: 0; }
+.mn-kp-row__label {
+  font-size: var(--mn-qg-fs-body);
+  color: var(--mn-qg-ink);
+}
+
+.mn-stat-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: var(--mn-qg-sp-2);
+  padding: var(--mn-qg-sp-3) var(--mn-qg-sp-4);
+  border-right: var(--mn-qg-border-1);
+}
+.mn-stat-card:last-child { border-right: 0; }
+.mn-stat-card__label {
+  font-family: var(--mn-qg-font-mono);
+  font-size: var(--mn-qg-fs-mono-cap);
+  letter-spacing: 0.06em;
+  color: var(--mn-qg-ink-faint);
+  text-transform: uppercase;
+  margin: 0;
+}
+.mn-stat-card__value {
+  font-family: var(--mn-qg-font-mono);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--mn-qg-ink);
+  margin: 0;
+  line-height: 1.1;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Round 5: home visual anchor (decorative geometric pattern on the
+ * identity column).  Pure CSS, no SVG asset, no mascot. */
+.mn-home-anchor {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--mn-qg-sp-3);
+  margin-top: var(--mn-qg-sp-3);
+}
+.mn-home-anchor__tile {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--mn-qg-hairline);
+  border-radius: var(--mn-qg-radius);
+  background: var(--mn-qg-surface);
+  display: grid;
+  place-items: center;
+  font-family: var(--mn-qg-font-mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--mn-qg-ink-soft);
+}
+.mn-home-anchor__tile[data-tone="moss"] {
+  border-color: var(--mn-qg-moss);
+  color: var(--mn-qg-moss);
+}
+
+/* Round 5: home CTA primary must be heavier.  Already primary fills
+ * via .mn-button--primary; here we ensure the home layout stacks
+ * primary above secondary with proper spacing. */
+.mn-actions--home { gap: var(--mn-qg-sp-3); }
+.mn-actions--home .mn-button--primary { min-height: 56px; font-size: 1.0625rem; font-weight: 600; }
+.mn-actions--home .mn-button--secondary { min-height: 40px; }
+
+/* Round 5: full-width primary CTA for SessionSummaryView "back to home". */
+.mn-summary-cta-row {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--mn-qg-sp-4);
+}
+.mn-summary-cta-row .mn-button--primary {
+  min-height: 56px;
+  min-width: 240px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+/* Round 5: summary stats — desktop 5-column, mobile 2x3 mini cards. */
+.mn-summary-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border-top: var(--mn-qg-border-1);
+  border-bottom: var(--mn-qg-border-1);
+}
+@media (min-width: 600px) {
+  .mn-summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .mn-summary-stats {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .mn-stat-card { border-bottom: 0; }
 }

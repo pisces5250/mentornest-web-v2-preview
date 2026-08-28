@@ -115,14 +115,16 @@ export function SessionView(props: SessionViewProps) {
 
   return (
     <div className="mn-session" data-testid="mn-session" data-session-id={state.session_id}>
-      {resumed && (
-        <p className="mn-session-resumed" data-testid="session-resumed-notice">
-          已從上次進度接續（題目 {state.current_index + 1} / {state.steps.length}）。
-        </p>
-      )}
-      <p className="mn-session-progress" data-testid="session-progress">
-        題目 {state.current_index + 1} / {state.steps.length}
-      </p>
+      <div className="mn-session-meta-row" data-testid="session-meta-row">
+        <span className="mn-status-badge mn-status-badge--mono" data-testid="session-progress">
+          題目 {state.current_index + 1} / {state.steps.length}
+        </span>
+        {resumed && (
+          <span className="mn-status-badge" data-tone="ink" data-testid="session-resumed-notice">
+            已從上次進度接續
+          </span>
+        )}
+      </div>
 
       <QuestionRenderer
         step={currentStep}

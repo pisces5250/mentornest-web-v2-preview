@@ -26,12 +26,17 @@ import React from "react";
 
 // Inline 64×64 SVG with a 16px grid. The svg+xml data URI is small
 // enough to be a CSS background without measurable cost.
+//
+// Round 5 (2026-08-28 14:25 UTC): soften the grid so it stops fighting
+// text and button borders.  Major 16px grid → #DCD6C8 stroke 0.75.
+// Minor 8px grid stays at 0.4 opacity for the notebook texture without
+// competing with content.
 const GRID_SVG_DATA_URI =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>
-      <path d='M64 0 L0 0 L0 64' fill='none' stroke='#C9C2B2' stroke-width='1'/>
-      <path d='M16 0 L16 64 M32 0 L32 64 M48 0 L48 64 M0 16 L64 16 M0 32 L64 32 M0 48 L64 48' fill='none' stroke='#D9D2BF' stroke-width='0.5' opacity='0.55'/>
+      <path d='M64 0 L0 0 L0 64' fill='none' stroke='#DCD6C8' stroke-width='0.75'/>
+      <path d='M16 0 L16 64 M32 0 L32 64 M48 0 L48 64 M0 16 L64 16 M0 32 L64 32 M0 48 L64 48' fill='none' stroke='#E2DCCB' stroke-width='0.5' opacity='0.6'/>
     </svg>`
   );
 

@@ -18,9 +18,11 @@
   --mn-component_sizes-button_md: 6;
   --mn-component_sizes-button_lg: 8;
   --mn-component_sizes-card_gap_rem: 0.25;
-  --mn-semantic_colors-roles_primary: #4A90E2"      primary_hover:  "#357ABD;
+  --mn-semantic_colors-roles_primary: #4A90E2;
+  --mn-semantic_colors-roles_primary_hover: #357ABD;
   --mn-semantic_colors-roles_primary_pressed: #2A5F94;
-  --mn-semantic_colors-roles_secondary: #7B61FF"      neutral_900:    "#1F2933;
+  --mn-semantic_colors-roles_secondary: #7B61FF;
+  --mn-semantic_colors-roles_neutral_900: #1F2933;
   --mn-semantic_colors-roles_neutral_700: #3E4C59;
   --mn-semantic_colors-roles_neutral_500: #7B8794;
   --mn-semantic_colors-roles_neutral_300: #CBD2D9;
@@ -73,4 +75,4 @@
 
 [data-mode="color-vision-safe"] {
 }
---mn-semantic_colors-roles-primary_button: #1d5fb6;
+/* orphan dangling declaration from earlier yaml fragment — removed */

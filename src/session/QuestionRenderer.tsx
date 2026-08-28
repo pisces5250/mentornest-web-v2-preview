@@ -28,6 +28,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
 import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
 import { useCoarseViewport } from "../foundation/use_coarse_viewport.ts";
+import { useKeypadVisibility } from "../foundation/use_keypad_visibility.ts";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
 import { validateKeypadAnswer } from "../input/answer-validator.mjs";
@@ -540,8 +541,13 @@ function InputSubtree(props: {
 
   const isFraction = step.question_type === "fraction_input";
   const isCoarse = useCoarseViewport();
+  const keypadShouldExpand = useKeypadVisibility();
   const toggleable = isFraction;
-  const default_visible = isCoarse;
+  // Round 5 (2026-08-28 14:25): default visibility follows the
+  // keypad_visibility hook (tablet expanded, phone/desktop collapsed)
+  // rather than coarse_pointer alone.  Phones now default to hidden so
+  // the OS keyboard is the primary input.
+  const default_visible = keypadShouldExpand;
 
   const hintText = useMemo(() => {
     if (hintsUsed === 0) return null;
