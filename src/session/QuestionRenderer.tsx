@@ -26,6 +26,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
 import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
+import { useCoarseViewport } from "../foundation/use_coarse_viewport.ts";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
 import { validateKeypadAnswer } from "../input/answer-validator.mjs";
@@ -332,39 +333,57 @@ function MultipleChoiceSubtree(props: {
       <div role="radiogroup" aria-labelledby={`stem-${step.step_id}`} className="mn-choices" data-testid="choice-list">
         {choices.map((choice, idx) => {
           const checked = selected === idx;
-          const isCorrect = feedback && idx === correctIndex;
-          const isWrongPick = feedback && checked && idx !== correctIndex;
+          // State machine:
+          //   before submit:    default | selected
+          //   after submit:     correct (correct index) | incorrect (user pick != correct) | default (others)
+          const state = !feedback
+            ? (checked ? "selected" : "default")
+            : (idx === correctIndex
+                ? "correct"
+                : (checked ? "incorrect" : "default"));
           return (
-            <div
-              key={idx}
-              role="radio"
-              tabIndex={selected === null ? (idx === 0 ? 0 : -1) : (selected === idx ? 0 : -1)}
-              aria-checked={checked}
-              aria-label={`選項 ${String.fromCharCode(65 + idx)}：${choice}`}
-              data-testid={`choice-${idx}`}
-              className={
-                "mn-choice-key" +
-                (checked ? " is-selected" : "") +
-                (isCorrect ? " is-correct" : "") +
-                (isWrongPick ? " is-incorrect" : "")
-              }
-              onClick={() => !feedback && setSelected(idx)}
-              onKeyDown={(e) => {
-                if (feedback) return;
-                if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-                  e.preventDefault();
-                  setSelected((idx + 1) % choices.length);
-                } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  setSelected((idx - 1 + choices.length) % choices.length);
-                } else if (e.key === " " || e.key === "Enter") {
-                  e.preventDefault();
-                  setSelected(idx);
-                }
-              }}
-            >
-              <span className="mn-choice-key-letter" aria-hidden="true">{String.fromCharCode(65 + idx)}</span>
-              <span className="mn-choice-key-text">{choice}</span>
+            <div key={idx} className="mn-choice-cell">
+              <button
+                type="button"
+                className="mn-choice mn-choice--card"
+                role="radio"
+                aria-checked={checked}
+                aria-label={`選項 ${String.fromCharCode(65 + idx)}：${choice}`}
+                tabIndex={selected === null ? (idx === 0 ? 0 : -1) : (selected === idx ? 0 : -1)}
+                data-testid={`choice-${idx}`}
+                data-state={state}
+                data-selected={checked ? "true" : "false"}
+                disabled={feedback}
+                onClick={() => { if (!feedback) setSelected(idx); }}
+                onKeyDown={(e) => {
+                  if (feedback) return;
+                  if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    setSelected((idx + 1) % choices.length);
+                  } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    setSelected((idx - 1 + choices.length) % choices.length);
+                  } else if (e.key === " " || e.key === "Enter") {
+                    e.preventDefault();
+                    setSelected(idx);
+                  } else if (e.key >= "1" && e.key <= String(choices.length)) {
+                    const n = parseInt(e.key, 10) - 1;
+                    if (n < choices.length) {
+                      e.preventDefault();
+                      setSelected(n);
+                    }
+                  }
+                }}
+              >
+                <span className="mn-choice-key" aria-hidden="true">{String.fromCharCode(65 + idx)}</span>
+                <span className="mn-choice-text">{choice}</span>
+                {state === "correct" && (
+                  <span aria-hidden="true" className="mn-feedback-icon mn-feedback-icon--inline">✓</span>
+                )}
+                {state === "incorrect" && (
+                  <span aria-hidden="true" className="mn-feedback-icon mn-feedback-icon--inline">✗</span>
+                )}
+              </button>
             </div>
           );
         })}
@@ -459,13 +478,13 @@ function InputSubtree(props: {
 
   // Decide keypad default visibility:
   //   - desktop users typically have a physical keyboard; default collapse.
-  //   - mobile / tablet users may want the keypad; default open.
-  // Phase 5C-1.1 honours the parent's responsibility: caller passes
-  // `toggleable + default_visible`.  When NOT collapsible, the keypad is
-  // always visible (no regression for callers that don't pass toggleable).
+  //   - mobile / tablet (coarse pointer OR viewport <= 900px) → compact keypad open.
+  //   - user can always manually toggle (toggleable=true makes the
+  //     NativeMathKeypad show a "顯示 / 隱藏 數字鍵盤" ghost button).
   const isFraction = step.question_type === "fraction_input";
+  const isCoarse = useCoarseViewport();
   const toggleable = isFraction; // Phase 5C-1.1 ships collapse only for fraction_input
-  const default_visible = true;   // Default-open keeps the path simple; user collapses via toggle.
+  const default_visible = isCoarse;  // desktop collapsed; tablet/mobile open
 
   const hintText = useMemo(() => {
     if (hintsUsed === 0) return null;

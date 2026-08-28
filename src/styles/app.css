@@ -174,6 +174,127 @@ body {
   flex: 1;
 }
 
+/* ─── Multiple-choice card (Phase 5C-1.1) ───────────────────────────────
+ * The whole button is the click target (full-card clickable).  States
+ * (selected / correct / incorrect) are encoded via:
+ *   - border thickness (not just color)
+ *   - background tone
+ *   - inline icon (✓ for correct, ✗ for the picked wrong choice)
+ *   - letter chip (A/B/C/D) — always visible, not color-dependent.
+ * Focus uses the global :focus-visible ring (already 3px / 2px offset).
+ * Color-vision-safe: borders + icons are the primary signal; color is
+ * supplemental.
+ */
+.mn-choice-cell {
+  display: contents;
+}
+
+.mn-choice--card {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: var(--mn-spacing-scale_rem-md, 1rem) 1.125rem;
+  border: 1px solid var(--mn-semantic_colors-roles-border, #E4E7EB);
+  border-radius: var(--mn-border_radius-scale_rem-md, 0.5rem);
+  background: var(--mn-semantic_colors-roles-surface_alt, #F5F7FA);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  min-height: var(--mn-touch_target-minimum_css_px-g3_g4_default, 56px);
+  transition: border-color 120ms ease-out, background-color 120ms ease-out,
+              box-shadow 120ms ease-out, transform 120ms ease-out;
+}
+
+.mn-choice--card:hover:not(:disabled) {
+  border-color: var(--mn-semantic_colors-roles-primary, #4A90E2);
+  background: var(--mn-semantic_colors-roles-surface, #FFFFFF);
+}
+
+.mn-choice--card[data-selected="true"] {
+  /* Selected (before submit): 2px primary border + primary key chip.
+   * Key chip flips to surface so it never depends on background color alone. */
+  border-width: 2px;
+  border-color: var(--mn-semantic_colors-roles-primary, #4A90E2);
+  background: var(--mn-semantic_colors-roles-surface, #FFFFFF);
+  box-shadow: 0 0 0 1px var(--mn-semantic_colors-roles-primary, #4A90E2) inset;
+}
+
+.mn-choice--card[data-selected="true"] .mn-choice-key {
+  background: var(--mn-semantic_colors-roles-primary, #4A90E2);
+  color: var(--mn-semantic_colors-roles-text_inverse, #FFFFFF);
+}
+
+.mn-choice--card[data-state="correct"] {
+  /* Correct (after submit): 2px success border + success background +
+   * inline ✓ icon.  Never color alone. */
+  border-width: 2px;
+  border-color: var(--mn-state_colors-success-base, #2E7D32);
+  background: var(--mn-state_colors-success-surface, #E8F5E9);
+  box-shadow: 0 0 0 1px var(--mn-state_colors-success-base, #2E7D32) inset;
+}
+
+.mn-choice--card[data-state="correct"] .mn-choice-key {
+  background: var(--mn-state_colors-success-base, #2E7D32);
+}
+
+.mn-choice--card[data-state="incorrect"] {
+  /* Incorrect (user picked the wrong one): 2px error border + inline ✗ icon. */
+  border-width: 2px;
+  border-color: var(--mn-state_colors-error-base, #C62828);
+  background: var(--mn-state_colors-error-surface, #FFEBEE);
+  box-shadow: 0 0 0 1px var(--mn-state_colors-error-base, #C62828) inset;
+}
+
+.mn-choice--card[data-state="incorrect"] .mn-choice-key {
+  background: var(--mn-state_colors-error-base, #C62828);
+}
+
+.mn-choice--card:disabled {
+  cursor: default;
+}
+
+.mn-choice--card:disabled:hover {
+  border-color: var(--mn-semantic_colors-roles-border, #E4E7EB);
+}
+
+/* Color-vision-safe: ensure borders / icons carry the meaning, not just
+ * the green/red tint.  Under monochromacy the icon + letter chip + border
+ * thickness still distinguish correct/incorrect. */
+@media (prefers-contrast: more) {
+  .mn-choice--card {
+    border-width: 2px;
+    border-color: currentColor;
+  }
+  .mn-choice--card[data-state="correct"],
+  .mn-choice--card[data-state="incorrect"],
+  .mn-choice--card[data-selected="true"] {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+.mn-feedback-icon--inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  margin-left: auto;
+  font-weight: var(--mn-typography-weight_tokens-bold, 700);
+}
+
+.mn-choice--card[data-state="correct"] .mn-feedback-icon--inline {
+  background: var(--mn-state_colors-success-base, #2E7D32);
+  color: var(--mn-semantic_colors-roles-text_inverse, #FFFFFF);
+}
+
+.mn-choice--card[data-state="incorrect"] .mn-feedback-icon--inline {
+  background: var(--mn-state_colors-error-base, #C62828);
+  color: var(--mn-semantic_colors-roles-text_inverse, #FFFFFF);
+}
+
 .mn-feedback {
   font-size: calc(var(--mn-typography-scale_rem-body_md, 1) * 1rem);
   display: flex;
@@ -232,7 +353,19 @@ body {
 
 .mn-button[data-variant="ghost"] {
   background: transparent;
-  color: var(--mn-semantic_colors-roles-primary, #4A90E2);
+  color: var(--mn-semantic_colors-roles-primary_button, #1d5fb6);
+}
+
+/* Ghost modifier class (used by NativeMathKeypad collapse toggle, settings
+ * gear, etc.).  Same look as data-variant="ghost".
+ *
+ * Color: use primary_button (#1d5fb6) for both text and border.
+ * WCAG AA: white on #1d5fb6 ≈ 5.5:1.  Lighter accent #4A90E2 only
+ * achieves 3.29:1 against white, below the 4.5:1 threshold. */
+.mn-button--ghost {
+  background: transparent;
+  color: var(--mn-semantic_colors-roles-primary_button, #1d5fb6);
+  border-color: var(--mn-semantic_colors-roles-primary_button, #1d5fb6);
 }
 
 .mn-sr-only {
@@ -656,6 +789,27 @@ body[data-mode="question-focus"] .mn-app-header__title {
   margin-top: 0.25rem;
   border: 1px dashed var(--mn-semantic_colors-roles-border, #E4E7EB);
   background: transparent;
+  color: var(--mn-semantic_colors-roles-primary_button, #1d5fb6);
+}
+
+.mn-keypad__toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mn-semantic_colors-roles-border, #E4E7EB);
+  margin-bottom: 0.5rem;
+}
+
+.mn-keypad__toolbar .mn-keypad__toggle {
+  width: auto;
+  margin-top: 0;
+  align-self: stretch;
+}
+
+.mn-keypad__toolbar .mn-keypad__hint {
+  margin: 0;
 }
 
 .mn-keypad__hint {

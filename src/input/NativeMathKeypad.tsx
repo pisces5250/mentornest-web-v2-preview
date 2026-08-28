@@ -351,6 +351,21 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
   const collapsible = props.toggleable === true;
   const [visible, setVisible] = useState<boolean>(props.default_visible ?? true);
 
+  // Sync visible state if `default_visible` changes (e.g. parent hook
+  // re-measures viewport after mount).  We only follow the prop when
+  // the user has not yet manually toggled.
+  const [userToggled, setUserToggled] = useState(false);
+  useEffect(() => {
+    if (userToggled) return;
+    setVisible(props.default_visible ?? true);
+  }, [props.default_visible, userToggled]);
+
+  // Wrap setters so we know when the user has expressed an opinion.
+  const setVisibleAndMark = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+    setUserToggled(true);
+    setVisible(v);
+  }, []);
+
   // When the keypad is hidden, render only the toggle button + a short
   // status hint.  Otherwise render the full keypad.
   if (collapsible && !visible) {
@@ -362,7 +377,7 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
           data-testid="keypad-toggle"
           aria-expanded={false}
           aria-controls="native-math-keypad-panel"
-          onClick={() => setVisible(true)}
+          onClick={() => setVisibleAndMark(true)}
         >
           顯示數字鍵盤
         </button>
@@ -387,6 +402,23 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
       id="native-math-keypad-panel"
       aria-describedby={collapsible ? "native-math-keypad-panel-hint" : undefined}
     >
+      {collapsible && (
+        <div className="mn-keypad__toolbar">
+          <button
+            type="button"
+            className="mn-button mn-button--ghost mn-keypad__toggle"
+            data-testid="keypad-toggle"
+            aria-expanded={true}
+            aria-controls="native-math-keypad-panel"
+            onClick={() => setVisibleAndMark(false)}
+          >
+            隱藏數字鍵盤
+          </button>
+          <p className="mn-keypad__hint" id="native-math-keypad-panel-hint">
+            你也可以直接用裝置的鍵盤輸入。
+          </p>
+        </div>
+      )}
       <div
         className="mn-keypad__display"
         aria-live="polite"
@@ -455,23 +487,6 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
       >
         {props.submit_label ?? "送出"}
       </button>
-      {collapsible && (
-        <button
-          type="button"
-          className="mn-button mn-button--ghost mn-keypad__toggle"
-          data-testid="keypad-toggle"
-          aria-expanded={true}
-          aria-controls="native-math-keypad-panel"
-          onClick={() => setVisible(false)}
-        >
-          隱藏數字鍵盤
-        </button>
-      )}
-      {collapsible && (
-        <p className="mn-keypad__hint" id="native-math-keypad-panel-hint">
-          你也可以直接用裝置的鍵盤輸入。
-        </p>
-      )}
     </div>
   );
 }
