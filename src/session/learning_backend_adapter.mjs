@@ -169,7 +169,13 @@ export function createBackendAdapter(opts = {}) {
   const useFixtures = opts.useFixtures !== false;
 
   if (useFixtures) {
-    return new FixtureBackendAdapter();
+    // Allow callers (App / ChildHome) to widen the fixture pool beyond the
+    // math-only default.  Without this, the subject switcher in Phase 6B
+    // would still pull math questions for every subject.
+    const steps = Array.isArray(opts.steps) && opts.steps.length > 0
+      ? opts.steps
+      : FIXTURE_G5_FRAC;
+    return new FixtureBackendAdapter({ steps });
   }
 
   // Production adapter is intentionally NOT implemented in this preview.

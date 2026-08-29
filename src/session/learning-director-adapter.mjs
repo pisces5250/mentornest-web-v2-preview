@@ -52,7 +52,7 @@ function assertSafeStudentId(student_id) {
  */
 export function toStep(q, index) {
   if (!q || typeof q !== "object") throw new Error("toStep: question required");
-  return {
+  const step = {
     step_id: q.step_id ?? q.id ?? `step_${index + 1}`,
     knowledge_point: q.knowledge_point ?? "unknown",
     subject: q.subject ?? "math",
@@ -65,6 +65,14 @@ export function toStep(q, index) {
     source: q.source ?? "verified",
     license: q.license ?? "preview-fixture",
   };
+  // Phase 6B: conversation fixture passes extra metadata through to
+  // ConversationTutor (greeting, suggested topics, target turn count).
+  // We deliberately do NOT touch conversation when the question type
+  // is anything other than english_conversation — keep shape stable.
+  if (q.question_type === "english_conversation" && q.conversation) {
+    step.conversation = q.conversation;
+  }
+  return step;
 }
 
 /**
@@ -103,10 +111,22 @@ export async function buildSessionFromLearningDirector({
   subject,
   knowledge_point = "",
   target_steps = 4,
-  backend = createBackendAdapter(),
+  backend = undefined,
+  fixtureSteps = undefined,
 } = {}) {
   assertSafeStudentId(student_id);
   if (!subject) throw new Error("buildSessionFromLearningDirector: subject required");
+
+  // Resolve backend last so callers can pass either an explicit backend
+  // OR a fixtureSteps array (App / ChildHome wires the merged preview
+  // pool here so subject switcher reaches the correct question type).
+  if (!backend) {
+    backend = createBackendAdapter(
+      Array.isArray(fixtureSteps) && fixtureSteps.length > 0
+        ? { steps: fixtureSteps }
+        : {},
+    );
+  }
 
   // 1. Ask the backend what the next learning action should be.
   const dispatch = backend.getNextStep({

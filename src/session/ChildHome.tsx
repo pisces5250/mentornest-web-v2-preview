@@ -146,7 +146,6 @@ export function ChildHome(props: ChildHomeProps) {
         subject: effectiveSubject,
         knowledge_point: effectiveKnowledgePoint,
         target_steps: 4,
-        useFixtures,
         fixtureSteps,
       });
       // Phase 5C-2 acceptance-only: if forcedStepId is set, swap the
