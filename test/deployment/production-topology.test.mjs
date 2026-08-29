@@ -37,6 +37,8 @@ test("staging Voice 是獨立且 fail-closed 的跨 repo image", () => {
   const compose = read("deployment/staging/compose.yaml");
   const architecture = read("architecture/staging-topology-p05.md");
   assert.match(compose, /VOICE_BACKEND_IMAGE:\?需提供已由 Voice repository 驗證的 immutable image digest/);
+  assert.match(compose, /ALLOWED_ORIGINS: ""/);
+  assert.doesNotMatch(compose, /ALLOWED_WEB_ORIGINS/);
   assert.match(architecture, /沒有驗證.*Voice/);
   assert.match(architecture, /不承載 Tutor、Assessment、Learning Memory 或 mastery 邏輯/);
 });

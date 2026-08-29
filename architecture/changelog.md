@@ -1804,3 +1804,15 @@ Acceptance evidence：`npm ci` 完成；`npm test` 299/299 PASS；`npm run build
 Hard invariants：child privacy／security、production data integrity、mastery writer boundary、Verified Bank writer boundary、confirmed／inferred separation、accessibility。
 
 Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PASS；實際 Google Chrome Playwright PASS；axe critical／serious 0（總 violations 0）；keyboard settings dialog／focus return／start session PASS；staging guard targeted tests 7/7 PASS；`git diff --check` PASS。Voice 與 OpenClaw image 仍為跨 repo staging 驗證依賴，本 repo 不宣稱已驗證或已部署。
+
+---
+
+## 2026-08-30 — Phase P0.6 Remote Evidence & Staging Readiness
+
+- CI gate 擴充至 `feature/**`，並加入 Web／Tutor container 啟動、liveness、privacy 與 Docker health 驗證；遠端 branch push 因安全審查要求目的地特定授權而未完成，run／image evidence 標為 UNVERIFIED。
+- OpenClaw Gateway readiness 增加 runtime version、immutable image identity、staging namespace 與 `production_data_allowed=false` 比對；隔離 HTTP harness 驗證四 capability、錯誤 bearer、missing capability 與 Learning Memory fail-closed。
+- Voice sibling repo 完成 provider remediation candidate：branch `feature/p0-6-staging-contract`、commit `0104abc`；本機 contract tests 4/4，但 remote CI、image digest 與 image inference 仍 UNVERIFIED。
+- 新增 `architecture/staging-evidence-p06.md`、`architecture/openclaw-runtime-contract-p06.md` 與 `architecture/voice-backend-contract-p06.md`，明確分開 consumer、source candidate、provider image 與 deployment evidence。
+- 本機 `verify:full` 通過：314/314 tests、strict typecheck、build、實際 Chrome、rendered axe 0 violations、keyboard-only baseline。
+
+本輪未新增教學功能、未讀寫 production student data、未 merge、未 deploy、未 cutover；production fallback 與所有 writer／privacy／security invariants 保留。

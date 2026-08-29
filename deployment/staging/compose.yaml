@@ -63,7 +63,7 @@ services:
       PORT: "8502"
       MENTORNEST_SERVICE_AUTH_AUDIENCE: voice-backend
       MENTORNEST_SERVICE_AUTH_KEY: ${MENTORNEST_SERVICE_AUTH_KEY:?必須由 staging secret store 注入}
-      ALLOWED_WEB_ORIGINS: ""
+      ALLOWED_ORIGINS: ""
     expose: ["8502"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8502/readyz"]

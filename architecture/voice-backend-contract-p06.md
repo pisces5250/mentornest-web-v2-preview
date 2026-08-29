@@ -138,3 +138,20 @@ Dockerfile 或 source-level privacy flag 推定為 VERIFIED。
 repository 必須先加入 service auth、fail-closed readiness、P0.5 environment contract、
 automated CI/provider tests，產生 immutable digest，再由此 repo 對同一 digest完成
 cross-service smoke；此前不得把 Voice staging readiness 標為 VERIFIED。
+
+## Provider remediation candidate
+
+已在 sibling repository 建立並 push `feature/p0-6-staging-contract`，commit
+`0104abc`。該 candidate：
+
+- 對 STT／TTS／audio routes 加入 signature、expiry、issuer、audience、scope 驗證，並只從
+  token 取得 subject identity；audio reference 同時綁定 subject。
+- 新增 `/healthz` 與 fail-closed `/readyz` contract v1，檢查 auth、STT/TTS assets、TTS
+  worker、ffmpeg 與 temp storage，回報 model identities 與 privacy contract。
+- staging/production 缺少 service auth key 時拒絕啟動；允許 `ALLOWED_ORIGINS=""` 真正關閉
+  CORS；外部 500 envelope 不再回傳 raw runtime error。
+- 新增 Node 22 CI、4 項 provider contract tests、syntax gate 與 GHCR candidate image build/push。
+
+本機 provider tests 4/4 與 syntax gate 通過。GitHub Actions API 對未授權請求回 `404`，
+故遠端 workflow 結果、container build、GHCR digest 仍是 **UNVERIFIED**；不得以 branch 已
+push 取代遠端 evidence。
