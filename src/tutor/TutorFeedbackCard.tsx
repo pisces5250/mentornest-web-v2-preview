@@ -36,11 +36,12 @@ export interface TutorFeedbackCardProps {
   stepId: string;
 }
 
-const TEACHING_LABEL_BY_TONE: Record<"good" | "close" | "needs_work" | "unclear", string> = {
-  good: "讀得很棒",
-  close: "讀得還不錯",
-  needs_work: "可以再試一次",
-  unclear: "再說一次好嗎",
+const TITLE_BY_TONE: Record<"good" | "close" | "needs_work" | "unclear", string> = {
+  // G5 voice: mature, concrete, no over-praise.
+  good: "讀得很順",
+  close: "讀得不錯",
+  needs_work: "我們再順一次",
+  unclear: "可以再說一次嗎",
 };
 
 export function TutorFeedbackCard(props: TutorFeedbackCardProps) {
@@ -102,7 +103,7 @@ export function TutorFeedbackCard(props: TutorFeedbackCardProps) {
     >
       <div className="mn-tutor-feedback__head">
         <ResultGlyph tone={tone} />
-        <div className="mn-tutor-feedback__title">{TEACHING_LABEL_BY_TONE[tone]}</div>
+        <div className="mn-tutor-feedback__title">{TITLE_BY_TONE[tone]}</div>
       </div>
 
       <p
@@ -123,9 +124,17 @@ export function TutorFeedbackCard(props: TutorFeedbackCardProps) {
       )}
 
       <div className="mn-tutor-feedback__actions">
+        {/* Learning Designer rule: when the specialist recommends retry,
+            "再讀一次" is the primary action; "下一題" demotes to ghost.
+            When retry is NOT recommended (good / solid close), advance
+            is the natural next step. */}
         <button
           type="button"
-          className="mn-action mn-action--ghost"
+          className={
+            ev.retry_recommended
+              ? "mn-action mn-action--primary"
+              : "mn-action mn-action--ghost"
+          }
           onClick={onReread}
           data-testid={`tutor-feedback-reread-${stepId}`}
         >再讀一次</button>
@@ -143,7 +152,11 @@ export function TutorFeedbackCard(props: TutorFeedbackCardProps) {
         </span>
         <button
           type="button"
-          className="mn-action mn-action--primary"
+          className={
+            ev.retry_recommended
+              ? "mn-action mn-action--ghost"
+              : "mn-action mn-action--primary"
+          }
           onClick={onAdvance}
           data-testid={`tutor-feedback-advance-${stepId}`}
         >下一題</button>
@@ -223,7 +236,10 @@ function ResultGlyph({ tone }: { tone: "good" | "close" | "needs_work" | "unclea
       </svg>
     );
   }
-  // unclear
+  // unclear — Learning Designer rule: visually distinct from
+  // needs_work.  needs_work = the child got it wrong (X).
+  // unclear = the system didn't hear the child well (ear + sound waves),
+  // which is NOT the child's fault.  Children must see this immediately.
   return (
     <svg
       viewBox="0 0 24 24"
@@ -231,12 +247,31 @@ function ResultGlyph({ tone }: { tone: "good" | "close" | "needs_work" | "unclea
       focusable="false"
       className="mn-tutor-feedback__glyph"
     >
+      {/* Ear shape */}
       <path
-        d="M12 7 L12 14 M12 17 L12 17.5"
+        d="M9 21 L9 19 C 9 17 8 16 8 13 C 8 9 10 5 14 5 C 17 5 19 8 19 11 C 19 13 18 14 17 15 C 16 16 16 17 16 18 C 16 19.5 14.5 21 13 21"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="square"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Sound waves (a hint that we want to listen again) */}
+      <path
+        d="M19 4 C 20.5 5 21 6.5 21 8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      <path
+        d="M21 3 C 22.5 4.5 23 6 23 8.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        opacity="0.3"
       />
     </svg>
   );

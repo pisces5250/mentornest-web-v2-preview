@@ -64,13 +64,21 @@ const CONTRACTIONS = {
 };
 
 function expandContractions(token) {
-  return CONTRACTIONS[token] ?? token;
+  if (!token) return token;
+  // Normalise curly apostrophe (U+2019) to straight (U+0027) so
+  // don’t (curly) and don't (straight) both resolve to the same key.
+  const normalised = token.replace(/\u2019/g, "'");
+  return CONTRACTIONS[normalised] ?? token;
 }
 
 function tokenize(text) {
   if (!text) return [];
+  // Treat straight ' (U+0027) AND curly ’ (U+2019) as part of a
+  // word, so "don't" and "don\u2019t" both stay one token.  Without
+  // this, curly-apostrophe passages would get split into "don" + "t"
+  // and never match their expanded form "do not".
   return String(text)
-    .split(/[^\p{L}\p{N}']+/u)
+    .split(/[^\p{L}\p{N}'\u2019]+/u)
     .filter((t) => t.length > 0);
 }
 

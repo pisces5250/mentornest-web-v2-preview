@@ -81,7 +81,11 @@ const CONTRACTIONS: Record<string, string> = {
 };
 
 function expandContractions(token: string): string {
-  return CONTRACTIONS[token] ?? token;
+  if (!token) return token;
+  // Normalise curly apostrophe (U+2019) to straight (U+0027) so
+  // don’t (curly) and don't (straight) both resolve to the same key.
+  const normalised = token.replace(/\u2019/g, "'");
+  return CONTRACTIONS[normalised] ?? token;
 }
 
 /**
@@ -92,11 +96,12 @@ function expandContractions(token: string): string {
 function tokenize(text: string): string[] {
   if (!text) return [];
   // Split on any non-word/non-apostrophe character. The regex is
-  // deliberately conservative: [\p{L}\p{N}'] covers Unicode letters,
-  // digits, and ASCII apostrophe. We don't split on hyphens because
-  // a 5th-grader saying "well-known" should not become two tokens.
+  // deliberately conservative: [\p{L}\p{N}'\u2019] covers Unicode
+  // letters, digits, ASCII straight apostrophe (U+0027) AND curly
+  // apostrophe (U+2019).  We don't split on hyphens because a
+  // 5th-grader saying "well-known" should not become two tokens.
   return text
-    .split(/[^\p{L}\p{N}']+/u)
+    .split(/[^\p{L}\p{N}'\u2019]+/u)
     .filter((t) => t.length > 0);
 }
 

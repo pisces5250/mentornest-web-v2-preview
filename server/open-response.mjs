@@ -30,8 +30,8 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-import { evaluateReading as englishSpecialistEvaluate } from './tutor/english-specialist.mjs';
 import { compareReading as readingComparison } from './lib/reading-comparison.mjs';
+import { evaluateReadingAloud } from './tutor/reading-aloud-evaluator.mjs';
 
 // === Configuration ===
 const PORT = process.env.PORT || 8787;
@@ -336,14 +336,9 @@ app.post('/api/tutor/english-evaluate', (req, res) => {
   }
 
   try {
-    // Layer A: deterministic comparison. Layer B: English Specialist.
+    // Layer A: deterministic comparison. Layer B: real English Specialist.
     // Both run on the server so we don't ship the rules to the browser.
-    const reading_comparison = readingComparison({
-      expected: expected_text,
-      transcript,
-      sttConfidence: transcript_confidence,
-    });
-    const evaluation = englishSpecialistEvaluate({
+    const result = evaluateReadingAloud({
       student_id,
       knowledge_point,
       age_band,
@@ -351,15 +346,29 @@ app.post('/api/tutor/english-evaluate', (req, res) => {
       transcript,
       transcript_confidence,
     });
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
 
-    // Audit log: count-only, never transcript text alongside student_id.
+    const { evaluation, reading_comparison, specialist } = result;
+
+    // Audit log (Learning Memory Agent policy, Phase 6A v2):
+    //   - student_id is HASHED, never the raw ID; we do not even log its
+    //     length (length is itself a re-identification side channel).
+    //   - transcript TEXT is NEVER logged, not even partial.  We log only
+    //     the transcript's character count.
+    //   - specialist decision metadata (action / subskill) is logged so
+    //     we can later audit "did the specialist recommend a retry that
+    //     the UI actually showed?" without exposing the transcript.
     if (student_id) {
+      const sidHash = shortHash(student_id);
       console.log(
-        `[tutor] english-evaluate student=${student_id.length}chars ` +
-        `kp=${knowledge_point} age_band=${age_band} ` +
-        `coverage=${reading_comparison.coverage.toFixed(2)} ` +
+        `[tutor] english-evaluate sid=${sidHash} kp=${knowledge_point} ` +
+        `age_band=${age_band} coverage=${reading_comparison.coverage.toFixed(2)} ` +
         `reliability=${reading_comparison.reliability.toFixed(2)} ` +
         `overall=${evaluation.overall_result} ` +
+        `dominant=${evaluation.dominant_error_code ?? "none"} ` +
+        `action=${specialist.action} retry=${evaluation.retry_recommended} ` +
         `transcript_chars=${transcript.length}`,
       );
     }
@@ -368,6 +377,11 @@ app.post('/api/tutor/english-evaluate', (req, res) => {
       ok: true,
       evaluation,
       reading_comparison,
+      specialist: {
+        action: specialist.action,
+        subskill: specialist.subskill,
+        rationale: specialist.rationale,
+      },
     });
   } catch (err) {
     return res.status(500).json({
@@ -378,6 +392,20 @@ app.post('/api/tutor/english-evaluate', (req, res) => {
     });
   }
 });
+
+// === Audit helpers (Learning Memory Agent policy) ===
+
+function shortHash(input) {
+  // Deterministic, low-collision, NOT cryptographic.  We only need it
+  // to mask the raw student_id in server logs so the audit trail does
+  // not re-identify the child when piped to a logging service.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0").slice(0, 8);
+}
 
 // === Error handler ===
 app.use((err, _req, res, _next) => {
