@@ -33,6 +33,29 @@ export const FIXTURE_P5C2 = [
     source: "verified",
     license: "CC0-1.0",
   },
+  // 5) Phase 6B — Conversational English Tutor
+  //    Routes to ConversationTutor (VAD + HTTP polling + real
+  //    upstream English Specialist).  The conversation runs until
+  //    the student presses 「結束對話」; no verdict pop-up.
+  {
+    step_id: "p6b_eng_conv_g5_001",
+    knowledge_point: "english.G5.CONV.free-conversation",
+    subject: "english",
+    question_type: "english_conversation",
+    representation_type: "text",
+    stem: "和老師聊一聊：你平常最喜歡做的事是什麼？為什麼喜歡？",
+    expected_answer: "",
+    difficulty: "easy",
+    source: "verified",
+    license: "CC0-1.0",
+    conversation: {
+      tutor_persona_zh: "友善、會用簡單中文鼓勵孩子繼續說",
+      greeting_zh: "嗨，老師在聽喔，隨時開始吧。",
+      suggested_topics_zh: ["最喜歡做的事", "昨天發生的事", "一個朋友"],
+      target_turn_count: 8,
+    },
+  },
+
   // 3) English reading aloud
   {
     step_id: "p5c2_eng_read_g5_001",
@@ -58,28 +81,6 @@ export const FIXTURE_P5C2 = [
     difficulty: "medium",
     source: "verified",
     license: "CC0-1.0",
-  },
-  // 5) Phase 6B — Conversational English Tutor
-  //    Routes to ConversationTutor (VAD + HTTP polling + real
-  //    upstream English Specialist).  The conversation runs until
-  //    the student presses 「結束對話」; no verdict pop-up.
-  {
-    step_id: "p6b_eng_conv_g5_001",
-    knowledge_point: "english.G5.CONV.free-conversation",
-    subject: "english",
-    question_type: "english_conversation",
-    representation_type: "text",
-    stem: "和老師聊一聊：你平常最喜歡做的事是什麼？為什麼喜歡？",
-    expected_answer: "",
-    difficulty: "easy",
-    source: "verified",
-    license: "CC0-1.0",
-    conversation: {
-      tutor_persona_zh: "友善、會用簡單中文鼓勵孩子繼續說",
-      greeting_zh: "嗨，老師在聽喔，隨時開始吧。",
-      suggested_topics_zh: ["最喜歡做的事", "昨天發生的事", "一個朋友"],
-      target_turn_count: 8,
-    },
   },
 
 ];
