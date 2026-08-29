@@ -78,6 +78,27 @@ export function ChildHome(props: ChildHomeProps) {
   const [resumeSteps, setResumeSteps] = useState<number | null>(null);
   const [resumeTopic, setResumeTopic] = useState<string | null>(null);
 
+  // Phase 6B: let the student (or parent) switch subject on the home page.
+  // We do NOT auto-load this from profile because the parent setup flow
+  // is not yet wired into the web shell.  Persistence is local to the
+  // session only — closing the tab returns to the default.
+  const [subject, setSubject] = useState<string>(defaultSubject);
+  const effectiveSubject =
+    subject || defaultSubject || "math";
+  const subjectKp: Record<string, string> = {
+    math: "math.G5.FRAC.add-unlike-denom",
+    chinese: "chinese.G5.READ.main-idea-multi",
+    english: "english.G5.READ.read-aloud-story",
+    science: "science.G5.SCI.observe-compare",
+  };
+  const effectiveKnowledgePoint = subjectKp[effectiveSubject] ?? defaultKnowledgePoint;
+  const SUBJECT_LABEL_ZH: Record<string, string> = {
+    math: "數學",
+    chinese: "國語",
+    english: "英文",
+    science: "自然",
+  };
+
   useEffect(() => {
     if (!sessionStorageKey) return;
     try {
@@ -122,8 +143,8 @@ export function ChildHome(props: ChildHomeProps) {
       const { session: built } = await buildSessionFromLearningDirector({
         student_id: studentId,
         age_band: ageBand,
-        subject: defaultSubject,
-        knowledge_point: defaultKnowledgePoint,
+        subject: effectiveSubject,
+        knowledge_point: effectiveKnowledgePoint,
         target_steps: 4,
         useFixtures,
         fixtureSteps,
@@ -160,7 +181,7 @@ export function ChildHome(props: ChildHomeProps) {
     } finally {
       setLoading(false);
     }
-  }, [studentId, ageBand, defaultSubject, defaultKnowledgePoint, resumeAvailable, sessionStorageKey]);
+  }, [studentId, ageBand, defaultSubject, defaultKnowledgePoint, effectiveSubject, effectiveKnowledgePoint, resumeAvailable, sessionStorageKey]);
 
   if (session) {
     return (
@@ -178,7 +199,7 @@ export function ChildHome(props: ChildHomeProps) {
       ? "繼續上次的學習"
       : "開始今天的學習";
 
-  const topicPhrase = kpToPhrase(resumeTopic ?? defaultKnowledgePoint);
+  const topicPhrase = kpToPhrase(resumeTopic ?? effectiveKnowledgePoint);
   const durationLabel = estimateDurationZh(
     resumeAvailable ? resumeSteps : 4
   );
@@ -207,8 +228,28 @@ export function ChildHome(props: ChildHomeProps) {
         <div className="mn-home__meta">
           <span className="mn-tag">今日練習</span>
           <span className="mn-status-badge">
-            {`GRADE ${ageBand.replace("G", "")} · ${(defaultSubject ?? "math").toUpperCase()}`}
+            {`GRADE ${ageBand.replace("G", "")} · ${(effectiveSubject ?? "math").toUpperCase()}`}
           </span>
+          <div className="mn-home__subject-switch" role="group" aria-label="切換科目">
+            {(["math", "chinese", "english", "science"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={
+                  "mn-home__subject-chip" +
+                  (effectiveSubject === s ? " mn-home__subject-chip--active" : "")
+                }
+                aria-pressed={effectiveSubject === s ? "true" : "false"}
+                onClick={() => {
+                  setSubject(s);
+                  setResumeAvailable(false);
+                }}
+                data-testid={`subject-chip-${s}`}
+              >
+                {SUBJECT_LABEL_ZH[s] ?? s}
+              </button>
+            ))}
+          </div>
         </div>
         <h1 className="mn-home__headline" data-testid="home-headline">
           {resumeAvailable ? "歡迎回來" : "嗨，今天準備好了嗎？"}

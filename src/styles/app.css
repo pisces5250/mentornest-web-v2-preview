@@ -476,6 +476,45 @@ a { color: inherit; }
   flex-wrap: wrap;
 }
 
+/* Subject switcher (Phase 6B verification aid).  Lives in the home meta
+ * row so a child (or parent doing verification) can switch between
+ * math / chinese / english / science without leaving the home view.
+ * Designed to match the existing chip / hairline language. */
+.mn-home__subject-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-2);
+  margin-left: var(--mn-qg-sp-2);
+}
+
+.mn-home__subject-chip {
+  font: inherit;
+  font-size: var(--mn-qg-fs-meta, 13px);
+  line-height: 1;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mn-qg-ink-soft);
+  border: 1px solid var(--mn-qg-line, #d8dee9);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.mn-home__subject-chip:hover {
+  background: var(--mn-qg-bg-soft, #f5f7fa);
+}
+
+.mn-home__subject-chip--active {
+  background: var(--mn-qg-ink, #1a1f2c);
+  color: #fff;
+  border-color: var(--mn-qg-ink, #1a1f2c);
+}
+
+.mn-home__subject-chip:focus-visible {
+  outline: 2px solid var(--mn-qg-focus, #2563eb);
+  outline-offset: 2px;
+}
+
 .mn-home__headline {
   font-size: var(--mn-qg-fs-display);
   font-weight: 600;
