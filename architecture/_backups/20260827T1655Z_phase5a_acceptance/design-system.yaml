@@ -1,0 +1,260 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+updated: 2026-08-27T1252Z
+# Human decisions ratified 2026-08-27T1252Z (Phase 4 web v2 tech choices):
+human_decisions_20260827T1252Z:
+  - id: HD-WV2-1
+    decision: web_v2_stack = React + Vite + TypeScript
+    rationale: ecosystem completeness (Storybook, Playwright, axe-core, math input, drag/drop, SVG components); long-term maintainability for Parent View / Child View / Canvas / Voice / Visual components.
+  - id: HD-WV2-2
+    decision: design_tokens_source_of_truth = CSS Variables (no Tailwind this round)
+    rationale: framework-agnostic source; Tailwind may map in later if needed; do NOT split into npm package until a second front-end consumer exists.
+    naming_prefix: "--mn-"
+    examples: --mn-color-primary, --mn-space-4, --mn-radius-lg, --mn-font-size-body
+  - id: HD-WV2-3
+    decision: keyboard_shortcuts_supported_default_off
+    shortcuts_supported: [R=replay, H=hint, 1..9=choice_select]
+    discovery: a "鍵盤快捷鍵" help entry exists, but shortcuts are NOT surfaced in the child UI by default; do NOT show shortcut hints on the question screen.
+  - id: HD-WV2-4
+    decision: color_blind_strategy = explicit_user_setting_not_browser_autodetect
+    modes: [default, high_contrast, color_vision_safe]
+    invariants: success/error MUST always carry icon + text label, never color-only.
+  - id: HD-WV2-5
+    decision: no_fixed_mascot_v1
+    g1_g2_g3_g4: simple MentorNest icon / abstract helper with mild expression states allowed
+    g5_g6: NO mascot-style character; no child-APP feel; mature and clean.
+    tts_voice: not bound to a mascot appearance; persona can be abstract.
+  - id: HD-WV2-6
+    decision: child_usability_research = opt_in_consent_required
+    default: not_enrolled
+    product_telemetry_and_research_data_are_separated: true
+    rule: third_party_usability_saas (Maze / UserTesting / recording tools) requires explicit opt-in per session.
+  - id: HD-WV2-7
+    decision: phase_1_usability = local_parent_supervised_no_saas
+    first_round: locally observed sessions with a parent present; no screen recording uploaded; no third-party SaaS.
+purpose: >
+  Architect the MentorNest child-facing Design System v1.  This file is
+  the entry point: it describes how design tokens, age profiles,
+  components, interaction patterns, and accessibility constraints
+  compose into one consistent system.  Implementation (the actual CSS,
+  React/Vue components, or design tokens JSON) is deferred to Phase 5
+  (mentornest-web v2).
+
+scope:
+  in_scope:
+    - child-facing UI surface across web / mobile / tablet
+    - mentorNest Design System v1 (tokens + components + patterns)
+    - Subject Specialist handoff contract (presentation_request)
+    - age profile behavior (G1-G2 / G3-G4 / G5-G6 / G7+ reserved)
+    - personalization guard-rails (bounded preferences)
+  out_of_scope:
+    - mentorNest backend
+    - learning_record schema or persistence
+    - subject pedagogy decisions (Subject Specialist authority)
+    - parent report rendering (parent-facing surface, separate agent)
+    - any production UI code in this round (architecture only)
+
+layers:
+  - layer: 1_tokens
+    file: design-tokens.yaml
+    description: >
+      Atomic, technology-agnostic values (typography scale, spacing,
+      rim radius, sizes, semantic colors, state colors, motion,
+      touch target).  The single source of truth every other layer
+      composes from.
+  - layer: 2_baseline_components
+    file: components.yaml
+    description: >
+      Reusable visual + interaction components (question_card,
+      hint_panel, progress_bar, feedback_state, drag_drop, math_input,
+      voice_input, future handwriting/canvas_input).  Each component
+      reads ONLY from layer 1 tokens.
+  - layer: 3_interaction_patterns
+    file: interaction-patterns.yaml
+    description: >
+      Compositions of components used by Subject Specialists and the
+      learning director.  Each pattern binds question_type to a
+      recommended layout + interaction sequence + state transitions.
+  - layer: 4_age_profiles
+    file: age-profiles.yaml
+    description: >
+      Per-age-band adjustments to typography density, hit target size,
+      navigation depth, character guidance, and feedback verbosity.
+      One active profile per session; profile is selected by grade.
+  - layer: 5_accessibility
+    file: accessibility.yaml
+    description: >
+      Cross-cutting constraints applied to all layers above.
+      Cognitive load cap, motion-reduction, color-blind palettes,
+      screen reader labels, focus management, error prevention.
+      Accessibility is NON-NEGOTIABLE; personalization cannot
+      override it.
+
+handoff_contract:
+  name: presentation_request_v1
+  direction: subject_specialist → child_learning_experience_designer
+  request_fields:
+    - subject: string (math|chinese|english|science|social_studies)
+    - grade: integer 1..6 (7+ reserved)
+    - question_type: string
+    - representation_type: string (e.g. fraction_bar, bar_model)
+    - learning_goal: string (curriculum KP description)
+    - interaction_required: string enum (none|drag_drop|math_input|voice_input|handwriting|multiple_choice)
+    - hint_level: integer 0..3
+    - accessibility_context: object (motion_reduction, color_blind_safe, screen_reader_priority)
+  response_fields:
+    - component_type: string
+    - layout: string (single_column|two_column|stage_focus)
+    - interaction_pattern: string (read_only|guided|free_input|drag_drop)
+    - visual_priority: object (primary|secondary|tertiary elements)
+    - responsive_rules: object (mobile|tablet|desktop breakpoints)
+    - child_copy: object (title, prompt, hint_voiceover, feedback_voiceover)
+
+personalization_bounded:
+  allowed:
+    - simple_vs_lively
+    - animation_tolerance
+    - font_size_preference
+    - character_guidance_preference
+  invariants:
+    - must_not_break_accessibility
+    - must_not_break_consistency
+    - must_not_break_assessment_fairness
+    - must_not_alter_subject_specialist_teaching_intent
+  enforcement: server_side_default + client_side_caps + teacher_override
+
+invariants:
+  - id: INV-DS-1
+    rule: Accessibility has absolute priority over aesthetics.
+    enforced_by: accessibility.yaml
+  - id: INV-DS-2
+    rule: Tokens are the only values components read; no hard-coded colors/sizes.
+    enforced_by: lint rules (planned Phase 5)
+  - id: INV-DS-3
+    rule: One active age profile per session, set by grade.
+    enforced_by: age-profiles.yaml
+  - id: INV-DS-4
+    rule: Subject Specialist teaching intent MUST be preserved verbatim.
+    enforced_by: handoff_contract.response_fields.child_copy
+  - id: INV-DS-5
+    rule: No personalization option may regress a child with motor / cognitive / visual impairment.
+    enforced_by: accessibility.yaml + age-profiles.yaml
+  - id: INV-DS-6
+    rule: All math visual representations produced by math_visual_engine (Phase 3.5-A) remain the authoritative SVG content; Designer only decides the surrounding chrome.
+    enforced_by: integration with math_visual_engine_render
+
+change_protocol:
+  propose: >
+    Subject Specialist or system-orchestrator opens a Phase-4 design
+    change proposal referencing one or more files under
+    architecture/design/.
+  review: child-learning-experience-designer (when implemented) + system-orchestrator.
+  ratify: human decision required for: age-profile policy changes, accessibility invariants, or any rule listed under invariants.
+
+audit:
+  files:
+    - design-system.yaml
+    - design-tokens.yaml
+    - age-profiles.yaml
+    - components.yaml
+    - interaction-patterns.yaml
+    - accessibility.yaml
+  related:
+    - architecture/policies.yaml (env_naming_locked_v1, visual_theme_hook deferred)
+    - architecture/skills-registry.yaml (agents_baseline_locked_pending_implementation)
+    - architecture/agents.yaml (child-learning-experience-designer row)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Human decisions 2026-08-27T1655Z (Phase 5A acceptance close + design locks)
+# Source of truth for all R1..R12 references; supersedes any prior deferred entries.
+# ─────────────────────────────────────────────────────────────────────────────
+human_decisions_20260827T1655Z:
+  - id: R1
+    topic: "math_input_library"
+    decision: "native_math_keypad_first"
+    rationale: "G1-G4 need a tightly-controlled, child-safe on-screen keypad; full libraries (mathlive / react-math-keyboard) only when Phase 6 (handwriting) and Phase 7 (rich equation) require them. Build a small native keypad as the v1."
+    status: locked
+    locked_at: 20260827T1655Z
+    triggers_for_re_evaluation:
+      - "Phase 6 handwriting input ships"
+      - "G5+ requests rich-equation input (parent-supervised)"
+
+  - id: R2
+    topic: "drag_drop_library"
+    decision: "dnd-kit"
+    rationale: "Best-in-class a11y (KeyboardSensor + screen-reader announcements), zero deps conflict, MIT license, works with React 18 + Vite + TS."
+    status: locked
+    locked_at: 20260827T1655Z
+
+  - id: R3
+    topic: "math_svg_integration"
+    decision: "math_visual_engine_render_remains_authoritative_with_controlled_react_svg_renderer"
+    rationale: "math_visual_engine_render (lib) is the source of truth for SVG semantics (fraction_bar, number_line, bar_model, etc.). React component just renders the resulting SVG nodes inside the question card slot — does NOT reimplement visuals."
+    status: locked
+    locked_at: 20260827T1655Z
+
+  - id: R4
+    topic: "handwriting_recognition_tech (Phase 6)"
+    decision: "deferred"
+    rationale: "Out of scope for Phase 5/5B; revisit at Phase 6 kickoff."
+
+  - id: R5
+    topic: "G1-G2 default TTS voice_id"
+    decision: "deferred"
+    rationale: "audio research pending; needs sensevoice-small voice_id selection that survives the local STT pipeline."
+
+  - id: R6
+    topic: "MentorNest icon style guide"
+    decision: "rounded_line_baseline"
+    rationale: "Renders cleanly at small sizes (16-48px), works on high-contrast + color-vision-safe, child-friendly without being cute. No duotone or flat-only variants in v1."
+    status: locked
+    locked_at: 20260827T1655Z
+
+  - id: R7
+    topic: "high_contrast_palette_tokens"
+    decision: "dedicated_AAA_tokens_separate_from_default"
+    rationale: "Default tokens (4A90E2 primary, etc.) do NOT meet AAA 7:1 on white. A dedicated `--mn-semantic_colors-color_mode_settings-high_contrast_*` set is emitted by the token compiler, plus a button-surface override (`--mn-semantic_colors-roles-primary_button: #1d5fb6` = 5.5:1) for surfaces where dark text on the primary fill is required. WCAG 2.1 AA acceptance is via axe; AAA is the design intent but not a hard axe rule."
+    status: locked
+    locked_at: 20260827T1655Z
+
+  - id: R8
+    topic: "when_to_upgrade_local_to_saas_usability"
+    decision: "deferred"
+    rationale: "Per HD-WV2-7, Phase 1 usability is local + parent-supervised. After ≥3 locally observed sessions are reviewed and a NEW human decision supersedes HD-WV2-7, we may introduce SaaS tooling."
+
+  - id: R9
+    topic: "pdf_text_extraction_lib"
+    decision: "deferred_not_a_phase_5_blocker"
+    rationale: "ascii_fallback is the current default (works on text PDFs). A proper PDF parser is owed but does not block Phase 5 web v2. Revisit at Phase 5B/C when parent-upload PDFs enter scope."
+
+  - id: R10
+    topic: "license_provenance_ui"
+    decision: "parent_and_admin_only_never_in_child_learning_view"
+    rationale: "Children never see license/provenance indicators (AI_ORIGINAL, AI_ADAPTED, etc.) — that information surfaces only in Parent View and Admin tooling. This is enforced in age_profile_engine (`hide_provenance: true` for all child bands) and is a hard invariant."
+    status: locked
+    locked_at: 20260827T1655Z
+    enforcement:
+      - "age_profile_engine emits hide_provenance=true for G1-G2 / G3-G4 / G5-G6 / G7+"
+      - "presentation_request_orchestrator MUST refuse render_spec that includes provenance in child surface"
+      - "tests assert no provenance DOM appears for any child age band"
+
+  - id: R11
+    topic: "private_question_lifecycle"
+    decision: "private_indefinitely_no_ttl_auto_promotion"
+    rationale: "Questions marked PRIVATE stay PRIVATE unless a NEW human decision explicitly re-reviews them. There is no auto-promote by TTL, no auto-demote. Re-review is a deliberate human action."
+    status: locked
+    locked_at: 20260827T1655Z
+    enforcement:
+      - "verified_bank_lookup MUST NOT promote PRIVATE → SHARED without explicit operator action"
+      - "mastery_engine_v2 / school_progress MUST NOT downgrade a verified question based on age alone"
+      - "audit log records any PRIVATE state change with operator + reason"
+
+  - id: R12
+    topic: "playwright_plus_axe_core"
+    decision: "approved_automated_browser_audit"
+    rationale: "Phase 5A acceptance runs Playwright + axe-core in headless Chromium; this is the standard real-browser audit path for Phase 5 web v2. NOT a Phase 5 product decision — it is infrastructure acceptance tooling."
+    status: not_a_human_decision_infrastructure_tooling
+    note: "Locked 20260827T1655Z as part of Phase 5A acceptance. Future phases inherit this acceptance pattern unless explicitly overridden."

@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {nextScienceHint} from '../dist/lib/science_hint_ladder_v1.mjs';
+test('level one',()=>assert.equal(nextScienceHint({attempts:1}).level,1));
+test('level two',()=>assert.equal(nextScienceHint({attempts:2}).level,2));
+test('level three',()=>assert.equal(nextScienceHint({attempts:3}).level,3));
+test('level four',()=>assert.equal(nextScienceHint({attempts:5}).level,4));
+test('bounded',()=>assert.equal(nextScienceHint({attempts:100}).level,4));
+test('experiment representation',()=>assert.equal(nextScienceHint({attempts:1,error_codes:['SCI-METH-MANIPULATE']}).representation_suggestion,'experiment'));
+test('table representation',()=>assert.equal(nextScienceHint({attempts:1,error_codes:['SCI-DATA-AXIS']}).representation_suggestion,'table'));
+test('diagram representation',()=>assert.equal(nextScienceHint({attempts:1,error_codes:['SCI-DIAG-LEGEND']}).representation_suggestion,'diagram'));
+test('hint text',()=>assert.match(nextScienceHint({attempts:1}).hint_text_zh,/想一想/));

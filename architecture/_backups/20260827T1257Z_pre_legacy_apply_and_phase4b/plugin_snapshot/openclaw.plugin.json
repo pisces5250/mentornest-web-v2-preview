@@ -1,0 +1,483 @@
+{
+  "id": "mentornest-learning",
+  "name": "MentorNest Learning",
+  "description": "MentorNest Phase 2 learning plugin: profile v1/v2, learning records, deterministic math validator, hint ladder, learning event reader, mastery store, curriculum map, question bank (curator + quality agent), verified bank lookup, parent setup schema, coverage-driven AI authoring orchestrator, math-specialist independent answer verification, learning director (cross-subject weakness, prerequisite gap, weekly strategy). Phase 3-A: math specialist v2 + math visual engine (SVG v1) + math hint ladder v2 + word problem decomposer + prerequisite chain + math error taxonomy (12 tools: 11 + text-only companion). Phase 3-F: unified subject-v1 contract + cross-subject dispatcher + learning director v2 (11 tools). Phase 3.5: legacy mastery backfill (5 tools: dry_run, apply, status, rollback, classify_event). Phase 3.5-B: local TTS interface (sherpa-onnx-tts priority, 4 tools: tts_synthesize, tts_list_voices, tts_status, tts_hash_text). Phase 3.5-D: school_progress inferred TTL lifecycle (4 tools: status, mark_stale, promote, ttl_sweep; stale records remain on disk, never auto-promote to confirmed). Phase 4A: raw_question_ingest + raw_question_segment (pure, no disk writes; PDF/image binary inputs throw unsupported_in_round_4a).",
+  "contracts": {
+    "tools": [
+      "student_profile_get",
+      "student_profile_update",
+      "student_profile_v2_get",
+      "student_profile_v2_update",
+      "learning_record_append",
+      "learning_event_reader",
+      "generate_practice_set",
+      "generate_practice_set_v2",
+      "classify_math_error",
+      "deterministic_math_validator",
+      "hint_ladder_next",
+      "mastery_store_get",
+      "mastery_store_update",
+      "curriculum_map_lookup",
+      "curriculum_meta",
+      "question_bank_curator_curate",
+      "question_quality_agent_verify",
+      "question_quality_agent_dedupe_check",
+      "verified_bank_lookup",
+      "verified_bank_count",
+      "parent_setup_schema_validate",
+      "parent_setup_schema_copy",
+      "math_specialist_independent_verify",
+      "question_bank_coverage_report",
+      "ai_question_authoring_orchestrator_run",
+      "ai_question_authoring_plan",
+      "learning_director_cross_subject_weakness_aggregator",
+      "learning_director_prerequisite_gap_detector",
+      "learning_director_weekly_strategy_emitter",
+      "mentornest_question_author_production",
+      "school_progress_get",
+      "school_progress_update_confirmed",
+      "school_progress_infer",
+      "school_progress_promote_to_confirmed",
+      "school_alignment",
+      "confirmed_vs_inferred_progress_tracker",
+      "textbook_mapping_engine",
+      "mastery_engine_v2_update_from_evidence",
+      "mastery_engine_v2_annotate_school_alignment",
+      "mastery_engine_v2_error_pattern_aggregation",
+      "mastery_engine_v2_retention_signal",
+      "mastery_engine_v2_list_evidence",
+      "mastery_engine_v2_get",
+      "chinese_error_taxonomy_lookup",
+      "chinese_specialist_diagnose",
+      "chinese_specialist_analyze_reading",
+      "chinese_specialist_evaluate_composition",
+      "chinese_specialist_build_writing_feedback",
+      "chinese_specialist_decide",
+      "chinese_specialist_emit_evidence",
+      "chinese_hint_ladder_next",
+      "chinese_curriculum_lookup_kp",
+      "chinese_curriculum_list_for_grade",
+      "chinese_subskill_classify",
+      "math_error_taxonomy_lookup",
+      "math_visual_engine_render",
+      "math_visual_engine_render_text_only",
+      "math_hint_ladder_v2_next",
+      "word_problem_decomposer_analyze",
+      "word_problem_decomposer_match_template",
+      "math_prerequisite_chain_get",
+      "math_prerequisite_weakest",
+      "math_specialist_diagnose",
+      "math_specialist_build_teaching_plan",
+      "math_specialist_decide",
+      "math_specialist_emit_evidence",
+      "english_error_taxonomy_lookup",
+      "english_specialist_diagnose",
+      "english_specialist_analyze_reading",
+      "english_specialist_transcribe_and_grade",
+      "english_specialist_evaluate_conversation",
+      "english_specialist_decide",
+      "english_specialist_emit_evidence",
+      "english_hint_ladder_next",
+      "english_curriculum_lookup_kp",
+      "english_curriculum_list_for_grade",
+      "english_subskill_classify",
+      "english_stt_validate_audio_path",
+      "english_stt_validate_transcript",
+      "english_stt_transcription_gate",
+      "english_stt_capability_report",
+      "english_stt_request",
+      "science_error_taxonomy_lookup",
+      "science_specialist_diagnose",
+      "science_specialist_analyze_experiment",
+      "science_specialist_interpret_chart_table",
+      "science_specialist_interpret_diagram",
+      "science_specialist_decide",
+      "science_specialist_emit_evidence",
+      "science_hint_ladder_next",
+      "science_curriculum_lookup_kp",
+      "science_curriculum_list_for_grade",
+      "science_subskill_classify",
+      "social_studies_error_taxonomy_lookup",
+      "social_studies_specialist_diagnose",
+      "social_studies_specialist_analyze_timeline",
+      "social_studies_specialist_analyze_map",
+      "social_studies_specialist_analyze_causality",
+      "social_studies_specialist_compare_sources",
+      "social_studies_specialist_interpret_demographic_chart",
+      "social_studies_specialist_decide",
+      "social_studies_specialist_emit_evidence",
+      "social_studies_hint_ladder_next",
+      "social_studies_curriculum_lookup_kp",
+      "social_studies_curriculum_list_for_grade",
+      "social_studies_subskill_classify",
+      "subject_v1_contract_version",
+      "subject_v1_validate_request",
+      "subject_v1_validate_response",
+      "subject_specialist_dispatch",
+      "subject_specialist_capability_report",
+      "cross_subject_merge_decisions",
+      "learning_director_v2_dispatch_next_step",
+      "learning_director_v2_capability_report",
+      "subject_v1_request_template",
+      "subject_v1_response_template",
+      "subject_v1_dispatch_examples",
+      "mastery_backfill_dry_run",
+      "mastery_backfill_apply",
+      "mastery_backfill_status",
+      "mastery_backfill_rollback",
+      "mastery_backfill_classify_event",
+      "tts_synthesize",
+      "tts_list_voices",
+      "tts_status",
+      "tts_hash_text",
+      "school_progress_inferred_status",
+      "school_progress_inferred_mark_stale",
+      "school_progress_inferred_promote",
+      "school_progress_inferred_ttl_sweep",
+      "raw_question_ingest",
+      "raw_question_segment"
+    ]
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  },
+  "manifest": {
+    "tools": [
+      {
+        "name": "tts_synthesize",
+        "description": "Synthesize speech for the given text using local TTS only (sherpa-onnx-tts priority). Falls back to a deterministic placeholder WAV (440 Hz sine, mono 16 kHz 16-bit PCM) when the sherpa runtime + model are unavailable. Cloud TTS providers are FORBIDDEN. Returns {ok, audio_b64, audio_format, duration_ms, voice_id, content_hash, backend} on success.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "voice_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "speed": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2
+            }
+          },
+          "required": [
+            "text"
+          ]
+        },
+        "handler": "ttsSynthesize"
+      },
+      {
+        "name": "tts_list_voices",
+        "description": "List available local TTS voices (voice_id, locale, gender, sample_rate_hz, description). Deterministic.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "handler": "ttsListVoices"
+      },
+      {
+        "name": "tts_status",
+        "description": "Report local TTS backend status: {backend: 'sherpa-onnx-tts' | 'placeholder', available, reason}. Cloud TTS providers are never reported as available.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "handler": "ttsStatus"
+      },
+      {
+        "name": "tts_hash_text",
+        "description": "Compute a deterministic content hash (first 16 hex chars of sha256) over (text, voice_id, speed). Useful for cache-key testing.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "voice_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "speed": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2
+            }
+          },
+          "required": [
+            "text"
+          ]
+        },
+        "handler": "ttsComputeContentHash"
+      },
+      {
+        "name": "school_progress_inferred_status",
+        "description": "Read-only view of inferred / stale / confirmed record counts for one student. Returns {ok, student_id, total_inferred, total_stale, total_confirmed, ttl_days, ttl_source, last_sweep_at, path}.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "student_id": {
+              "type": "string",
+              "pattern": "^student_[A-Za-z0-9_-]+$"
+            }
+          },
+          "required": [
+            "student_id"
+          ]
+        },
+        "handler": "schoolProgressInferredStatus"
+      },
+      {
+        "name": "school_progress_inferred_mark_stale",
+        "description": "Sweep one student's school_progress: mark inferred records whose age >= ttl_days as stale. Idempotent. Stale records remain on disk; only their status field changes inferred → stale. NEVER auto-promotes to confirmed.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "student_id": {
+              "type": "string",
+              "pattern": "^student_[A-Za-z0-9_-]+$"
+            },
+            "now_ms": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "student_id"
+          ]
+        },
+        "handler": "schoolProgressInferredMarkStale"
+      },
+      {
+        "name": "school_progress_inferred_promote",
+        "description": "Explicit human promotion: convert one specific inferred or stale record to confirmed. Requires confirmed_by (e.g. parent_setup, manual). Refuses already-confirmed. NEVER auto-promotes; only this explicit tool may promote.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "student_id": {
+              "type": "string",
+              "pattern": "^student_[A-Za-z0-9_-]+$"
+            },
+            "knowledge_point": {
+              "type": "string",
+              "minLength": 1
+            },
+            "confirmed_by": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "student_id",
+            "knowledge_point",
+            "confirmed_by"
+          ]
+        },
+        "handler": "schoolProgressInferredPromote"
+      },
+      {
+        "name": "school_progress_inferred_ttl_sweep",
+        "description": "Sweep one OR all students: mark inferred records stale per TTL. Returns {ok, swept_students, total_newly_stale, swept_at}. Idempotent across repeated calls.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "student_id": {
+              "type": "string",
+              "pattern": "^student_[A-Za-z0-9_-]+$"
+            }
+          }
+        },
+        "handler": "schoolProgressInferredTtlSweep"
+      },
+      {
+        "name": "raw_question_ingest",
+        "description": "Phase 4A — Ingest raw content (text/structured/pdf/image) into RawCandidate[]. PDF and image binary inputs return an unsupported_in_round_4a error (no cloud OCR installed). Pure: does NOT write to disk and does NOT promote anything to the verified bank.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["text", "structured", "pdf", "image"]
+            },
+            "content": {
+              "type": ["string", "object", "array"]
+            },
+            "source_class": {
+              "type": "string",
+              "enum": ["student_private", "ai_authored", "open_license", "teacher_authored"]
+            },
+            "source_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "license": {
+              "type": "string",
+              "enum": ["AI_ORIGINAL", "AI_ADAPTED", "CC-BY", "CC-BY-SA", "CC0", "PRIVATE"]
+            }
+          }
+        },
+        "handler": "rawQuestionIngest"
+      },
+      {
+        "name": "raw_question_segment",
+        "description": "Phase 4A — Segment an array of RawCandidate into SegmentedQuestion[]. Pure: does NOT write to disk. Recognizes short_answer / multiple_choice / true_false / fill_in_blank / essay / unknown.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "handler": "rawQuestionSegment"
+      }
+    ]
+  },
+  "tools": [
+    "student_profile_get",
+    "student_profile_update",
+    "student_profile_v2_get",
+    "student_profile_v2_update",
+    "learning_record_append",
+    "learning_event_reader",
+    "generate_practice_set",
+    "generate_practice_set_v2",
+    "classify_math_error",
+    "deterministic_math_validator",
+    "hint_ladder_next",
+    "mastery_store_get",
+    "mastery_store_update",
+    "curriculum_map_lookup",
+    "curriculum_meta",
+    "question_bank_curator_curate",
+    "question_quality_agent_verify",
+    "question_quality_agent_dedupe_check",
+    "verified_bank_lookup",
+    "verified_bank_count",
+    "parent_setup_schema_validate",
+    "parent_setup_schema_copy",
+    "math_specialist_independent_verify",
+    "question_bank_coverage_report",
+    "ai_question_authoring_orchestrator_run",
+    "ai_question_authoring_plan",
+    "learning_director_cross_subject_weakness_aggregator",
+    "learning_director_prerequisite_gap_detector",
+    "learning_director_weekly_strategy_emitter",
+    "mentornest_question_author_production",
+    "school_progress_get",
+    "school_progress_update_confirmed",
+    "school_progress_infer",
+    "school_progress_promote_to_confirmed",
+    "school_alignment",
+    "confirmed_vs_inferred_progress_tracker",
+    "textbook_mapping_engine",
+    "mastery_engine_v2_update_from_evidence",
+    "mastery_engine_v2_annotate_school_alignment",
+    "mastery_engine_v2_error_pattern_aggregation",
+    "mastery_engine_v2_retention_signal",
+    "mastery_engine_v2_list_evidence",
+    "mastery_engine_v2_get",
+    "chinese_error_taxonomy_lookup",
+    "chinese_specialist_diagnose",
+    "chinese_specialist_analyze_reading",
+    "chinese_specialist_evaluate_composition",
+    "chinese_specialist_build_writing_feedback",
+    "chinese_specialist_decide",
+    "chinese_specialist_emit_evidence",
+    "chinese_hint_ladder_next",
+    "chinese_curriculum_lookup_kp",
+    "chinese_curriculum_list_for_grade",
+    "chinese_subskill_classify",
+    "math_error_taxonomy_lookup",
+    "math_visual_engine_render",
+    "math_visual_engine_render_text_only",
+    "math_hint_ladder_v2_next",
+    "word_problem_decomposer_analyze",
+    "word_problem_decomposer_match_template",
+    "math_prerequisite_chain_get",
+    "math_prerequisite_weakest",
+    "math_specialist_diagnose",
+    "math_specialist_build_teaching_plan",
+    "math_specialist_decide",
+    "math_specialist_emit_evidence",
+    "english_error_taxonomy_lookup",
+    "english_specialist_diagnose",
+    "english_specialist_analyze_reading",
+    "english_specialist_transcribe_and_grade",
+    "english_specialist_evaluate_conversation",
+    "english_specialist_decide",
+    "english_specialist_emit_evidence",
+    "english_hint_ladder_next",
+    "english_curriculum_lookup_kp",
+    "english_curriculum_list_for_grade",
+    "english_subskill_classify",
+    "english_stt_validate_audio_path",
+    "english_stt_validate_transcript",
+    "english_stt_transcription_gate",
+    "english_stt_capability_report",
+    "english_stt_request",
+    "science_error_taxonomy_lookup",
+    "science_specialist_diagnose",
+    "science_specialist_analyze_experiment",
+    "science_specialist_interpret_chart_table",
+    "science_specialist_interpret_diagram",
+    "science_specialist_decide",
+    "science_specialist_emit_evidence",
+    "science_hint_ladder_next",
+    "science_curriculum_lookup_kp",
+    "science_curriculum_list_for_grade",
+    "science_subskill_classify",
+    "social_studies_error_taxonomy_lookup",
+    "social_studies_specialist_diagnose",
+    "social_studies_specialist_analyze_timeline",
+    "social_studies_specialist_analyze_map",
+    "social_studies_specialist_analyze_causality",
+    "social_studies_specialist_compare_sources",
+    "social_studies_specialist_interpret_demographic_chart",
+    "social_studies_specialist_decide",
+    "social_studies_specialist_emit_evidence",
+    "social_studies_hint_ladder_next",
+    "social_studies_curriculum_lookup_kp",
+    "social_studies_curriculum_list_for_grade",
+    "social_studies_subskill_classify",
+    "subject_v1_contract_version",
+    "subject_v1_validate_request",
+    "subject_v1_validate_response",
+    "subject_specialist_dispatch",
+    "subject_specialist_capability_report",
+    "cross_subject_merge_decisions",
+    "learning_director_v2_dispatch_next_step",
+    "learning_director_v2_capability_report",
+    "subject_v1_request_template",
+    "subject_v1_response_template",
+    "subject_v1_dispatch_examples",
+    "mastery_backfill_dry_run",
+    "mastery_backfill_apply",
+    "mastery_backfill_status",
+    "mastery_backfill_rollback",
+    "mastery_backfill_classify_event",
+    "tts_synthesize",
+    "tts_list_voices",
+    "tts_status",
+    "tts_hash_text",
+    "school_progress_inferred_status",
+    "school_progress_inferred_mark_stale",
+    "school_progress_inferred_promote",
+    "school_progress_inferred_ttl_sweep",
+    "raw_question_ingest",
+    "raw_question_segment"
+  ]
+}

@@ -1,0 +1,65 @@
+version: 1
+subject: "chinese"
+curriculum_doc: "tw-12yrc-chinese-v1"
+scope: "G1-G6"
+
+grades:
+  1:
+    knowledge_points:
+      - id: "chinese.G1.PHONE.bopomofo"
+        description: "注音符號的認讀與拼讀"
+        stage: "一上"
+      - id: "chinese.G1.READ.basic-sentence"
+        description: "短句閱讀與圖文對應"
+        stage: "一下"
+
+  2:
+    knowledge_points:
+      - id: "chinese.G2.READ.passage-main-idea"
+        description: "段落大意"
+        stage: "二上"
+      - id: "chinese.G2.WRITE.simple-sentence"
+        description: "完整句子書寫"
+        stage: "二下"
+
+  3:
+    knowledge_points:
+      - id: "chinese.G3.VOC.common-vocab"
+        description: "常用字詞與語詞運用"
+        stage: "三上"
+      - id: "chinese.G3.READ.inference-basics"
+        description: "推論閱讀：明顯線索"
+        stage: "三下"
+
+  4:
+    knowledge_points:
+      - id: "chinese.G4.READ.main-idea-multi"
+        description: "多段文意歸納"
+        stage: "四上"
+      - id: "chinese.G4.RHET.basic-rhetoric"
+        description: "基本修辭（譬喻、擬人）"
+        stage: "四下"
+
+  5:
+    knowledge_points:
+      - id: "chinese.G5.READ.inference-implicit"
+        description: "文意推論：未明說線索"
+        stage: "五上"
+      - id: "chinese.G5.IDIOM.basic-idiom"
+        description: "常用成語的理解與運用"
+        stage: "五上"
+      - id: "chinese.G5.WRITE.paragraph"
+        description: "段落的組織與書寫"
+        stage: "五下"
+
+  6:
+    knowledge_points:
+      - id: "chinese.G6.READ.rhetoric-recognize"
+        description: "常見修辭（排比、設問）的辨識"
+        stage: "六上"
+      - id: "chinese.G6.WRITE.composition-5para"
+        description: "五段以上作文結構"
+        stage: "六下"
+      - id: "chinese.G6.LANG.classical-intro"
+        description: "文言文初步接觸"
+        stage: "六下"

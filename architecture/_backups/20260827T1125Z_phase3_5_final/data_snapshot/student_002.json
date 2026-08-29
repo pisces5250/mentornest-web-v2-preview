@@ -1,0 +1,29 @@
+{
+  "student_id": "student_002",
+  "display_name": "靚靚",
+  "grade": null,
+  "school_year": "2026",
+  "curriculum": {
+    "math": {
+      "publisher": "",
+      "current_unit": ""
+    },
+    "chinese": {
+      "publisher": "",
+      "current_unit": ""
+    },
+    "english": {
+      "publisher": "",
+      "current_unit": ""
+    },
+    "science": {
+      "publisher": "",
+      "current_unit": ""
+    },
+    "social_studies": {
+      "publisher": "",
+      "current_unit": ""
+    }
+  },
+  "learning_preferences": {}
+}

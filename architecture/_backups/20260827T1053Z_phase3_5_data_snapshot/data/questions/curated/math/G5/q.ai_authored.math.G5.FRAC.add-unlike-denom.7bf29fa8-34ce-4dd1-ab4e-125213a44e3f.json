@@ -1,0 +1,31 @@
+{
+  "id": "q.ai_authored.math.G5.FRAC.add-unlike-denom.7bf29fa8-34ce-4dd1-ab4e-125213a44e3f",
+  "type": "short_answer",
+  "subject": "math",
+  "grade": 5,
+  "knowledge_point": "math.G5.FRAC.add-unlike-denom",
+  "difficulty": "easy",
+  "stem": "(easy) 計算 1/2 + 1/3 的結果",
+  "answer": "5/6",
+  "alt_answers": [
+    "5/6",
+    "10/12",
+    "15/18"
+  ],
+  "explanation": "通分後 3/6 + 2/6 = 5/6。",
+  "provenance": {
+    "source_class": "ai_authored",
+    "source_id": "orchestrator-1787827253447",
+    "license": "AI_ORIGINAL",
+    "generated_at": "2026-08-27T10:40:53.447Z",
+    "generated_by": "mentornest_ai",
+    "prompt_hash": "04393eaeadc4ec22"
+  },
+  "curator": {
+    "curated_at": "2026-08-27T10:40:53.464Z",
+    "stage_passed": [
+      "structure",
+      "provenance"
+    ]
+  }
+}

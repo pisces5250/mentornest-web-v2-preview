@@ -1,0 +1,135 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+purpose: >
+  Architect the MentorNest child-facing Design System v1.  This file is
+  the entry point: it describes how design tokens, age profiles,
+  components, interaction patterns, and accessibility constraints
+  compose into one consistent system.  Implementation (the actual CSS,
+  React/Vue components, or design tokens JSON) is deferred to Phase 5
+  (mentornest-web v2).
+
+scope:
+  in_scope:
+    - child-facing UI surface across web / mobile / tablet
+    - mentorNest Design System v1 (tokens + components + patterns)
+    - Subject Specialist handoff contract (presentation_request)
+    - age profile behavior (G1-G2 / G3-G4 / G5-G6 / G7+ reserved)
+    - personalization guard-rails (bounded preferences)
+  out_of_scope:
+    - mentorNest backend
+    - learning_record schema or persistence
+    - subject pedagogy decisions (Subject Specialist authority)
+    - parent report rendering (parent-facing surface, separate agent)
+    - any production UI code in this round (architecture only)
+
+layers:
+  - layer: 1_tokens
+    file: design-tokens.yaml
+    description: >
+      Atomic, technology-agnostic values (typography scale, spacing,
+      rim radius, sizes, semantic colors, state colors, motion,
+      touch target).  The single source of truth every other layer
+      composes from.
+  - layer: 2_baseline_components
+    file: components.yaml
+    description: >
+      Reusable visual + interaction components (question_card,
+      hint_panel, progress_bar, feedback_state, drag_drop, math_input,
+      voice_input, future handwriting/canvas_input).  Each component
+      reads ONLY from layer 1 tokens.
+  - layer: 3_interaction_patterns
+    file: interaction-patterns.yaml
+    description: >
+      Compositions of components used by Subject Specialists and the
+      learning director.  Each pattern binds question_type to a
+      recommended layout + interaction sequence + state transitions.
+  - layer: 4_age_profiles
+    file: age-profiles.yaml
+    description: >
+      Per-age-band adjustments to typography density, hit target size,
+      navigation depth, character guidance, and feedback verbosity.
+      One active profile per session; profile is selected by grade.
+  - layer: 5_accessibility
+    file: accessibility.yaml
+    description: >
+      Cross-cutting constraints applied to all layers above.
+      Cognitive load cap, motion-reduction, color-blind palettes,
+      screen reader labels, focus management, error prevention.
+      Accessibility is NON-NEGOTIABLE; personalization cannot
+      override it.
+
+handoff_contract:
+  name: presentation_request_v1
+  direction: subject_specialist → child_learning_experience_designer
+  request_fields:
+    - subject: string (math|chinese|english|science|social_studies)
+    - grade: integer 1..6 (7+ reserved)
+    - question_type: string
+    - representation_type: string (e.g. fraction_bar, bar_model)
+    - learning_goal: string (curriculum KP description)
+    - interaction_required: string enum (none|drag_drop|math_input|voice_input|handwriting|multiple_choice)
+    - hint_level: integer 0..3
+    - accessibility_context: object (motion_reduction, color_blind_safe, screen_reader_priority)
+  response_fields:
+    - component_type: string
+    - layout: string (single_column|two_column|stage_focus)
+    - interaction_pattern: string (read_only|guided|free_input|drag_drop)
+    - visual_priority: object (primary|secondary|tertiary elements)
+    - responsive_rules: object (mobile|tablet|desktop breakpoints)
+    - child_copy: object (title, prompt, hint_voiceover, feedback_voiceover)
+
+personalization_bounded:
+  allowed:
+    - simple_vs_lively
+    - animation_tolerance
+    - font_size_preference
+    - character_guidance_preference
+  invariants:
+    - must_not_break_accessibility
+    - must_not_break_consistency
+    - must_not_break_assessment_fairness
+    - must_not_alter_subject_specialist_teaching_intent
+  enforcement: server_side_default + client_side_caps + teacher_override
+
+invariants:
+  - id: INV-DS-1
+    rule: Accessibility has absolute priority over aesthetics.
+    enforced_by: accessibility.yaml
+  - id: INV-DS-2
+    rule: Tokens are the only values components read; no hard-coded colors/sizes.
+    enforced_by: lint rules (planned Phase 5)
+  - id: INV-DS-3
+    rule: One active age profile per session, set by grade.
+    enforced_by: age-profiles.yaml
+  - id: INV-DS-4
+    rule: Subject Specialist teaching intent MUST be preserved verbatim.
+    enforced_by: handoff_contract.response_fields.child_copy
+  - id: INV-DS-5
+    rule: No personalization option may regress a child with motor / cognitive / visual impairment.
+    enforced_by: accessibility.yaml + age-profiles.yaml
+  - id: INV-DS-6
+    rule: All math visual representations produced by math_visual_engine (Phase 3.5-A) remain the authoritative SVG content; Designer only decides the surrounding chrome.
+    enforced_by: integration with math_visual_engine_render
+
+change_protocol:
+  propose: >
+    Subject Specialist or system-orchestrator opens a Phase-4 design
+    change proposal referencing one or more files under
+    architecture/design/.
+  review: child-learning-experience-designer (when implemented) + system-orchestrator.
+  ratify: human decision required for: age-profile policy changes, accessibility invariants, or any rule listed under invariants.
+
+audit:
+  files:
+    - design-system.yaml
+    - design-tokens.yaml
+    - age-profiles.yaml
+    - components.yaml
+    - interaction-patterns.yaml
+    - accessibility.yaml
+  related:
+    - architecture/policies.yaml (env_naming_locked_v1, visual_theme_hook deferred)
+    - architecture/skills-registry.yaml (agents_baseline_locked_pending_implementation)
+    - architecture/agents.yaml (child-learning-experience-designer row)

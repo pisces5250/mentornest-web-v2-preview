@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {lookupScienceKP,listScienceKPForGrade,gradeAppropriateScienceTopic} from '../dist/lib/science_curriculum_map.mjs';
+test('lookup known',async()=>{const r=await lookupScienceKP({knowledge_point:'science.G4.MATTER.state-change'});assert.equal(r.found,true);assert.equal(r.grade,4);});
+test('lookup unknown',async()=>assert.equal((await lookupScienceKP({knowledge_point:'science.G9.X'})).found,false));
+test('list grade 3',async()=>assert.equal((await listScienceKPForGrade({grade:3})).knowledge_points.length,2));
+test('list grade 5',async()=>assert.equal((await listScienceKPForGrade({grade:5})).found,true));
+test('invalid grade',async()=>assert.equal((await listScienceKPForGrade({grade:9})).found,false));
+test('grade appropriate',()=>assert.equal(gradeAppropriateScienceTopic({grade:6,knowledge_point:'food-chain'}).appropriate,true));
+test('out of range',()=>assert.equal(gradeAppropriateScienceTopic({grade:7}).appropriate,false));
+test('description preserved',async()=>assert.match((await lookupScienceKP({knowledge_point:'science.G5.WATER.cycle'})).description,/水循環/));
+test('stage preserved',async()=>assert.equal((await lookupScienceKP({knowledge_point:'science.G3.OBS.plant-animal'})).stage,'三上'));

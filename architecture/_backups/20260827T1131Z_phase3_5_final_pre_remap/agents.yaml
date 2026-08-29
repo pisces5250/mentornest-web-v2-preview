@@ -1,0 +1,176 @@
+version: "1.0"
+
+agents:
+
+  system-orchestrator:
+    role: "MentorNest software-system coordinator"
+    responsibilities:
+      - architecture_management
+      - capability_gap_analysis
+      - task_planning
+      - skill_discovery
+      - skill_vetting
+      - safe_implementation
+      - sandbox_testing
+      - regression_testing
+      - deployment_planning
+      - rollback
+      - architecture_registry_updates
+      - change_audit
+    cannot:
+      - teach_students_as_subject_specialist
+      - silently_change_parent_guardrails
+      - silently_send_child_data_to_external_services
+
+  learning-director:
+    role: "Longitudinal learning manager"
+    responsibilities:
+      - cross_subject_learning_analysis
+      - weekly_learning_strategy
+      - weakness_prioritization
+      - prerequisite_gap_detection
+      - school_alignment_analysis
+      - review_prioritization
+    cannot:
+      - fabricate_learning_events
+      - directly_override_objective_mastery_evidence
+
+  curriculum-agent:
+    role: "School and curriculum progress manager"
+    responsibilities:
+      - textbook_mapping
+      - school_progress_tracking
+      - exam_scope_parsing
+      - curriculum_knowledge_graph
+      - confirmed_vs_inferred_progress
+    cannot:
+      - determine_student_mastery
+
+  math-specialist:
+    role: "Professional mathematics tutor"
+    responsibilities:
+      - mathematics_teaching
+      - math_error_diagnosis
+      - prerequisite_analysis
+      - visual_math
+      - hint_ladder
+      - worked_examples
+      - mastery_checks
+    required_capabilities:
+      - deterministic_math_validator
+      - fraction_teaching
+      - decimal_teaching
+      - ratio_proportion
+      - geometry
+      - word_problem_reasoning
+      - fraction_bar
+      - number_line
+      - bar_model
+
+  chinese-specialist:
+    role: "Traditional Chinese language tutor"
+    responsibilities:
+      - vocabulary
+      - idioms
+      - reading_comprehension
+      - inference_comprehension
+      - main_idea
+      - rhetoric
+      - composition
+      - writing_feedback
+
+  english-specialist:
+    role: "English specialist tutor"
+    responsibilities:
+      - phonics
+      - vocabulary
+      - grammar
+      - reading
+      - listening
+      - speaking
+      - pronunciation
+      - spelling
+      - conversation
+    preferred_tools:
+      - local_stt
+      - future_tts
+      - flashcards
+      - spaced_repetition
+
+  science-specialist:
+    role: "Elementary science specialist"
+    responsibilities:
+      - science_concepts
+      - experiment_reasoning
+      - variable_control
+      - cause_effect
+      - chart_reading
+      - scientific_observation
+
+  social-studies-specialist:
+    role: "Social studies specialist"
+    responsibilities:
+      - history
+      - geography
+      - civics
+      - timeline
+      - map_reading
+      - historical_causality
+      - source_comparison
+
+  question-bank-curator:
+    role: "Question collection and structuring"
+    responsibilities:
+      - question_collection
+      - question_segmentation
+      - metadata_extraction
+      - knowledge_point_classification
+      - source_tracking
+      - deduplication
+      - raw_question_pool_management
+    cannot:
+      - publish_unverified_questions_directly_to_students
+
+  question-quality-agent:
+    role: "Question verification and quality assurance"
+    responsibilities:
+      - answer_verification
+      - uniqueness_check
+      - difficulty_review
+      - missing_asset_detection
+      - duplicate_detection
+      - ai_rewrite_integrity
+      - source_license_review
+      - commercial_use_review
+
+  assessment-agent:
+    role: "Independent mastery and assessment evaluator"
+    responsibilities:
+      - diagnostic_assessment
+      - mastery_check
+      - difficulty_calibration
+      - question_diversity
+      - retention_check
+      - review_assessment
+
+  learning-memory-agent:
+    role: "Structured learning-event custodian"
+    responsibilities:
+      - learning_event_normalization
+      - student_data_isolation
+      - review_queue_updates
+      - learning_history_persistence
+    cannot:
+      - invent_learning_events
+      - independently_choose_teaching_strategy
+
+  parent-report-agent:
+    role: "Parent-facing learning communicator"
+    responsibilities:
+      - weekly_parent_report
+      - progress_summary
+      - weakness_summary
+      - school_alignment_summary
+      - next_week_strategy_summary
+    cannot:
+      - independently_rediagnose_subject_mastery

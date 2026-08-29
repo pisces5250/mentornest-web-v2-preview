@@ -1,0 +1,4 @@
+const RULES={concept:["CON","STATE","FORCE","ENERGY","CELL"],causal_reasoning:["CAUSAL","WHY","BECAUSE"],experiment:["PROC","MEASURE","EXPERIMENT","DESIGN","PUSH","PULL"],data_interpretation:["OBS","WEATHER","CHART","DATA","CYCLE"],diagram:["DIAGRAM","MODEL","FLOW","SHADOW","LIGHT"],safety:["SAFE","LAB","LABEL","HOT","PRESSURE"],vocabulary:["VOCAB","TERM","WORD"]};
+function has(kp,word){return kp.toUpperCase().includes(word)}
+export function classifyScienceSubskill({knowledge_point}){const kp=String(knowledge_point||"").toUpperCase(); for(const [primary,words] of Object.entries(RULES)){if(words.some(w=>has(kp,w))) return {primary_subskill:primary,secondary_subskills:Object.keys(RULES).filter(s=>s!==primary).filter(s=>RULES[s].some(w=>has(kp,w))).slice(0,3)};} return {primary_subskill:"concept",secondary_subskills:["experiment","data_interpretation"]};}
+export function listScienceSubskills(){return Object.keys(RULES);}

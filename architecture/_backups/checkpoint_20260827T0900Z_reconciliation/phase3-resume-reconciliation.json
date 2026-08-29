@@ -1,0 +1,86 @@
+{
+  "checkpoint_kind": "phase3-resume-reconciliation",
+  "created_at": "2026-08-27T09:00:30Z",
+  "owner_skill": "mentornest-system-orchestrator",
+
+  "reconciliation_outcome": {
+    "sub_session_A_math": {
+      "classification": "failed",
+      "evidence": "No artifacts on disk. Last seen running 08:47Z; absent from active list at 08:55Z and 09:00Z. No completion event.",
+      "decision": "RESPAWN — full scope"
+    },
+    "sub_session_B_chinese": {
+      "classification": "essentially_complete",
+      "evidence": {
+        "lib_modules": [
+          "chinese_error_taxonomy.mjs (+.d.mts) 15622 bytes",
+          "chinese_curriculum_map.mjs (+.d.mts) 10118 bytes",
+          "chinese_hint_ladder_v1.mjs (+.d.mts) 9075 bytes",
+          "chinese_subskill_map.mjs (+.d.mts) 6153 bytes",
+          "chinese_specialist.mjs (+.d.mts) 36990 bytes (grew after checkpoint)"
+        ],
+        "test_files": [
+          "chinese_error_taxonomy.test.mjs 2814 bytes",
+          "chinese_hint_ladder.test.mjs 4221 bytes",
+          "chinese_specialist.test.mjs 11107 bytes",
+          "chinese_curriculum_map.test.mjs (just appeared at 09:00Z)"
+        ],
+        "test_results_observed": "362/363 pass — only failure is plugin loads with 43 tools (outdated count; should be 54 with Chinese added)",
+        "tools_registered_in_index_ts": 11,
+        "dist_rebuilt": true,
+        "manifest_updated": false,
+        "integration_phase3_b_test": "MISSING — must be written as part of integration step"
+      },
+      "decision": "DO NOT RESPAWN — accept on-disk artifacts. Add integration_phase3_b.test.mjs + manifest update locally."
+    },
+    "sub_session_C_english": {
+      "classification": "failed",
+      "evidence": "No artifacts on disk. Last seen running 08:47Z; absent.",
+      "decision": "RESPAWN — full scope"
+    },
+    "sub_session_D_science": {
+      "classification": "failed",
+      "evidence": "No artifacts on disk. Last seen running 08:47Z; absent.",
+      "decision": "RESPAWN — full scope"
+    },
+    "sub_session_E_social_studies": {
+      "classification": "failed",
+      "evidence": "No artifacts on disk. Last seen running 08:47Z; absent.",
+      "decision": "RESPAWN — full scope"
+    },
+    "sub_session_F_unified_contract": {
+      "classification": "not_dispatched",
+      "decision": "Dispatch after A, C, D, E all reconciled and integrated; B already done."
+    }
+  },
+
+  "current_main_session_state": {
+    "session_key": "agent:main:line:direct:ua3b82723abfd8b1b0083debf534a09c5",
+    "active_subagents_at_recon": 1,
+    "active_subagent": "phase3_b_chinese_specialist (still running, likely self-cleanup)",
+    "max_concurrency_per_user": 2,
+    "max_concurrency_runtime_policy_default": 5
+  },
+
+  "resume_plan": {
+    "step_1": "Fix the one failing test (outdated tool count assertion) — bump 43 → 54.",
+    "step_2": "Add integration_phase3_b.test.mjs locally.",
+    "step_3": "Update openclaw.plugin.json contracts.tools with the 11 Chinese tools (since B didn't update the manifest).",
+    "step_4": "Respawn A (math) + C (english) in parallel — max 2 concurrent per user.",
+    "step_5": "After A+C complete, respawn D (science) + E (social_studies) in parallel.",
+    "step_6": "After D+E complete, dispatch F (unified contract).",
+    "step_7": "After F completes, run full Phase 3 test suite + update registries."
+  },
+
+  "protected_file_md5_unchanged": {
+    "AGENTS.md": "fc0a1477c9bd6ae631cf2aea5ce75f1e",
+    "SOUL.md": "e067ae104d26c5ca90679be0b23a4fe7",
+    "USER.md": "9f90803726401fa166be4ab1ad848182",
+    "IDENTITY.md": "d165c2d42796d1f41455020b31785def",
+    "data/students/student_001.json": "a6bd940971b06b5a1e24b20dd804cc48",
+    "data/students/student_002.json": "6bf5cb74e9e5b9febdfc9f5fe72ad87e",
+    "data/learning-records/student_001.jsonl": "5facdbf0b47e67d30baea59704ef0a90"
+  },
+
+  "previous_checkpoint_path": "/home/node/.openclaw/workspace/architecture/_backups/checkpoint_20260827T0855Z/phase3-provider-wait.json"
+}

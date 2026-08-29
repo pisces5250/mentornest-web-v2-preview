@@ -1,0 +1,28 @@
+{
+  "student_id": "",
+  "display_name": "",
+  "grade": null,
+  "school_year": "2026",
+  "subjects": {
+    "math": {
+      "publisher": "",
+      "current_unit": "",
+      "mastery": {}
+    },
+    "chinese": {
+      "publisher": "",
+      "current_unit": "",
+      "mastery": {}
+    },
+    "english": {
+      "publisher": "",
+      "current_unit": "",
+      "mastery": {}
+    },
+    "science": {
+      "publisher": "",
+      "current_unit": "",
+      "mastery": {}
+    }
+  }
+}

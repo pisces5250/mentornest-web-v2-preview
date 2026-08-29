@@ -1,0 +1,73 @@
+version: "1.0"
+
+shared_ready:
+  - mentornest-tutor
+  - Homework
+  - Learning
+  - Studying
+  - Flashcards
+  - study-buddy
+  - adaptive-learning
+  - Skill Finder
+  - skill-vetter
+  - eric-knowledge-digest
+  - self-evolving-skills
+  - self-improvement
+  - self-improving-agent
+  - mentornest-stt
+  - diagram-maker
+
+custom_plugin_tools:
+  - student_profile_get
+  - student_profile_update
+  - learning_record_append
+  - generate_practice_set
+  - classify_math_error
+
+known_do_not_use_for_current_goal:
+  chinese-handwriting-ocr:
+    reason: "Not mathematical handwriting recognition."
+
+  aidenwu0209-paddleocr-skills:
+    reason: "Cloud SaaS client; child image upload conflict."
+
+  beagle-docling-wrapper:
+    reason: "Upstream wrapper removed."
+
+  pix2tex-production:
+    reason: "Pretrained weights have non-commercial licensing constraint."
+
+needs_future_search:
+  learning-director:
+    - longitudinal_learning_analysis
+    - learning_planning
+
+  curriculum-agent:
+    - taiwan_curriculum
+    - textbook_mapping
+
+  math-specialist:
+    - deterministic_math_validator
+    - fraction_visualization
+    - number_line
+    - bar_model
+
+  chinese-specialist:
+    - traditional_chinese_reading_diagnosis
+    - composition_scaffolding
+
+  english-specialist:
+    - local_tts
+    - pronunciation_assessment
+
+  question-bank-curator:
+    - question_parser
+    - question_deduplication
+    - source_license_tracking
+
+  assessment-agent:
+    - mastery_assessment
+    - retention_check
+
+  parent-report-agent:
+    - longitudinal_parent_reporting

@@ -1,0 +1,40 @@
+# Curriculum Map Index — V1 (Taiwan 12-year curriculum, G1–G6 only)
+# Schema version: 1
+# Source: 教育部 十二年國民基本教育課程綱要 (各領域)
+# Scope:   國民小學 G1–G6
+# Future:  G7–G12 將以 v2 命名空間加入
+
+version: 1
+scope: "G1-G6"
+curriculum_code: "taiwan-12-year-curriculum"
+
+source_documents:
+  - "教育部 十二年國民基本教育課程綱要 ─ 數學領域"
+  - "教育部 十二年國民基本教育課程綱要 ─ 國語文領域"
+  - "教育部 十二年國民基本教育課程綱要 ─ 英語文領域"
+  - "教育部 十二年國民基本教育課程綱要 ─ 自然科學領域"
+  - "教育部 十二年國民基本教育課程綱要 ─ 社會領域"
+
+subjects:
+  math:
+    name: "數學"
+    file: "math.yaml"
+  chinese:
+    name: "國語文"
+    file: "chinese.yaml"
+  english:
+    name: "英語文"
+    file: "english.yaml"
+  science:
+    name: "自然科學"
+    file: "science.yaml"
+  social_studies:
+    name: "社會"
+    file: "social_studies.yaml"
+
+future_scope:
+  note: >
+    G7–G12 will be added in a future curriculum map version. The loader is
+    forward-compatible (additional grades and subjects can be added without
+    code changes). Until then, lookups for grade >= 7 will return
+    {found: false, reason: "grade-not-in-curriculum-v1"}.

@@ -1,0 +1,280 @@
+version: "1.0"
+
+# Runtime / context-window governance for the MentorNest orchestrator.
+# Owned by: mentornest-system-orchestrator
+# Referenced from: skills/mentornest-system-orchestrator/SKILL.md
+# ("Session & Context Governance" section).
+
+owner_skill: mentornest-system-orchestrator
+
+runtime_targets:
+
+  orchestrator_session:
+    service_id: "6a8e84ce9ec391c39ae7a996"  # mentornest (see services.yaml)
+    model: "minimax/MiniMax-M3"
+    context_window_tokens: 204800           # confirmed via gateway log 2026-08-27
+    soft_warn_ratio: 0.80                   # ~163840 tokens; emit a checkpoint
+    hard_cap_ratio: 0.90                    # ~184320 tokens; refuse large tool calls
+
+  derived_thresholds:
+    soft_warn_tokens: 163840
+    hard_cap_tokens: 184320
+    per_task_token_budget: 61440           # ~30% of context_window per batch
+    max_messages_per_session: 400           # empirical; <500 keeps compaction safe
+
+session_archetypes:
+
+  orchestrator_main:
+    purpose: long-running coordination session
+    spawn_policy: parent (created on demand)
+    allowed_tools_default: all
+    bounded_response: false                # orchestrator may narrate at high level
+    handoff_style: structured table        # see Reporting Style in SKILL.md
+
+  batch_subagent:
+    purpose: one batch / one delivery
+    spawn:
+      tool: sessions_spawn
+      runtime: subagent
+      mode: run
+      cleanup: delete                      # never reuse a sub-session
+      context: isolated                    # default; do not pass full transcript
+    allowed_tools_default: all
+    bounded_response: true                 # enforced via system prompt in spawn
+    return_shape:
+      - completion_status                 # ok | failed | blocked
+      - artifact_paths
+      - test_results                       # counts + exit code only
+      - changelog_entry_reference
+      - blockers
+
+  recovery_check_subagent:
+    purpose: runtime env audit (env vars, registry parse, test baseline, memory file, failed-exec tally)
+    spawn:
+      tool: sessions_spawn
+      runtime: subagent
+      mode: run
+      cleanup: delete
+      context: isolated
+    bounded_response: true
+    return_shape:
+      - service_id_match
+      - registry_parse_status
+      - test_baseline_status
+      - failed_exec_root_cause
+      - restart_required
+      - continue_safe
+
+invariants_under_context_pressure:
+
+  never_sacrifice_data_integrity_to_save_context:
+    description: >
+      When a session is approaching hard_cap_tokens, the orchestrator MUST
+      spawn a new session rather than rewrite live data, drop checks, or
+      skip verification. The two domains are independent: a context
+      shortage does not authorize data-integrity shortcuts.
+
+  never_re_run_full_phase_just_to_fill_tests:
+    description: >
+      If a regression test result cannot be cleanly captured within the
+      current session, prefer spawning a verification sub-session over
+      re-running the entire phase inside the orchestrator main session.
+
+  never_silent_trim_or_rewrite_live_data:
+    description: >
+      Even when the live file looks like it has "extra" records vs the
+      remembered baseline (concurrent write from mentornest-web, parent
+      setup, or webhook), do not trim. Re-read the snapshot / count
+      delta, append-only as needed. See policies.yaml § data_integrity.
+
+compaction_policy:
+
+  auto_compaction:
+    provider_native: true                  # model native precheck
+    trigger_ratio: 0.85                    # ~174080 tokens
+    acceptable_to_lose:
+      - long exec outputs older than 5 turns
+      - intermediate grep / find / ls verbosity
+    must_preserve:
+      - registry reads (project.yaml, services.yaml, agents.yaml,
+        capabilities.yaml, policies.yaml, data-model.yaml,
+        skills-registry.yaml, roadmap.yaml, runtime-policy.yaml)
+      - last 10 user / assistant messages verbatim
+      - any pending blocker or decision
+      - active student_id / batch_id / snapshot path
+
+  manual_checkpoint:
+    when_to_take: at the end of every shipped batch (within the same session)
+    path_pattern: architecture/_backups/checkpoint_<UTC_TS>/
+    contents:
+      - last shipped changelog entry reference
+      - snapshot of data/learning-records/ (event_count + digest only,
+        do NOT copy the file content; reference the existing backup)
+      - manifest of any _backups/ snapshot currently in use
+
+observability:
+
+  metric_to_watch_manually:
+    - session message count (via /status or transcript line count)
+    - approximate input token total (via cumulative usage in transcript)
+    - open process count (via `process list`)
+    - any `isError: true` tool result in transcript tail
+
+  alert_threshold:
+    user_facing_warning_message: >
+      Approaching model context budget; if you see "Context overflow:
+      prompt too large" in /tmp/openclaw-gateway.log, request a
+      checkpoint before the next batch.
+
+history:
+
+  - date: 20260827T1511Z
+    event: provider_quota_policy_v1_added
+    trigger: MiniMax 5h quota exhausted on 2026-08-27 ~T1330 UTC during Phase 4B parallel spawn (concurrency=2, one legacy-apply + one Phase 4B)
+    basis:
+      - "sub-agent A (legacy apply) completed successfully and on-disk artifacts verified"
+      - "sub-agent B (Phase 4B KP/license/PDF) status uncertain at quota exhaustion"
+      - "subsequent orchestrator decisions must NOT spawn MiniMax work until provider quota resets"
+      - "production invariants remained intact throughout"
+
+  - date: 20260827T0755Z
+    event: runtime_policy_v1_added
+    trigger: agent session context overflow at 07:48:45 UTC on session
+      40d11f28-0694-4707-8bcc-ca63908de90d.jsonl during retrospective
+      batch delivery
+    basis:
+      - "gateway log: compactionTokens=204801, error=Context overflow: prompt too large for the model (precheck)"
+      - prior successful auto-compaction at 06:52:45 truncated 43 tool results
+      - "observed context_window = 204800 for minimax/MiniMax-M3"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Provider quota-efficient execution rules
+# Added: 2026-08-27T1511Z
+# Trigger: MiniMax 5h quota exhaustion observed on the orchestrator session
+#          after a parallel-sub-agent Phase 4B spawn. Goal: reduce wasted
+#          MiniMax quota WITHOUT reducing normal-task completion speed.
+# Owner: mentornest-system-orchestrator (orchestrator_main only)
+# ──────────────────────────────────────────────────────────────────────────────
+
+provider_quota_policy:
+
+  provider: minimax
+  quota_window: "5h rolling"
+  concurrency_hard_cap: 2
+
+  # Quota band rules — orchestrator_main must apply these on EVERY spawn decision.
+  bands:
+
+    band_normal_0_to_85pct:
+      usage_pct:
+        - 0
+        - 85
+      behavior: >
+        Normal execution. Full sub-agent fan-out allowed up to concurrency_hard_cap.
+        Full regression runs are fine at phase boundaries. No special throttling.
+      spawn_policy: "follow normal sub-agent plan; targeted tests only inside sub-sessions"
+      regression_policy: "full regression only at integration checkpoints and phase close"
+
+    band_conservative_85_to_95pct:
+      usage_pct:
+        - 85
+        - 95
+      behavior: >
+        Avoid duplicate / nonessential sub-sessions and unnecessary full regressions.
+        Do NOT change model quality or reasoning level; do NOT downgrade model
+        tier solely to save quota.
+      disallowed:
+        - "spawning a sub-session whose task is already covered by a running or completed sub-session"
+        - "spawning a sub-session whose output is purely informational (use direct tool calls from orchestrator_main instead)"
+        - "running full regression when only one test file changed; run only the failing scope"
+        - "rerunning a completed sub-session because of compaction, reconnect, or a delayed completion event"
+      allowed:
+        - "resuming an unfinished sub-session via reconcile-then-respawn (one resume attempt)"
+        - "spawning a single targeted sub-session when no existing artifact covers the gap"
+        - "running the failing test scope first; full regression only after the failing scope is green"
+
+    band_pause_95_to_100pct:
+      usage_pct:
+        - 95
+        - 100
+      behavior: >
+        Finish ACTIVE work (do not abandon in-flight edits), checkpoint state, then
+        enter WAITING_PROVIDER. Do NOT spawn new MiniMax work of any kind — neither
+        sub-sessions nor any future respawn — until quota resets.
+      active_work_completion:
+        - "Let any in-flight tool calls finish (no mid-flight kill)."
+        - "Write all queued registry/changelog/manifest edits to disk before entering WAITING_PROVIDER."
+        - "Verify production invariants one final time and snapshot if any data moved."
+      checkpoint_required_before_waiting:
+        - "Save architecture backup under architecture/_backups/<timestamp>_quota_pause/"
+        - "Append a 'quota_pause_checkpoint' entry to changelog.md noting timestamp, current sub-session state, and unfinished task list"
+        - "In this session's durable memory: write the unfinished task list so resume can pick up without re-reading the full transcript"
+      forbidden_during_band:
+        - "spawn any new MiniMax sub-session (subagent, isolated, run mode)"
+        - "rerun an already-completed sub-session"
+        - "do NOT reduce model quality, reasoning level, or context-window discipline to 'push through' the quota"
+        - "do NOT silently fall back to a different provider / different model tier"
+
+  # Cross-cutting invariants (apply in ALL bands, including normal)
+  invariants:
+    - id: INV-QUOTA-1
+      rule: "Concurrency must NEVER exceed 2 MiniMax sub-sessions, in any band."
+    - id: INV-QUOTA-2
+      rule: >
+        "Model quality and reasoning level must NOT be reduced to save quota.
+         A slower-but-correct path is always preferred over a cheaper-but-wrong one."
+    - id: INV-QUOTA-3
+      rule: >
+        "Completed sub-sessions must NEVER be respawned because of compaction,
+         reconnect, or a delayed completion event. Reconcile on-disk artifacts
+         before any respawn."
+    - id: INV-QUOTA-4
+      rule: >
+        "Shared files (manifest, registries, roadmap, changelog, runtime-policy,
+         capabilities, skills-registry) are OWNED by the orchestrator_main session.
+         Parallel sub-agents must NOT concurrently modify them. Sub-agents may
+         READ these files; if a sub-agent needs a shared-file edit, it returns
+         a proposed change to orchestrator_main, which applies it."
+    - id: INV-QUOTA-5
+      rule: >
+        "Sub-agents run TARGETED tests (the scope relevant to their task).
+         Full regression runs are reserved for integration checkpoints and
+         final phase close, OR after a failure that survived targeted rerun."
+    - id: INV-QUOTA-6
+      rule: >
+        "On any test failure: rerun the failing test scope FIRST. Only escalate
+         to a full regression if the targeted rerun still fails or if the
+         failure suggests cross-cutting invariant regression."
+    - id: INV-QUOTA-7
+      rule: >
+        "Production invariants (AGENTS.md / SOUL.md / USER.md / IDENTITY.md MD5,
+         student_001.jsonl MD5, mastery-evidence baseline) MUST be preserved
+         in every band. Sub-agents touching production data must run a
+         pre/post MD5 snapshot."
+    - id: INV-QUOTA-8
+      rule: >
+        "Checkpoint/resume semantics are preserved. Every band transition
+         (normal -> conservative -> pause -> resume) MUST be reflected in
+         changelog.md and (when data moves) in a backup snapshot under
+         architecture/_backups/<timestamp>_<reason>/."
+
+  # Resume protocol (orchestrator_main on quota reset)
+  resume_protocol:
+    sequence:
+      - "step_1: Read durable memory for the unfinished task list written at quota pause."
+      - "step_2: List sub-sessions and read their last visible status."
+      - "step_3: Reconcile ON-DISK artifacts (lib / test / dist / manifest / openclaw.plugin.json) against each sub-session's expected output. Do NOT respawn a sub-session whose artifacts are already on disk."
+      - "step_4: For sub-sessions that did NOT produce artifacts: spawn at most ONE resume sub-session (concurrency_hard_cap still = 2)."
+      - "step_5: Run TARGETED tests for the resumed scope first; full regression only after green."
+      - "step_6: Apply any deferred shared-file edits (changelog / roadmap / manifest) from orchestrator_main, not from the resumed sub-session."
+      - "step_7: Verify production invariants before declaring the resumed batch complete."
+
+  # Operational signals (how orchestrator_main detects the band)
+  detection:
+    primary_signal: "MiniMax runtime emits 'quota exhausted' or similar before each spawn"
+    fallback_signals:
+      - "model response latency > 2x normal"
+      - "spawns returning a quota-exhausted error within 60s"
+      - "explicit human directive at runtime"
+    on_uncertain_band: "orchestrator_main MUST default to the LOWER band (more conservative)."
+

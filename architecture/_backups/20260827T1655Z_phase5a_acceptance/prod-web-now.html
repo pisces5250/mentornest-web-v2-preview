@@ -1,0 +1,2513 @@
+
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MentorNest 練習室</title>
+
+  <style>
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      margin:0;
+      padding:18px;
+      background:#f6f7fb;
+      color:#222;
+    }
+
+    .card{
+      max-width:720px;
+      margin:auto;
+      background:#fff;
+      border-radius:22px;
+      padding:22px;
+    }
+
+    h1{
+      margin-top:0;
+      font-size:26px;
+    }
+
+    .meta{
+      color:#666;
+      font-size:15px;
+      margin-bottom:18px;
+    }
+
+    .progress{
+      height:10px;
+      background:#e5e7eb;
+      border-radius:999px;
+      overflow:hidden;
+      margin:14px 0 22px;
+    }
+
+    .progress-bar{
+      height:100%;
+      background:#4f46e5;
+      width:0%;
+      transition:width .25s ease;
+    }
+
+    #question{
+      font-size:21px;
+      line-height:1.6;
+      margin:20px 0;
+    }
+
+    .choices{
+      display:grid;
+      gap:12px;
+    }
+
+    .choice{
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:15px;
+      text-align:left;
+      font-size:18px;
+      background:#eef2ff;
+      color:#222;
+    }
+
+    .choice:disabled{
+      opacity:.55;
+    }
+
+    #feedback{
+      margin-top:18px;
+      font-size:18px;
+      line-height:1.6;
+      min-height:30px;
+    }
+
+    #nextBtn{
+      display:none;
+      width:100%;
+      margin-top:16px;
+      padding:14px;
+      font-size:18px;
+      border:0;
+      border-radius:14px;
+      background:#111827;
+      color:white;
+    }
+
+    #loading,
+    #error,
+    #complete{
+      display:none;
+    }
+
+    .center{
+      text-align:center;
+      padding:28px 8px;
+    }
+
+    .score{
+      font-size:42px;
+      font-weight:700;
+      margin:14px 0;
+    }
+
+    .small{
+      font-size:14px;
+      color:#777;
+      margin-top:12px;
+    }
+
+    .voice-box{
+      margin-top:18px;
+      padding:16px;
+      border-radius:16px;
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+    }
+
+    .voice-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    #voiceBtn{
+      border:0;
+      border-radius:14px;
+      padding:12px 16px;
+      font-size:17px;
+      background:#eef2ff;
+      color:#222;
+    }
+
+    #voiceBtn.recording{
+      background:#fee2e2;
+      color:#991b1b;
+    }
+
+    #voiceBtn:disabled{
+      opacity:.55;
+    }
+
+    #voiceTimer{
+      font-variant-numeric:tabular-nums;
+      color:#666;
+      min-width:52px;
+    }
+
+    #voiceStatus{
+      margin-top:10px;
+      color:#666;
+      line-height:1.5;
+      min-height:22px;
+    }
+
+    #voiceTranscript{
+      box-sizing:border-box;
+      width:100%;
+      min-height:82px;
+      margin-top:12px;
+      resize:vertical;
+      border:1px solid #d1d5db;
+      border-radius:12px;
+      padding:12px;
+      font-size:17px;
+      line-height:1.5;
+      font-family:inherit;
+    }
+
+    .voice-normalized{
+      display:none;
+      margin-top:12px;
+      padding:12px 14px;
+      background:#eefbf3;
+      border:1px solid #bbf7d0;
+      border-radius:12px;
+      font-size:17px;
+      line-height:1.5;
+    }
+
+    #voiceNormalizedAnswer{
+      font-weight:700;
+      font-size:20px;
+    }
+
+    #voiceConfirmBtn{
+      display:none;
+      width:100%;
+      margin-top:10px;
+      padding:12px;
+      border:0;
+      border-radius:12px;
+      font-size:17px;
+      background:#166534;
+      color:#fff;
+    }
+
+    #voiceConfirmBtn:disabled{
+      opacity:.55;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+
+    <h1>MentorNest 練習室</h1>
+
+    <div id="loading" class="center">
+      正在為你準備題目…
+    </div>
+
+    <div id="error" class="center">
+      題目載入失敗，請稍後再試。
+    </div>
+
+    <div id="practice">
+
+      <div class="meta" id="meta"></div>
+
+      <div id="progressText"></div>
+
+      <div class="progress">
+        <div
+          class="progress-bar"
+          id="progressBar">
+        </div>
+      </div>
+
+      <div id="question"></div>
+
+      <div
+        class="choices"
+        id="choices">
+      </div>
+
+      <div class="voice-box">
+
+        <div class="voice-row">
+
+          <button
+            type="button"
+            id="voiceBtn">
+            🎙 語 音 回 答
+          </button>
+
+          <span id="voiceTimer">
+            00:00
+          </span>
+
+        </div>
+
+        <div id="voiceStatus">
+          可 以 用 語 音 說 出 你 的 想 法 。
+        </div>
+
+        <textarea
+          id="voiceTranscript"
+          placeholder="語 音 辨 識 後 會 出 現 在 這 裡 ， 可 以 先 修 改 。"
+          aria-label="語音辨識文字"></textarea>
+
+        <div
+          class="voice-normalized"
+          id="voiceNormalizedBox">
+          我 聽 到 的 答 案 是 ：
+          <span id="voiceNormalizedAnswer"></span>
+        </div>
+
+        <button
+          type="button"
+          id="voiceConfirmBtn">
+          確 認 這 個 答 案
+        </button>
+
+      </div>
+
+      <div id="feedback"></div>
+
+      <button id="nextBtn">
+        下一題
+      </button>
+
+    </div>
+
+    <div id="complete" class="center">
+
+      <h2>完成了 🎉</h2>
+
+      <div
+        class="score"
+        id="score">
+      </div>
+
+      <div id="summary"></div>
+
+      <div class="small">
+        學習結果已同步到 MentorNest
+      </div>
+
+    </div>
+
+  </div>
+
+<script>
+
+let practiceSet = null;
+let currentIndex = 0;
+let correctCount = 0;
+
+const questionStates = {};
+
+const loading =
+  document.getElementById('loading');
+
+const errorBox =
+  document.getElementById('error');
+
+const practice =
+  document.getElementById('practice');
+
+const complete =
+  document.getElementById('complete');
+
+const questionEl =
+  document.getElementById('question');
+
+const choicesEl =
+  document.getElementById('choices');
+
+const feedback =
+  document.getElementById('feedback');
+
+const nextBtn =
+  document.getElementById('nextBtn');
+
+const progressText =
+  document.getElementById('progressText');
+
+const progressBar =
+  document.getElementById('progressBar');
+
+const meta =
+  document.getElementById('meta');
+
+const voiceBtn =
+  document.getElementById('voiceBtn');
+
+const voiceTimer =
+  document.getElementById('voiceTimer');
+
+const voiceStatus =
+  document.getElementById('voiceStatus');
+
+const voiceTranscript =
+  document.getElementById('voiceTranscript');
+
+const voiceNormalizedBox =
+  document.getElementById('voiceNormalizedBox');
+
+const voiceNormalizedAnswer =
+  document.getElementById('voiceNormalizedAnswer');
+
+const voiceConfirmBtn =
+  document.getElementById('voiceConfirmBtn');
+
+let pendingVoiceAnswer = null;
+
+let mediaRecorder = null;
+let mediaStream = null;
+let audioChunks = [];
+let recordingStartedAt = 0;
+let recordingTimerId = null;
+let voiceBusy = false;
+
+
+function formatRecordingTime(seconds){
+
+  const mins =
+    Math.floor(seconds / 60);
+
+  const secs =
+    seconds % 60;
+
+  return (
+    String(mins).padStart(2,'0') +
+    ':' +
+    String(secs).padStart(2,'0')
+  );
+
+}
+
+
+function stopRecordingTimer(){
+
+  if(recordingTimerId){
+
+    clearInterval(recordingTimerId);
+    recordingTimerId = null;
+
+  }
+
+}
+
+
+function stopMicrophoneTracks(){
+
+  if(mediaStream){
+
+    mediaStream
+      .getTracks()
+      .forEach(track =>
+        track.stop()
+      );
+
+    mediaStream = null;
+
+  }
+
+}
+
+
+function chooseRecorderMimeType(){
+
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/mp4'
+  ];
+
+  for(const type of candidates){
+
+    if(
+      window.MediaRecorder &&
+      MediaRecorder.isTypeSupported(type)
+    ){
+      return type;
+    }
+
+  }
+
+  return '';
+
+}
+
+
+function filenameForMimeType(type){
+
+  if(type.includes('ogg')){
+    return 'recording.ogg';
+  }
+
+  if(type.includes('mp4')){
+    return 'recording.m4a';
+  }
+
+  return 'recording.webm';
+
+}
+
+
+/* MENTORNEST_MATH_VOICE_NORMALIZER_V1 */
+
+const chineseDigitMap = {
+  '零':0,
+  '〇':0,
+  '一':1,
+  '二':2,
+  '兩':2,
+  '三':3,
+  '四':4,
+  '五':5,
+  '六':6,
+  '七':7,
+  '八':8,
+  '九':9
+};
+
+
+function stripSpokenPrefix(text){
+
+  let s =
+    String(text || '')
+      .trim()
+      .replace(/s+/g,'');
+
+  const prefixes = [
+    '我覺得答案是',
+    '我覺得是',
+    '我的答案是',
+    '答案應該是',
+    '答案是',
+    '我認為是',
+    '我選擇',
+    '我選',
+    '選擇',
+    '選'
+  ];
+
+  for(const p of prefixes){
+
+    if(s.startsWith(p)){
+      s = s.slice(p.length);
+      break;
+    }
+
+  }
+
+  return s.trim();
+
+}
+
+
+function chineseIntegerToNumber(input){
+
+  if(input === null || input === undefined){
+    return null;
+  }
+
+  const raw =
+    String(input)
+      .trim();
+
+  if(/^[-+]?d+$/.test(raw)){
+    return Number(raw);
+  }
+
+  if(
+    raw.length === 1 &&
+    Object.prototype.hasOwnProperty.call(
+      chineseDigitMap,
+      raw
+    )
+  ){
+    return chineseDigitMap[raw];
+  }
+
+  const unitMap = {
+    '十':10,
+    '百':100,
+    '千':1000,
+    '萬':10000
+  };
+
+  let total = 0;
+  let section = 0;
+  let number = 0;
+  let seen = false;
+
+  for(const ch of raw){
+
+    if(
+      Object.prototype.hasOwnProperty.call(
+        chineseDigitMap,
+        ch
+      )
+    ){
+
+      number =
+        chineseDigitMap[ch];
+
+      seen = true;
+      continue;
+
+    }
+
+    if(
+      Object.prototype.hasOwnProperty.call(
+        unitMap,
+        ch
+      )
+    ){
+
+      seen = true;
+
+      const unit =
+        unitMap[ch];
+
+      if(unit === 10000){
+
+        section +=
+          number || 0;
+
+        total +=
+          (section || 1) * 10000;
+
+        section = 0;
+        number = 0;
+
+      }else{
+
+        if(number === 0){
+          number = 1;
+        }
+
+        section +=
+          number * unit;
+
+        number = 0;
+
+      }
+
+      continue;
+
+    }
+
+    return null;
+
+  }
+
+  if(!seen){
+    return null;
+  }
+
+  return (
+    total +
+    section +
+    number
+  );
+
+}
+
+
+function spokenDecimalToString(text){
+
+  const parts =
+    text.split('點');
+
+  if(parts.length !== 2){
+    return null;
+  }
+
+  const left =
+    chineseIntegerToNumber(
+      parts[0] || '零'
+    );
+
+  if(left === null){
+    return null;
+  }
+
+  let right = '';
+
+  for(
+    const ch of parts[1]
+  ){
+
+    if(/d/.test(ch)){
+
+      right += ch;
+
+    }else if(
+      Object.prototype.hasOwnProperty.call(
+        chineseDigitMap,
+        ch
+      )
+    ){
+
+      right +=
+        String(
+          chineseDigitMap[ch]
+        );
+
+    }else{
+
+      return null;
+
+    }
+
+  }
+
+  if(!right){
+    return null;
+  }
+
+  return (
+    String(left) +
+    '.' +
+    right
+  );
+
+}
+
+
+function normalizeBasicNumber(text){
+
+  let s =
+    String(text)
+      .trim();
+
+  let negative = false;
+
+  if(
+    s.startsWith('負')
+  ){
+
+    negative = true;
+    s = s.slice(1);
+
+  }
+
+  if(
+    /^-?d+(.d+)?$/.test(s)
+  ){
+
+    return (
+      negative
+        ? '-' + s.replace(/^-/,'')
+        : s
+    );
+
+  }
+
+  if(s.includes('點')){
+
+    const decimal =
+      spokenDecimalToString(s);
+
+    if(decimal !== null){
+
+      return (
+        negative
+          ? '-' + decimal
+          : decimal
+      );
+
+    }
+
+  }
+
+  const integer =
+    chineseIntegerToNumber(s);
+
+  if(integer === null){
+    return null;
+  }
+
+  return (
+    negative
+      ? '-' + integer
+      : String(integer)
+  );
+
+}
+
+
+function normalizeFraction(text){
+
+  /*
+    四分之三 => 3/4
+    一百分之二十五 => 25/100
+  */
+
+  const match =
+    text.match(
+      /^(.+?)分之(.+)$/
+    );
+
+  if(!match){
+    return null;
+  }
+
+  const denominator =
+    normalizeBasicNumber(
+      match[1]
+    );
+
+  const numerator =
+    normalizeBasicNumber(
+      match[2]
+    );
+
+  if(
+    denominator === null ||
+    numerator === null
+  ){
+    return null;
+  }
+
+  return (
+    numerator +
+    '/' +
+    denominator
+  );
+
+}
+
+
+function normalizeMixedFraction(text){
+
+  /*
+    二又五分之三 => 2 3/5
+  */
+
+  const match =
+    text.match(
+      /^(.+?)又(.+?分之.+)$/
+    );
+
+  if(!match){
+    return null;
+  }
+
+  const whole =
+    normalizeBasicNumber(
+      match[1]
+    );
+
+  const fraction =
+    normalizeFraction(
+      match[2]
+    );
+
+  if(
+    whole === null ||
+    fraction === null
+  ){
+    return null;
+  }
+
+  return (
+    whole +
+    ' ' +
+    fraction
+  );
+
+}
+
+
+function normalizePercentage(text){
+
+  if(
+    !text.startsWith(
+      '百分之'
+    )
+  ){
+    return null;
+  }
+
+  const value =
+    normalizeBasicNumber(
+      text.slice(3)
+    );
+
+  if(value === null){
+    return null;
+  }
+
+  return value + '%';
+
+}
+
+
+function normalizeRatio(text){
+
+  const match =
+    text.match(
+      /^(.+?)比(.+)$/
+    );
+
+  if(!match){
+    return null;
+  }
+
+  const left =
+    normalizeBasicNumber(
+      match[1]
+    );
+
+  const right =
+    normalizeBasicNumber(
+      match[2]
+    );
+
+  if(
+    left === null ||
+    right === null
+  ){
+    return null;
+  }
+
+  return left + ':' + right;
+
+}
+
+
+function normalizeChoice(text){
+
+  const compact =
+    text
+      .replace(/第/g,'')
+      .replace(/個/g,'')
+      .replace(/選項/g,'')
+      .trim();
+
+  const letterMatch =
+    compact.match(
+      /^[ABCDabcd]$/
+    );
+
+  if(letterMatch){
+
+    return {
+      type:'choice_letter',
+      normalized:
+        letterMatch[0]
+          .toUpperCase(),
+      choice_letter:
+        letterMatch[0]
+          .toUpperCase(),
+      choice_index:null
+    };
+
+  }
+
+  const n =
+    chineseIntegerToNumber(
+      compact
+    );
+
+  if(
+    n !== null &&
+    n >= 1 &&
+    n <= 10
+  ){
+
+    return {
+      type:'choice_index',
+      normalized:
+        String(n),
+      choice_letter:null,
+      choice_index:n
+    };
+
+  }
+
+  return null;
+
+}
+
+
+function normalizeBoolean(text){
+
+  const positive = [
+    '對',
+    '正確',
+    '是',
+    '沒錯'
+  ];
+
+  const negative = [
+    '錯',
+    '錯誤',
+    '不是',
+    '不對'
+  ];
+
+  if(
+    positive.includes(text)
+  ){
+
+    return {
+      type:'boolean',
+      normalized:'對',
+      value:true
+    };
+
+  }
+
+  if(
+    negative.includes(text)
+  ){
+
+    return {
+      type:'boolean',
+      normalized:'錯',
+      value:false
+    };
+
+  }
+
+  return null;
+
+}
+
+
+function normalizeEquation(text){
+
+  let s =
+    String(text);
+
+  const replacements = [
+    ['加上','+'],
+    ['加','+'],
+    ['減去','-'],
+    ['減','-'],
+    ['乘以','×'],
+    ['乘','×'],
+    ['除以','÷'],
+    ['除','÷'],
+    ['等於','=']
+  ];
+
+  for(
+    const [spoken,symbol]
+    of replacements
+  ){
+
+    s =
+      s.split(spoken)
+        .join(symbol);
+
+  }
+
+  if(
+    !/[+-×÷=]/.test(s)
+  ){
+    return null;
+  }
+
+  const parts =
+    s.split(
+      /([+-×÷=])/g
+    );
+
+  const normalizedParts = [];
+
+  for(const part of parts){
+
+    if(
+      /^[+-×÷=]$/.test(part)
+    ){
+
+      normalizedParts.push(part);
+      continue;
+
+    }
+
+    if(!part){
+      continue;
+    }
+
+    const number =
+      normalizeBasicNumber(
+        part
+      );
+
+    const fraction =
+      normalizeFraction(
+        part
+      );
+
+    const mixed =
+      normalizeMixedFraction(
+        part
+      );
+
+    normalizedParts.push(
+      mixed ??
+      fraction ??
+      number ??
+      part
+    );
+
+  }
+
+  return normalizedParts.join('');
+
+}
+
+
+function normalizeQuantity(text){
+
+  const units = [
+    '平方公分',
+    '平方公尺',
+    '平方公里',
+    '立方公分',
+    '立方公尺',
+    '公分',
+    '公尺',
+    '公里',
+    '毫米',
+    '公斤',
+    '公克',
+    '克',
+    '公升',
+    '毫升',
+    '度',
+    '元',
+    '分鐘',
+    '小時',
+    '秒'
+  ];
+
+  for(const unit of units){
+
+    if(
+      text.endsWith(unit)
+    ){
+
+      const numberText =
+        text.slice(
+          0,
+          -unit.length
+        );
+
+      const number =
+        normalizeBasicNumber(
+          numberText
+        );
+
+      if(number !== null){
+
+        return {
+          type:'quantity',
+          normalized:
+            number + unit,
+          unit
+        };
+
+      }
+
+    }
+
+  }
+
+  return null;
+
+}
+
+
+function normalizeVariableExpression(text){
+
+  let s =
+    text
+      .replace(/Ｘ/g,'x')
+      .replace(/Ｙ/g,'y')
+      .replace(/ｘ/g,'x')
+      .replace(/ｙ/g,'y');
+
+  s =
+    s.replace(
+      /等於/g,
+      '='
+    );
+
+  const match =
+    s.match(
+      /^([xyXY])=(.+)$/
+    );
+
+  if(!match){
+    return null;
+  }
+
+  const value =
+    normalizeBasicNumber(
+      match[2]
+    );
+
+  if(value === null){
+    return null;
+  }
+
+  return {
+    type:'equation',
+    normalized:
+      match[1]
+        .toLowerCase() +
+      '=' +
+      value
+  };
+
+}
+
+
+function normalizeSpokenMathAnswer(rawText){
+
+  const raw =
+    String(rawText || '')
+      .trim();
+
+  if(!raw){
+
+    return {
+      raw,
+      type:'unknown',
+      normalized:'',
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  let text =
+    stripSpokenPrefix(raw);
+
+  text =
+    text
+      .replace(/[，。！？、]/g,'')
+      .trim();
+
+  /*
+    「我選第二個」
+    strip prefix 後會剩「第二個」
+  */
+  const choice =
+    normalizeChoice(text);
+
+  if(choice){
+
+    return {
+      raw,
+      ...choice
+    };
+
+  }
+
+  const booleanValue =
+    normalizeBoolean(text);
+
+  if(booleanValue){
+
+    return {
+      raw,
+      ...booleanValue,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const variable =
+    normalizeVariableExpression(
+      text
+    );
+
+  if(variable){
+
+    return {
+      raw,
+      ...variable,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const quantity =
+    normalizeQuantity(text);
+
+  if(quantity){
+
+    return {
+      raw,
+      ...quantity,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const percentage =
+    normalizePercentage(text);
+
+  if(percentage !== null){
+
+    return {
+      raw,
+      type:'percentage',
+      normalized:percentage,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const mixed =
+    normalizeMixedFraction(text);
+
+  if(mixed !== null){
+
+    return {
+      raw,
+      type:'mixed_fraction',
+      normalized:mixed,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const fraction =
+    normalizeFraction(text);
+
+  if(fraction !== null){
+
+    return {
+      raw,
+      type:'fraction',
+      normalized:fraction,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const ratio =
+    normalizeRatio(text);
+
+  if(ratio !== null){
+
+    return {
+      raw,
+      type:'ratio',
+      normalized:ratio,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const equation =
+    normalizeEquation(text);
+
+  if(equation !== null){
+
+    return {
+      raw,
+      type:'equation',
+      normalized:equation,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  const number =
+    normalizeBasicNumber(text);
+
+  if(number !== null){
+
+    return {
+      raw,
+      type:
+        number.includes('.')
+          ? 'decimal'
+          : (
+              number.startsWith('-')
+                ? 'negative'
+                : 'integer'
+            ),
+      normalized:number,
+      choice_index:null,
+      choice_letter:null
+    };
+
+  }
+
+  return {
+    raw,
+    type:'unknown',
+    normalized:text,
+    choice_index:null,
+    choice_letter:null
+  };
+
+}
+
+
+/* MENTORNEST_VOICE_FINAL_ANSWER_V1 */
+
+function extractFinalVoiceAnswer(result){
+
+  if(!result){
+    return result;
+  }
+
+  const normalized =
+    String(
+      result.normalized || ''
+    ).trim();
+
+  /*
+    孩子可能把完整算式說出來：
+    1/2+1/4=3/4
+
+    選擇題真正要比對的是等號右側：
+    3/4
+  */
+  if(
+    result.type === 'equation' &&
+    normalized.includes('=')
+  ){
+
+    const parts =
+      normalized.split('=');
+
+    const finalAnswer =
+      parts[
+        parts.length - 1
+      ].trim();
+
+    if(finalAnswer){
+
+      return {
+        ...result,
+
+        expression:
+          normalized,
+
+        normalized:
+          finalAnswer,
+
+        type:
+          'answer_value'
+      };
+
+    }
+
+  }
+
+  return result;
+
+}
+
+
+function showNormalizedVoiceAnswer(){
+
+  const parsed =
+    normalizeSpokenMathAnswer(
+      voiceTranscript.value
+    );
+
+  const result =
+    extractFinalVoiceAnswer(
+      parsed
+    );
+
+  pendingVoiceAnswer =
+    result;
+
+  if(
+    !result.normalized
+  ){
+
+    voiceNormalizedBox.style.display =
+      'none';
+
+    voiceConfirmBtn.style.display =
+      'none';
+
+    return;
+
+  }
+
+  voiceNormalizedAnswer.textContent =
+    result.normalized;
+
+  voiceNormalizedBox.style.display =
+    'block';
+
+  voiceConfirmBtn.style.display =
+    'block';
+
+}
+
+
+function compactMathText(value){
+
+  return String(value || '')
+    .replace(/s+/g,'')
+    .replace(/／/g,'/')
+    .replace(/：/g,':')
+    .replace(/％/g,'%')
+    .replace(/×/g,'*')
+    .replace(/÷/g,'/');
+}
+
+
+function findVoiceChoice(
+  question,
+  result
+){
+
+  if(
+    result.type ===
+      'choice_index' &&
+    result.choice_index
+  ){
+
+    const index =
+      result.choice_index - 1;
+
+    if(
+      index >= 0 &&
+      index <
+        question.choices.length
+    ){
+
+      return {
+        choice:
+          question.choices[index],
+        index
+      };
+
+    }
+
+  }
+
+  if(
+    result.type ===
+      'choice_letter' &&
+    result.choice_letter
+  ){
+
+    const index =
+      result.choice_letter
+        .charCodeAt(0) -
+      65;
+
+    if(
+      index >= 0 &&
+      index <
+        question.choices.length
+    ){
+
+      return {
+        choice:
+          question.choices[index],
+        index
+      };
+
+    }
+
+  }
+
+  const target =
+    compactMathText(
+      result.normalized
+    );
+
+  const index =
+    question.choices
+      .findIndex(
+        choice =>
+          compactMathText(choice) ===
+          target
+      );
+
+  if(index >= 0){
+
+    return {
+      choice:
+        question.choices[index],
+      index
+    };
+
+  }
+
+  return null;
+
+}
+
+
+voiceTranscript.addEventListener(
+  'input',
+  () => {
+
+    if(
+      voiceTranscript.value.trim()
+    ){
+
+      showNormalizedVoiceAnswer();
+
+    }else{
+
+      pendingVoiceAnswer = null;
+
+      voiceNormalizedBox.style.display =
+        'none';
+
+      voiceConfirmBtn.style.display =
+        'none';
+
+    }
+
+  }
+);
+
+
+voiceConfirmBtn.addEventListener(
+  'click',
+  async () => {
+
+    if(!pendingVoiceAnswer){
+      return;
+    }
+
+    const question =
+      getCurrentQuestion();
+
+    const state =
+      getCurrentState();
+
+    const match =
+      findVoiceChoice(
+        question,
+        pendingVoiceAnswer
+      );
+
+    if(!match){
+
+      voiceStatus.textContent =
+        '我 還 不 能 確 定 你 選 的 是 哪 個 答 案 ， 請 修 改 文 字 或 直 接 點 選 選 項 。';
+
+      return;
+
+    }
+
+    const buttons =
+      Array.from(
+        document.querySelectorAll(
+          '.choice'
+        )
+      );
+
+    const button =
+      buttons[
+        match.index
+      ];
+
+    if(!button){
+      return;
+    }
+
+    voiceConfirmBtn.disabled =
+      true;
+
+    voiceStatus.textContent =
+      '已 確 認 答 案 ：' +
+      match.choice;
+
+    try{
+
+      await answerQuestion(
+        button,
+        match.choice,
+        question,
+        state
+      );
+
+    }finally{
+
+      voiceConfirmBtn.disabled =
+        false;
+
+    }
+
+  }
+);
+
+
+async function sendVoiceForTranscription(
+  blob,
+  mimeType
+){
+
+  voiceBusy = true;
+  voiceBtn.disabled = true;
+
+  voiceStatus.textContent =
+    '正 在 辨 識 …';
+
+  try{
+
+    if(
+      blob.size >
+      10 * 1024 * 1024
+    ){
+      throw new Error(
+        'audio_too_large'
+      );
+    }
+
+    const form =
+      new FormData();
+
+    form.append(
+      'audio',
+      blob,
+      filenameForMimeType(
+        mimeType ||
+        blob.type ||
+        ''
+      )
+    );
+
+    const res =
+      await fetch(
+        '/api/transcribe',
+        {
+          method:'POST',
+          body:form
+        }
+      );
+
+    const data =
+      await res.json();
+
+    if(
+      !res.ok ||
+      !data.ok ||
+      typeof data.transcript !==
+        'string'
+    ){
+
+      throw new Error(
+        data.error ||
+        'transcription_failed'
+      );
+
+    }
+
+    voiceTranscript.value =
+      data.transcript;
+
+    voiceStatus.textContent =
+      '辨 識 完 成 ， 可 以 先 修 改 。';
+
+    showNormalizedVoiceAnswer();
+
+  }catch(e){
+
+    console.error(
+      'voice transcription failed',
+      e
+    );
+
+    voiceStatus.textContent =
+      '語 音 辨 識 失 敗 ， 請 再 試 一 次 。';
+
+  }finally{
+
+    voiceBusy = false;
+    voiceBtn.disabled = false;
+
+  }
+
+}
+
+
+async function startVoiceRecording(){
+
+  if(voiceBusy){
+    return;
+  }
+
+  if(
+    !navigator.mediaDevices ||
+    !navigator.mediaDevices.getUserMedia ||
+    !window.MediaRecorder
+  ){
+
+    voiceStatus.textContent =
+      '這 個 瀏 覽 器 目 前 不 支 援 語 音 錄 音 。';
+
+    return;
+
+  }
+
+  try{
+
+    mediaStream =
+      await navigator.mediaDevices
+        .getUserMedia({
+          audio:true
+        });
+
+    const mimeType =
+      chooseRecorderMimeType();
+
+    mediaRecorder =
+      mimeType
+        ? new MediaRecorder(
+            mediaStream,
+            { mimeType }
+          )
+        : new MediaRecorder(
+            mediaStream
+          );
+
+    audioChunks = [];
+
+    mediaRecorder.addEventListener(
+      'dataavailable',
+      event => {
+
+        if(
+          event.data &&
+          event.data.size > 0
+        ){
+          audioChunks.push(
+            event.data
+          );
+        }
+
+      }
+    );
+
+    mediaRecorder.addEventListener(
+      'stop',
+      async () => {
+
+        stopRecordingTimer();
+        stopMicrophoneTracks();
+
+        const finalMimeType =
+          mediaRecorder.mimeType ||
+          mimeType ||
+          'audio/webm';
+
+        const blob =
+          new Blob(
+            audioChunks,
+            {
+              type:finalMimeType
+            }
+          );
+
+        audioChunks = [];
+        mediaRecorder = null;
+
+        voiceBtn.classList.remove(
+          'recording'
+        );
+
+        voiceBtn.textContent =
+          '🎙 語 音 回 答';
+
+        if(blob.size === 0){
+
+          voiceStatus.textContent =
+            '沒 有 錄 到 聲 音 ， 請 再 試 一 次 。';
+
+          return;
+
+        }
+
+        await sendVoiceForTranscription(
+          blob,
+          finalMimeType
+        );
+
+      }
+    );
+
+    mediaRecorder.start();
+
+    recordingStartedAt =
+      Date.now();
+
+    voiceTimer.textContent =
+      '00:00';
+
+    voiceBtn.classList.add(
+      'recording'
+    );
+
+    voiceBtn.textContent =
+      '⏹ 停 止 錄 音';
+
+    voiceStatus.textContent =
+      '🔴 錄 音 中';
+
+    recordingTimerId =
+      setInterval(
+        () => {
+
+          const elapsed =
+            Math.floor(
+              (
+                Date.now() -
+                recordingStartedAt
+              ) / 1000
+            );
+
+          voiceTimer.textContent =
+            formatRecordingTime(
+              elapsed
+            );
+
+        },
+        250
+      );
+
+  }catch(e){
+
+    console.error(
+      'microphone start failed',
+      e
+    );
+
+    stopRecordingTimer();
+    stopMicrophoneTracks();
+
+    voiceStatus.textContent =
+      '無 法 使 用 麥 克 風 ， 請 確 認 瀏 覽 器 權 限 。';
+
+  }
+
+}
+
+
+function stopVoiceRecording(){
+
+  if(
+    mediaRecorder &&
+    mediaRecorder.state ===
+      'recording'
+  ){
+
+    voiceStatus.textContent =
+      '正 在 準 備 辨 識 …';
+
+    mediaRecorder.stop();
+
+  }
+
+}
+
+
+voiceBtn.addEventListener(
+  'click',
+  async () => {
+
+    if(voiceBusy){
+      return;
+    }
+
+    if(
+      mediaRecorder &&
+      mediaRecorder.state ===
+        'recording'
+    ){
+
+      stopVoiceRecording();
+
+    }else{
+
+      await startVoiceRecording();
+
+    }
+
+  }
+);
+
+
+async function loadPracticeSet() {
+
+  loading.style.display = 'block';
+  practice.style.display = 'none';
+  errorBox.style.display = 'none';
+
+  try {
+
+    const res = await fetch(
+      '/api/practice',
+      {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          student_id:'student_001',
+          subject:'math',
+          knowledge_point:'異分母分數加法',
+          count:5,
+          difficulty:'normal'
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if(
+      !data.ok ||
+      !data.practice ||
+      !Array.isArray(data.practice.questions)
+    ){
+      throw new Error('invalid practice data');
+    }
+
+    practiceSet = data.practice;
+
+    practiceSet.questions.forEach((q, index) => {
+      const key = q.id || ('q' + (index + 1));
+
+      questionStates[key] = {
+        attempts: 0,
+        hints: 0,
+        first_wrong_answer: null,
+        diagnosis: null,
+        diagnosing: false,
+        saved: false
+      };
+    });
+
+    meta.textContent =
+      '科目：數學｜主題：' +
+      practiceSet.knowledge_point;
+
+    loading.style.display = 'none';
+    practice.style.display = 'block';
+
+    renderQuestion();
+
+  } catch(e){
+
+    console.error(e);
+
+    loading.style.display = 'none';
+    errorBox.style.display = 'block';
+
+  }
+
+}
+
+
+function getCurrentQuestion() {
+  return practiceSet.questions[currentIndex];
+}
+
+
+function getQuestionKey(question) {
+  return question.id || ('q' + (currentIndex + 1));
+}
+
+
+function getCurrentState() {
+  const q = getCurrentQuestion();
+  return questionStates[getQuestionKey(q)];
+}
+
+
+function renderQuestion(){
+
+  const q = getCurrentQuestion();
+  const state = getCurrentState();
+
+  feedback.textContent = '';
+  nextBtn.style.display = 'none';
+
+  voiceTranscript.value = '';
+
+  pendingVoiceAnswer = null;
+
+  voiceNormalizedBox.style.display =
+    'none';
+
+  voiceConfirmBtn.style.display =
+    'none';
+
+  voiceNormalizedAnswer.textContent =
+    '';
+
+  voiceStatus.textContent =
+    '可 以 用 語 音 說 出 你 的 想 法 。';
+
+  voiceTimer.textContent =
+    '00:00';
+
+  progressText.textContent =
+    '第 ' +
+    (currentIndex + 1) +
+    ' 題 / ' +
+    practiceSet.questions.length;
+
+  progressBar.style.width =
+    (
+      (currentIndex /
+      practiceSet.questions.length)
+      * 100
+    ) + '%';
+
+  questionEl.textContent = q.prompt;
+
+  choicesEl.innerHTML = '';
+
+  q.choices.forEach(choice => {
+
+    const button =
+      document.createElement('button');
+
+    button.className = 'choice';
+    button.textContent = choice;
+
+    button.addEventListener(
+      'click',
+      () =>
+        answerQuestion(
+          button,
+          choice,
+          q,
+          state
+        )
+    );
+
+    choicesEl.appendChild(button);
+
+  });
+
+}
+
+
+function setAllChoicesDisabled(disabled) {
+
+  document
+    .querySelectorAll('.choice')
+    .forEach(btn => {
+      btn.disabled = disabled;
+    });
+
+}
+
+
+function disableSelectedWrongChoice(selected) {
+
+  document
+    .querySelectorAll('.choice')
+    .forEach(btn => {
+      if(btn.textContent === selected){
+        btn.disabled = true;
+      }
+    });
+
+}
+
+
+async function classifyWrongAnswer(
+  question,
+  wrongAnswer,
+  state
+){
+
+  if(state.diagnosing){
+    return;
+  }
+
+  state.diagnosing = true;
+
+  try{
+
+    const res = await fetch(
+      '/api/classify-error',
+      {
+        method:'POST',
+
+        headers:{
+          'Content-Type':
+            'application/json'
+        },
+
+        body:JSON.stringify({
+          student_id:
+            'student_001',
+
+          knowledge_point:
+            practiceSet.knowledge_point,
+
+          question:
+            question.prompt,
+
+          correct_answer:
+            question.answer,
+
+          student_answer:
+            wrongAnswer
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if(
+      data.ok &&
+      data.classification
+    ){
+
+      state.diagnosis = {
+        error_type:
+          data.classification.error_type ||
+          'unknown',
+
+        reason:
+          data.classification.reason ||
+          '',
+
+        confidence:
+          data.classification.confidence ??
+          null
+      };
+
+    }else{
+
+      state.diagnosis = {
+        error_type:'unknown',
+        reason:'',
+        confidence:null
+      };
+
+    }
+
+  }catch(e){
+
+    console.error(
+      'classify error failed',
+      e
+    );
+
+    state.diagnosis = {
+      error_type:'unknown',
+      reason:'',
+      confidence:null
+    };
+
+  }finally{
+
+    state.diagnosing = false;
+
+  }
+
+}
+
+
+async function answerQuestion(
+  button,
+  selected,
+  question,
+  state
+){
+
+  if(state.diagnosing){
+    return;
+  }
+
+  state.attempts += 1;
+
+  const correct =
+    selected === question.answer;
+
+  if(correct){
+
+    setAllChoicesDisabled(true);
+
+    feedback.textContent =
+      state.first_wrong_answer
+        ? '答對了！你有自己修正回來 👍'
+        : '答對了！🎉';
+
+    if(state.diagnosing){
+      feedback.textContent =
+        '正在整理這題的學習紀錄…';
+
+      while(state.diagnosing){
+        await new Promise(
+          resolve =>
+            setTimeout(resolve,100)
+        );
+      }
+    }
+
+    if(!state.saved){
+
+      await saveResult(
+        question,
+        state
+      );
+
+      state.saved = true;
+    }
+
+    correctCount += 1;
+
+    nextBtn.style.display =
+      'block';
+
+  }else{
+
+    state.hints += 1;
+
+    if(!state.first_wrong_answer){
+
+      state.first_wrong_answer =
+        selected;
+
+      setAllChoicesDisabled(true);
+
+      feedback.textContent =
+        '我先看看你可能卡在哪裡…';
+
+      await classifyWrongAnswer(
+        question,
+        selected,
+        state
+      );
+
+      setAllChoicesDisabled(false);
+
+      disableSelectedWrongChoice(
+        selected
+      );
+
+    }else{
+
+      button.disabled = true;
+
+    }
+
+    feedback.textContent =
+      '再想一下，你可以重新看看題目的分母、通分方式或題意。';
+
+  }
+
+}
+
+
+async function saveResult(
+  question,
+  state
+){
+
+  const diagnosis =
+    state.diagnosis || {
+      error_type:'',
+      reason:'',
+      confidence:null
+    };
+
+  const noteParts = [
+    'Web practice: ' +
+    question.prompt
+  ];
+
+  if(state.first_wrong_answer){
+
+    noteParts.push(
+      'first_wrong_answer=' +
+      state.first_wrong_answer
+    );
+
+  }
+
+  if(diagnosis.reason){
+
+    noteParts.push(
+      'diagnosis=' +
+      diagnosis.reason
+    );
+
+  }
+
+  if(
+    diagnosis.confidence !== null
+  ){
+
+    noteParts.push(
+      'confidence=' +
+      diagnosis.confidence
+    );
+
+  }
+
+  try{
+
+    const res = await fetch(
+      '/api/result',
+      {
+        method:'POST',
+
+        headers:{
+          'Content-Type':
+            'application/json'
+        },
+
+        body:JSON.stringify({
+
+          student_id:
+            'student_001',
+
+          subject:
+            'math',
+
+          knowledge_point:
+            practiceSet.knowledge_point,
+
+          result:
+            'correct',
+
+          attempts:
+            state.attempts,
+
+          hints:
+            state.hints,
+
+          error_type:
+            state.first_wrong_answer
+              ? (
+                  diagnosis.error_type ||
+                  'unknown'
+                )
+              : '',
+
+          review_needed:
+            state.hints >= 2 ||
+            diagnosis.error_type ===
+              'concept_misunderstanding',
+
+          note:
+            noteParts.join(' | ')
+
+        })
+      }
+    );
+
+    if(!res.ok){
+      throw new Error(
+        'learning save failed'
+      );
+    }
+
+  }catch(e){
+
+    console.error(
+      'save result failed',
+      e
+    );
+
+  }
+
+}
+
+
+nextBtn.addEventListener(
+  'click',
+  () => {
+
+    currentIndex += 1;
+
+    if(
+      currentIndex >=
+      practiceSet.questions.length
+    ){
+
+      showComplete();
+
+    }else{
+
+      renderQuestion();
+
+    }
+
+  }
+);
+
+
+function showComplete(){
+
+  practice.style.display =
+    'none';
+
+  complete.style.display =
+    'block';
+
+  const total =
+    practiceSet.questions.length;
+
+  document
+    .getElementById('score')
+    .textContent =
+      correctCount +
+      ' / ' +
+      total;
+
+  document
+    .getElementById('summary')
+    .textContent =
+      correctCount === total
+        ? '全部答對，非常棒！'
+        : '完成練習了，我們會記住需要再複習的地方。';
+
+  progressBar.style.width =
+    '100%';
+
+}
+
+
+loadPracticeSet();
+
+</script>
+</body>
+</html>

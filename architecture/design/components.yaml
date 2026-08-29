@@ -1,0 +1,150 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+purpose: >
+  Component catalog. Each component reads ONLY from design-tokens.yaml.
+  Age-profile variations are documented per component; the actual
+  selector logic is Phase 5+ implementation.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Catalog
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  question_card:
+    purpose: container for a single question (stem + representation + answer area)
+    consumes_tokens:
+      - typography.body_*
+      - spacing.md (card padding)
+      - border_radius.{lg,xl} (varies by profile)
+      - semantic_colors.{surface, text_primary, border}
+      - state_colors.{hint, error} for inline hint/error
+    slots:
+      - stem: text or structured
+      - representation: math_visual_engine SVG or static image (component is SVG-agnostic)
+      - answer_area: delegates to one of {multiple_choice, math_input, voice_input, drag_drop, handwriting_input}
+      - feedback_overlay: success / error / hint reveal
+    age_profile_variants:
+      g1_g2: { padding: spacing.lg, radius: border_radius.xl, image_first: true }
+      g3_g4: { padding: spacing.md, radius: border_radius.lg, image_first: false }
+      g5_g6: { padding: spacing.md, radius: border_radius.md, image_first: false }
+    invariants:
+      - INV-CMP-QC-1: Stem copy is taken verbatim from Subject Specialist presentation_request.child_copy; Designer MUST NOT paraphrase teaching content.
+
+  hint_panel:
+    purpose: progressive hint reveal (one hint per level 1..3)
+    consumes_tokens:
+      - state_colors.hint
+      - spacing.{sm, md}
+      - typography.body_md
+      - motion.scale.{minimal, standard}
+    slots:
+      - hint_text
+      - optional_visual (e.g. fraction_bar for a math hint)
+      - hint_level_badge
+    behavior:
+      - hint_level 0: hidden
+      - hint_level 1: surface minimal
+      - hint_level 2: surface standard + voiceover available
+      - hint_level 3: surface standard + worked-example visual
+    invariants:
+      - INV-CMP-HP-1: Hint content is owned by Subject Specialist (hint_ladder_next); Designer only renders.
+
+  progress_bar:
+    purpose: session-level progress visualization
+    consumes_tokens:
+      - semantic_colors.primary
+      - semantic_colors.secondary (streak)
+      - motion.scale.minimal
+      - component_sizes.icon.{sm, md}
+    variants:
+      - segmented_progress_bar_with_streak  # G3-G4 default
+      - large_progress_bar_with_character   # G1-G2 default
+      - slim_progress_bar_with_stats        # G5-G6 default
+    invariants:
+      - INV-CMP-PB-1: Progress visualization MUST be honest (no "completion" claim when not actually complete).
+
+  feedback_state:
+    purpose: success / error / hint visual + audio feedback overlay
+    consumes_tokens:
+      - state_colors.{success, error, hint}
+      - motion.scale.{minimal, standard, expressive}
+      - icon.size.{md, lg}
+    rules:
+      - success: green surface + check icon + audio chime + celebration level per age profile
+      - error: red surface + alert icon + NO blame language; always includes hint_panel trigger
+      - hint: amber surface + lightbulb icon + audio voiceover of hint
+    invariants:
+      - INV-CMP-FS-1: error MUST be paired with a hint, never alone.
+      - INV-CMP-FS-2: feedback_state NEVER displays raw error codes to the child; error_type stays in mastery evidence only.
+
+  drag_drop:
+    purpose: drag-and-drop interaction for matching / sorting / equation-building
+    consumes_tokens:
+      - touch_target.{min}
+      - motion.scale.{standard, expressive}
+      - state_colors.{success, hint}
+    slots:
+      - source_items
+      - target_zones
+      - drop_targets (declared up front for accessibility)
+    a11y:
+      - keyboard_alternative_required: true
+      - screen_reader_announce_on_drop: true
+    age_profile_variants:
+      g1_g2: { drag_threshold_px: 16, snap_zone_padding_rem: 1.5 }
+      g3_g4: { drag_threshold_px: 8,  snap_zone_padding_rem: 1.0 }
+      g5_g6: { drag_threshold_px: 5,  snap_zone_padding_rem: 0.5 }
+    invariants:
+      - INV-CMP-DD-1: A keyboard-only alternative MUST exist (e.g. tap-to-select + tap-target).
+
+  math_input:
+    purpose: numeric / fraction / expression input
+    consumes_tokens:
+      - typography.body_lg
+      - component_sizes.input.md
+      - semantic_colors.{primary, border}
+      - state_colors.error
+    variants:
+      - keypad           # on-screen keypad for G1-G4 default
+      - system_keyboard  # for G5+ on tablet/desktop
+      - handwriting      # Phase 6 candidate; not this round
+    a11y:
+      - voice_input_alternative_required: true   # if handwriting/math are primary, voice fallback exists
+      - field_label_required: true
+    invariants:
+      - INV-CMP-MI-1: math_input MUST validate via Subject Specialist validator (math_validator); Designer only renders.
+
+  voice_input:
+    purpose: spoken-answer input (kid-safe local STT only; no cloud STT)
+    consumes_tokens:
+      - icon.size.lg
+      - motion.scale.minimal
+      - state_colors.{hint, success}
+    depends_on:
+      - skills/mentornest-stt (local SenseVoice-Small + sherpa-onnx)
+    invariants:
+      - INV-CMP-VI-1: Audio MUST NOT leave the device; cloud STT is forbidden.
+
+  handwriting_input:
+    purpose: freeform handwriting canvas (math, chinese characters)
+    consumes_tokens:
+      - icon.size.xl
+      - component_sizes.input.lg
+    status: deferred_to_phase_6
+    depends_on:
+      - sherpa-onnx-handwriting (planned)
+      - or local handwriting recognition (TBD)
+    invariants:
+      - INV-CMP-HW-1: When implemented, local recognition only; no cloud OCR.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Composition rule
+# ─────────────────────────────────────────────────────────────────────────────
+composition_rule: >
+  Components compose by slot, not by visual hack.  A question_card
+  ALWAYS composes from {stem, representation, answer_area, feedback_overlay}.
+  Subject Specialist's presentation_request.response_fields determine
+  which child components fill which slots; Designer never inlines a
+  behavior not owned by Subject Specialist.

@@ -1,0 +1,286 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+notes: >
+  Tokens are atomic, technology-agnostic design values.  Implementations
+  (CSS variables, Tailwind config, design tokens JSON) will be derived
+  in Phase 5.  All values are RECOMMENDATIONS subject to Phase-5
+  implementation testing; the only HARD invariants are the constraints
+  called out under each section.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Typography scale
+# ─────────────────────────────────────────────────────────────────────────────
+typography:
+  intent: one scale, used across all components; age profile adjusts the *base* size and density, not the scale itself.
+  scale_rem:
+    # All values are rem-based; 1rem = 16px is the browser default and is assumed.
+    caption:   0.75    # meta-info, label badges
+    body_sm:   0.875   # secondary copy
+    body_md:   1.0     # default body (recommended base for G5-G6)
+    body_lg:   1.125   # G3-G4 base default
+    title_sm:  1.25    # question subtitle
+    title_md:  1.5     # card title
+    title_lg:  1.875   # hero / progress hero
+    display:   2.5     # celebration / streak
+  weight_tokens:
+    regular:   400
+    medium:    500
+    semibold:  600
+    bold:      700
+  line_height_ratio:
+    body:   1.5
+    title:  1.25
+  family_policy:
+    primary_serif: "child-friendly serif (TBD Phase 5; e.g. 嘸蝦米, Noto Sans TC fallback)"
+    primary_sans:  "child-friendly sans (TBD; e.g. Noto Sans TC)"
+    monospace:     "monospace for math input alignment (e.g. system mono)"
+  constraints:
+    - min_body_size: 0.875rem (14px). Children under G5 must NOT see body text below this.
+    - max_line_length_chars: 70 (CJK) / 90 (Latin) for body copy
+  invariants:
+    - INV-TOK-TYP-1: Body text ≥ 14px in every age profile (G7+ reserved may relax to 13px).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Spacing
+# ─────────────────────────────────────────────────────────────────────────────
+spacing:
+  intent: 4-pt grid; everything snaps.
+  scale_rem:
+    none:    0
+    xxs:     0.25    #  4px — micro-inset
+    xs:      0.5     #  8px — tight gaps
+    sm:      0.75    # 12px — chip padding
+    md:      1.0     # 16px — card padding default
+    lg:      1.5     # 24px — section gap
+    xl:      2.0     # 32px — major vertical rhythm
+    xxl:     3.0     # 48px — page margin default
+    huge:    4.0     # 64px — celebration hero
+  constraints:
+    - card_padding_min: 1.0rem (16px)
+    - section_gap_min:  1.5rem (24px)
+  invariants:
+    - INV-TOK-SP-1: No floating values; all spacing comes from this scale.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. Border radius
+# ─────────────────────────────────────────────────────────────────────────────
+border_radius:
+  intent: friendly but consistent; never mixed within a single component.
+  scale_rem:
+    none:    0
+    sm:      0.25    #  4px — tags, badges
+    md:      0.5     #  8px — buttons, inputs
+    lg:      1.0     # 16px — cards (G3+ default)
+    xl:      1.5     # 24px — primary cards (G1-G2 default)
+    pill:    9999    # fully rounded — pill buttons, progress segments
+  age_profile_variants:
+    g1_g2_default: lg
+    g3_g4_default: lg
+    g5_g6_default: md
+    g7_plus_reserved: md
+  invariants:
+    - INV-TOK-BR-1: Cards in the same context MUST use the same radius.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Component sizes
+# ─────────────────────────────────────────────────────────────────────────────
+component_sizes:
+  intent: standard heights and min-widths so children never hit a too-small target.
+  button:
+    height_rem:
+      sm: 2.25   # 36px — auxiliary actions only
+      md: 2.75   # 44px — default
+      lg: 3.5    # 56px — primary CTA on mobile (G1-G2 default)
+    min_width_rem:
+      sm: 4.0
+      md: 6.0
+      lg: 8.0
+  input:
+    height_rem:
+      sm: 2.5    # 40px
+      md: 3.0    # 48px
+      lg: 3.5    # 56px (G1-G2 default)
+    min_width_rem: 8.0
+  card:
+    padding_rem: 1.0   # see spacing.md
+    min_height_rem: 6.0 # ensures tap target without visual clutter
+  icon:
+    size_rem:
+      sm: 1.0    # 16px
+      md: 1.5    # 24px
+      lg: 2.0    # 32px
+      xl: 3.0    # 48px (illustration hero)
+  math_input_key:
+    height_rem: 3.5  # G3+ keypad keys
+    width_rem:  3.5
+    gap_rem:    0.25
+  invariants:
+    - INV-TOK-SZ-1: Every interactive element MUST respect touch_target.min_size.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Semantic colors
+# ─────────────────────────────────────────────────────────────────────────────
+# Per human decision HD-WV2-4 (2026-08-27T1252Z): strategy is EXPLICIT user
+# setting, NOT browser autodetect.  Three named modes the user can pick:
+#   - default           → the palette below (already WCAG-AA + color-blind safe)
+#   - high_contrast     → raise contrast ratios + thicker focus rings
+#   - color_vision_safe → use the deuteranopia/protanopia/tritanopia overrides
+# Runtime chooses the mode from accessibility settings; never infers from
+# the browser.  In every mode, success/error MUST also carry icon + text.
+semantic_colors:
+  intent: >
+    Use semantic roles (primary, success, error, hint, neutral) instead
+    of raw hues.  The math_visual_engine SHALL keep its own SVG defaults
+    until Phase 5; Designer NEVER overrides those inside SVG.
+  roles:
+    primary:        "#4A90E2"  # brand, primary CTAs
+    primary_hover:  "#357ABD"
+    primary_pressed:"#2A5F94"
+    secondary:      "#7B61FF"  # accent for streaks, highlights
+    neutral_900:    "#1F2933"
+    neutral_700:    "#3E4C59"
+    neutral_500:    "#7B8794"
+    neutral_300:    "#CBD2D9"
+    neutral_100:    "#F5F7FA"
+    neutral_50:     "#FAFBFC"
+    background:     "#FFFFFF"
+    surface:        "#FFFFFF"
+    surface_alt:    "#F5F7FA"
+    border:         "#E4E7EB"
+    text_primary:   "#1F2933"
+    text_secondary: "#52606D"
+    text_inverse:   "#FFFFFF"
+  color_blind_palette_overrides:
+    deuteranopia:
+      primary:    "#1F77B4"
+      secondary:  "#FF7F0E"
+      success:    "#2CA02C"
+      error:      "#D62728"
+    protanopia:
+      primary:    "#1F77B4"
+      secondary:  "#FFBB78"
+      success:    "#98DF8A"
+      error:      "#FF9896"
+    tritanopia:
+      primary:    "#17BECF"
+      secondary:  "#BCBD22"
+      success:    "#2CA02C"
+      error:      "#E377C2"
+  color_mode_settings:
+    # HD-WV2-4: explicit user setting; never infer from browser/OS preference.
+    default:
+      description: "Standard palette; already WCAG-AA + color-blind safe by design."
+      uses: semantic_colors (above) + color_blind_palette_overrides (when applicable)
+    high_contrast:
+      description: "Higher contrast + thicker focus rings for low-vision users."
+      text_primary:   "#000000"
+      background:     "#FFFFFF"
+      focus_ring_width: "3px"
+      focus_ring_color: "#000000"
+      contrast_minimum_ratio: 7.0
+    color_vision_safe:
+      description: "Always-on deuteranopia/protanopia palette overrides; no mode switching."
+      uses: deuteranopia overrides for primary/secondary/success/error
+  invariants:
+    - INV-TOK-CO-1: Color is NEVER the sole carrier of meaning; pair with icon + label.
+    - INV-TOK-CO-2: Contrast ratio against background ≥ 4.5:1 (body), 3:1 (large text/UI).
+    - INV-TOK-CO-3: high_contrast mode MUST reach ≥ 7:1 contrast (AAA body text).
+    - INV-TOK-CO-4: Mode is selected by accessibility settings ONLY; the runtime MUST NOT read prefers-color-scheme / prefers-contrast media queries to switch palettes.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. State colors (success / error / hint)
+# ─────────────────────────────────────────────────────────────────────────────
+state_colors:
+  success:
+    base:    "#2E7D32"
+    surface: "#E8F5E9"
+    text:    "#1B5E20"
+  error:
+    base:    "#C62828"
+    surface: "#FFEBEE"
+    text:    "#7F0000"
+  hint:
+    base:    "#F9A825"
+    surface: "#FFF8E1"
+    text:    "#5D4037"
+  info:
+    base:    "#1565C0"
+    surface: "#E3F2FD"
+    text:    "#0D47A1"
+  invariants:
+    - INV-TOK-ST-1: success/error/hint surfaces MUST also include icon + text label.
+    - INV-TOK-ST-2: error and hint MUST differ in BOTH hue AND shape/icon.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. Motion intensity
+# ─────────────────────────────────────────────────────────────────────────────
+motion:
+  intent: motion supports learning; never blocks comprehension.
+  scale:
+    none: "0ms (no animation)"
+    minimal: "120ms ease-out — color/state changes"
+    standard: "240ms ease-out — card transitions, hint reveal"
+    expressive: "400ms cubic-bezier(0.4,0,0.2,1) — celebration, streak unlock"
+  age_profile_variants:
+    g1_g2_default: standard
+    g3_g4_default: standard
+    g5_g6_default: minimal
+    g7_plus_reserved: minimal
+  reduced_motion:
+    trigger: prefers-reduced-motion media query OR explicit accessibility_context.motion_reduction
+    behavior: collapse all motion to minimal; celebrations become static visual + audio chime.
+  invariants:
+    - INV-TOK-MO-1: No motion may exceed 400ms (expressive is the cap).
+    - INV-TOK-MO-2: prefers-reduced-motion MUST override any default motion.
+    - INV-TOK-MO-3: Math visual engine SVG fade-in MUST also obey reduced-motion.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. Touch target size
+# ─────────────────────────────────────────────────────────────────────────────
+touch_target:
+  intent: WCAG 2.5.5 (Target Size) baseline 24x24 CSS px, plus age-profile expansion.
+  minimum_css_px:
+    baseline:      24
+    g1_g2_default: 56  # generous hit zone for emerging fine motor
+    g3_g4_default: 48
+    g5_g6_default: 44
+    g7_plus_reserved: 40
+  spacing_between_targets_css_px: 8  # minimum gap
+  invariants:
+    - INV-TOK-TT-1: Every interactive element in any age profile MUST meet its profile's minimum.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. Theme hook (deferred)
+# ─────────────────────────────────────────────────────────────────────────────
+theme_hook:
+  status: deferred_to_web_v2_and_child_learning_experience_designer
+  reference: architecture/policies.yaml#visual_theme_hook
+  policy: >
+    Math visual engine owns SVG color defaults (Phase 3.5-A).  Designer
+    does NOT introduce user-configurable color/typography theme switches
+    until Phase 5.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. Token compilation pipeline (HD-WV2-2)
+# ─────────────────────────────────────────────────────────────────────────────
+token_compilation:
+  source_of_truth: architecture/design/design-tokens.yaml
+  build_step:
+    input: design-tokens.yaml
+    output: web/src/styles/tokens.css (and web/src/styles/tokens.ts for typed access)
+    naming_prefix: "--mn-"
+    examples:
+      - "semantic_colors.primary  →  --mn-color-primary: #4A90E2"
+      - "spacing.md               →  --mn-space-4: 1rem"
+      - "border_radius.lg         →  --mn-radius-lg: 1rem"
+      - "typography.body_md       →  --mn-font-size-body: 1rem"
+  build_tool: candidate Style Dictionary (Phase 5 evaluation) or a small in-house script (no Tailwind).
+  constraints:
+    - do_NOT_split_into_npm_package_until_second_consumer_exists (HD-WV2-2)
+    - if Tailwind is ever added, it MUST map onto these CSS variables, not replace them
+    - runtime NEVER reads tokens via JavaScript objects directly when CSS variables are usable; CSS variables are the published interface
+  invariants:
+    - INV-TOK-PIPE-1: Every component CSS references tokens via var(--mn-...); no hard-coded hex / px values.
+    - INV-TOK-PIPE-2: Tokens are immutable at runtime; changing a token requires a redeploy, never a runtime config write.

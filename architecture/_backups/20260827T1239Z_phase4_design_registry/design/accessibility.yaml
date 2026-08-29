@@ -1,0 +1,199 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+purpose: >
+  Cross-cutting accessibility constraints.  These apply to ALL design
+  layers above (tokens / components / patterns / age profiles) and are
+  NON-NEGOTIABLE.  Personalization MAY NOT override them.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Standards baseline
+# ─────────────────────────────────────────────────────────────────────────────
+standards:
+  baseline:
+    - WCAG_2.1_AA
+    - WCAG_2.2_AA (when applicable)
+  child_specific_extensions:
+    - "Cognitive load cap per session (working memory)"
+    - "Reward / punishment discipline (no shame)"
+    - "Audio-visual redundancy (color + icon + text + audio)"
+    - "Failure recovery (every error has a path forward)"
+    - "Reduced motion default for youngest learners"
+  references:
+    - WCAG 2.1 SC 1.4.3 Contrast Minimum
+    - WCAG 2.1 SC 1.4.11 Non-text Contrast
+    - WCAG 2.1 SC 1.4.13 Content on Hover or Focus
+    - WCAG 2.1 SC 2.1.1 Keyboard
+    - WCAG 2.1 SC 2.4.7 Focus Visible
+    - WCAG 2.1 SC 2.5.5 Target Size (Level AAA 44x44; baseline 24x24)
+    - WCAG 2.2 SC 2.4.11 Focus Not Obscured (Minimum)
+    - WCAG 2.2 SC 2.4.13 Focus Appearance
+    - WCAG 2.2 SC 3.3.7 Redundant Entry
+    - WCAG 2.2 SC 3.3.8 Accessible Authentication (if any)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cognitive load constraints
+# ─────────────────────────────────────────────────────────────────────────────
+cognitive_load:
+  intent: "Children have lower working-memory capacity; reduce extraneous load."
+  rules:
+    - INV-CL-1: One primary question per screen.
+    - INV-CL-2: One CTA per screen for G1-G2.
+    - INV-CL-3: No modal popups during a question; celebration is overlay only.
+    - INV-CL-4: Hide chrome (navigation, footer) during question focus; reveal on hover/tap pause.
+    - INV-CL-5: No parallax, no auto-playing audio, no surprise motion.
+    - INV-CL-6: Error states always include next step (review link or hint).
+  measurement:
+    - "Cognitive load score is reviewed by child_learning_experience_designer before any new pattern ships."
+    - "Quantitative score (placeholder, TBD Phase 5): task-completion-time + error-rate + retry-count per KP"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Motion reduction
+# ─────────────────────────────────────────────────────────────────────────────
+motion_reduction:
+  triggers:
+    - media_query_prefers_reduced_motion
+    - accessibility_context.motion_reduction (from presentation_request)
+    - explicit_user_setting_animation_tolerance_reduced
+  behavior:
+    - All motion collapses to ≤120ms.
+    - Celebrations become static visual + audio chime.
+    - No parallax. No auto-play. No swipe-only interactions.
+  invariants:
+    - INV-MR-1: prefers-reduced-motion MUST override any default motion.
+    - INV-MR-2: Math visual engine SVG fade-in MUST also obey reduced-motion.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Color-blind palettes
+# ─────────────────────────────────────────────────────────────────────────────
+color_blind_safe:
+  mandatory_palettes:
+    - deuteranopia
+    - protanopia
+    - tritanopia
+    - achromatopsia
+  rules:
+    - INV-CB-1: Pair every color signal with icon + label.
+    - INV-CB-2: success/error MUST differ in shape/icon, not just hue.
+    - INV-CB-3: Tests with a color-blind simulator are required before pattern ships (Phase 5+).
+  tokens_affected:
+    - design-tokens.yaml#semantic_colors
+    - design-tokens.yaml#state_colors
+  implementation_hint: >
+    Provide semantic role overrides via CSS custom properties; ship a
+    color-blind-safe variant of the palette in design-tokens.yaml.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Screen reader support
+# ─────────────────────────────────────────────────────────────────────────────
+screen_reader:
+  rules:
+    - INV-SR-1: Every interactive element has an accessible name.
+    - INV-SR-2: Every state change is announced.
+    - INV-SR-3: Question stem is announced once at question focus.
+    - INV-SR-4: Hint panel reveal is announced ("提示出現了").
+    - INV-SR-5: Feedback state changes are announced with both verdict and next-step.
+    - INV-SR-6: Voice input transcript is announced when committed.
+  labels:
+    - progress_bar: "目前進度，第 {current} 題，共 {total} 題"
+    - streak: "連續答對 {count} 天"
+    - celebration: "答對了，太棒了"
+    - error: "這題再想想，要不要看提示？"
+  invariants:
+    - INV-SR-7: NO decorative-only interactive element; if it has no semantic role, it is not focusable.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Focus management
+# ─────────────────────────────────────────────────────────────────────────────
+focus_management:
+  rules:
+    - INV-FM-1: Focus is visible (≥3:1 contrast against adjacent background).
+    - INV-FM-2: Focus never disappears behind chrome or sticky overlays.
+    - INV-FM-3: On question-card mount, focus moves to stem region or first interactive element.
+    - INV-FM-4: On submit, focus moves to feedback_state.
+    - INV-FM-5: On next-question transition, focus moves back to stem region of new question.
+  invariants:
+    - INV-FM-6: Tab order follows visual order top-to-bottom, left-to-right.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Keyboard-only support
+# ─────────────────────────────────────────────────────────────────────────────
+keyboard_only:
+  rules:
+    - INV-KB-1: Every interactive element is reachable via Tab.
+    - INV-KB-2: Every gesture has a keyboard alternative (drag → tap-to-select + tap-target).
+    - INV-KB-3: Shortcuts (when defined) MUST NOT conflict with browser/AT defaults.
+    - INV-KB-4: Skip-to-content link is present.
+  age_profile_variants:
+    g1_g2: |
+      Keyboard navigation is rare in G1-G2 due to tablet use;
+      however, all gestures MUST have tap equivalents.
+    g3_g4: |
+      Standard Tab + arrow navigation; Enter/Space activate.
+    g5_g6: |
+      Standard Tab + arrow + shortcut keys for review tools (R for replay,
+      H for hint, etc.) — all keyboard shortcuts MUST be documented in
+      a help dialog.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audio safety
+# ─────────────────────────────────────────────────────────────────────────────
+audio_safety:
+  intent: "Children's audio exposure is sensitive; no surprise loud sounds."
+  rules:
+    - INV-AU-1: All audio respects a master volume cap (TBD Phase 5; default ≤60dB at ear).
+    - INV-AU-2: No audio plays without explicit user action OR session-start opt-in.
+    - INV-AU-3: TTS uses kid-friendly voice by default; never system default male voice.
+    - INV-AU-4: Celebrations are short (≤1.5s) and use kid-appropriate chime.
+    - INV-AU-5: Local STT only; no audio leaves device.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Failure recovery
+# ─────────────────────────────────────────────────────────────────────────────
+failure_recovery:
+  rules:
+    - INV-FR-1: Every error state surfaces a "what to do next" CTA.
+    - INV-FR-2: Repeated failures escalate to review_needed, never just bigger error visuals.
+    - INV-FR-3: No dead-ends: every screen has an exit (back / home / help).
+    - INV-FR-4: Submitting an empty answer shows a hint, not an error.
+  invariants:
+    - INV-FR-5: No blame language ("你錯了", "再做一次就放棄了" are forbidden).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Personalization guardrails
+# ─────────────────────────────────────────────────────────────────────────────
+personalization_guardrails:
+  absolute_no_override:
+    - all motion_reduction rules
+    - all color_blind_safe rules
+    - all screen_reader rules
+    - all focus_management rules
+    - all failure_recovery rules
+    - touch_target minimum for active profile
+  allowed_to_relax:
+    - typography density (one step up the scale)
+    - character_guidance (off by default for G5+; subject to user pref)
+    - celebration intensity (reduced or none)
+  invariants:
+    - INV-PG-1: No personalization option may regress a child with motor / cognitive / visual impairment.
+    - INV-PG-2: Personalization MAY NOT alter Subject Specialist teaching intent.
+    - INV-PG-3: Personalization MAY NOT change assessment item order, scoring, or content.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit
+# ─────────────────────────────────────────────────────────────────────────────
+audit:
+  checklist_for_each_new_component:
+    - contrast_ratio_verified
+    - keyboard_only_path_verified
+    - screen_reader_labels_verified
+    - reduced_motion_behavior_verified
+    - color_blind_simulator_pass
+    - failure_recovery_path_verified
+    - touch_target_min_verified
+  phase_5_implementation_required:
+    - automated_axe_lighthouse_run
+    - manual_screen_reader_test (NVDA + VoiceOver)
+    - manual_color_blind_simulator_test
+    - manual_keyboard_only_test

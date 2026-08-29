@@ -1,0 +1,1276 @@
+version: "1.1"
+
+# Canonical name is the value of `name:` in each SKILL.md front-matter.
+# `local_directory` is the on-disk path (relative to /home/node/.openclaw/).
+# `install_source` is one of: workspace | plugin-skills | bundled-gateway | external.
+# `install_slug` is the slug OpenClaw uses to reference the skill (matches the directory
+#   name in plugin-skills/ or the directory name in workspace/skills/).
+# `status` is one of: active | sandboxed | archived | vetted-pending | do-not-use.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 1. Shared, vetted, ready for production use by any MentorNest agent
+# ──────────────────────────────────────────────────────────────────────────────
+shared_ready:
+  - canonical_name: mentornest-tutor
+    install_source: workspace
+    install_slug: mentornest-tutor
+    local_directory: workspace/skills/mentornest-tutor
+    status: active
+    role: "tutoring workflow backbone"
+
+  - canonical_name: Homework
+    install_source: workspace
+    install_slug: homework
+    local_directory: workspace/skills/homework
+    status: active
+    role: "general homework guidance"
+
+  - canonical_name: Learning
+    install_source: workspace
+    install_slug: learning
+    local_directory: workspace/skills/learning
+    status: active
+    role: "adaptive teaching session driver"
+
+  - canonical_name: Studying
+    install_source: workspace
+    install_slug: studying
+    local_directory: workspace/skills/studying
+    status: active
+    role: "study planning + retrieval practice"
+
+  - canonical_name: Flashcards
+    install_source: workspace
+    install_slug: flashcards
+    local_directory: workspace/skills/flashcards
+    status: active
+    role: "flashcard authoring + spaced repetition authoring"
+
+  - canonical_name: study-buddy
+    install_source: workspace
+    install_slug: studyclaw
+    local_directory: workspace/skills/studyclaw
+    status: active
+    role: "source-material → quiz/review generator"
+
+  - canonical_name: adaptive-learning
+    install_source: workspace
+    install_slug: adaptive-learning
+    local_directory: workspace/skills/adaptive-learning
+    status: active
+    role: "FSRS scheduler + Bayesian KT (note: refactor target, see skill-gap-analysis.md §3 H3)"
+
+  - canonical_name: knowledge-digest
+    install_source: workspace
+    install_slug: eric-knowledge-digest
+    local_directory: workspace/skills/eric-knowledge-digest
+    status: active
+    role: "textbook / PDF → multimodal learning pack"
+
+  - canonical_name: mentornest-system-orchestrator
+    install_source: workspace
+    install_slug: mentornest-system-orchestrator
+    local_directory: workspace/skills/mentornest-system-orchestrator
+    status: active
+    role: "system-level coordinator (this skill)"
+
+  - canonical_name: student-profile
+    install_source: workspace
+    install_slug: student-profile
+    local_directory: workspace/skills/student-profile
+    status: active
+    role: "family role + student profile workflow rules (not a tool provider)"
+
+  - canonical_name: mentornest-stt
+    install_source: workspace
+    install_slug: mentornest-stt
+    local_directory: workspace/skills/mentornest-stt
+    status: active
+    role: "local-only Mandarin/English STT via SenseVoice-Small int8"
+
+  - canonical_name: diagram-maker
+    install_source: bundled-gateway
+    install_slug: diagram-maker
+    local_directory: /app/skills/diagram-maker
+    status: active
+    role: "generic SVG/HTML/Excalidraw diagrams (math-specific primitives still missing)"
+
+  - canonical_name: Skill Finder (Find ClawHub skills + Search Skills.sh)
+    install_source: workspace
+    install_slug: skill-finder
+    local_directory: workspace/skills/skill-finder
+    status: active
+    role: "discover external candidates"
+
+  - canonical_name: skill-vetter
+    install_source: workspace
+    install_slug: nerua1-skill-vetter
+    local_directory: workspace/skills/nerua1-skill-vetter
+    status: active
+    role: "security review before install"
+
+  - canonical_name: self-evolving-skills
+    install_source: workspace
+    install_slug: self-evolving-skills
+    local_directory: workspace/skills/self-evolving-skills
+    status: active
+    role: "convert recurring wins into reusable skills"
+
+  - canonical_name: self-improvement
+    install_source: workspace
+    install_slug: self-improving-agent-c
+    local_directory: workspace/skills/self-improving-agent-c
+    status: active
+    role: "error / correction capture"
+
+  - canonical_name: self-improving-agent
+    install_source: workspace
+    install_slug: stitch-self-improver
+    local_directory: workspace/skills/stitch-self-improver
+    status: active
+    role: "self-improvement without auto-mutating core behavior"
+
+  - canonical_name: browser-automation
+    install_source: plugin-skills
+    install_slug: browser-automation
+    local_directory: plugin-skills/browser-automation
+    status: active
+    role: "OpenClaw browser control helper (system-orchestrator + web v2 work)"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 2. Bundled-gateway skills — available but NOT promoted into MentorNest yet
+# ──────────────────────────────────────────────────────────────────────────────
+bundled_available_not_promoted:
+  - canonical_name: sherpa-onnx-tts
+    install_source: bundled-gateway
+    install_slug: sherpa-onnx-tts
+    local_directory: /app/skills/sherpa-onnx-tts
+    status: vetted-pending
+    role: "local TTS candidate for english-specialist / pronunciation (M1)"
+    notes: "Must pass sandbox test + skill-vetter before wiring."
+
+  - canonical_name: spike
+    install_source: bundled-gateway
+    install_slug: spike
+    local_directory: /app/skills/spike
+    status: vetted-pending
+    role: "throwaway prototypes for C3 (math validator) / C4 (question bank)"
+    notes: "Pure orchestrator tool; sandbox only."
+
+  - canonical_name: skill-creator
+    install_source: bundled-gateway
+    install_slug: skill-creator
+    local_directory: /app/skills/skill-creator
+    status: vetted-pending
+    role: "SKILL.md authoring standard"
+    notes: "Will be promoted when we author first new in-house skill under Phase 2."
+
+  - canonical_name: taskflow
+    install_source: bundled-gateway
+    install_slug: taskflow
+    local_directory: /app/skills/taskflow
+    status: vetted-pending
+    role: "durable multi-step jobs (Phase 2 cross-agent flows)"
+    notes: "Promote once Phase 2 first batch lands."
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3. Custom plugin tools — provided by `mentornest-learning` plugin
+# ──────────────────────────────────────────────────────────────────────────────
+custom_plugin_tools:
+  - tool_name: student_profile_get
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+
+  - tool_name: student_profile_update
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Backward-compatible v1 surface; preserved for existing callers."
+
+  - tool_name: student_profile_v2_get
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Phase 2: additive v2 view (schema_version=2). Read-only; merges v1 + v2 fields."
+
+  - tool_name: student_profile_v2_update
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Phase 2: one-shot parent setup. Optional fields are NEVER requested by default (school_name/class_name). Existing v1 fields preserved."
+
+  - tool_name: learning_record_append
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+
+  - tool_name: learning_event_reader
+    provider_plugin: mentornest-learning
+    owner: learning-director
+    status: active
+    note: "Phase 2: per-student reader with subject + time-window filters and summary aggregation. Cross-student reads forbidden."
+
+  - tool_name: generate_practice_set
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Math-only today. Each subject specialist must own its own practice composer; do NOT let non-math agents reuse this tool definition."
+
+  - tool_name: classify_math_error
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Math-specific; other subjects need their own classifiers with their own error taxonomies."
+
+  - tool_name: deterministic_math_validator
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 2. NEVER calls LLM. Returns verdict + trace for fraction/decimal/percent/mixed/integer/expression equivalence."
+
+  - tool_name: hint_ladder_next
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 2. Deterministic level selector (math v1); representation-change recommendation included."
+
+  - tool_name: mastery_store_get
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Phase 2. Per-student mastery record keyed by (subject, knowledge_point, subskill)."
+
+  - tool_name: mastery_store_update
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Phase 2. Updates mastery from a learning event with deterministic delta + FSRS-like schedule placeholder."
+
+  - tool_name: curriculum_map_lookup
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2. Taiwan 12-year curriculum (V1: G1–G6 only). Reads architecture/curriculum/*.yaml."
+
+  - tool_name: curriculum_meta
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2. Returns V1 curriculum scope, code, and source documents."
+
+  - tool_name: question_bank_curator_curate
+    provider_plugin: mentornest-learning
+    owner: question-bank-curator
+    status: active
+    note: "Phase 2 second batch. Validates structure + provenance. Writes curated/ + raw/. Does NOT enter verified."
+
+  - tool_name: question_quality_agent_verify
+    provider_plugin: mentornest-learning
+    owner: question-quality-agent
+    status: active
+    note: "Phase 2 second batch. ONLY path into Verified Question Bank. 5 mandatory gates: structure / provenance / answer self-check / dedupe / parent reachability."
+
+  - tool_name: question_quality_agent_dedupe_check
+    provider_plugin: mentornest-learning
+    owner: question-quality-agent
+    status: active
+    note: "Phase 2 second batch. Read-only pre-flight; no writes."
+
+  - tool_name: verified_bank_lookup
+    provider_plugin: mentornest-learning
+    owner: assessment-agent
+    status: active
+    note: "Phase 2 second batch. The ONLY retrieval interface for verified questions. consumed by generate_practice_set_v2."
+
+  - tool_name: verified_bank_count
+    provider_plugin: mentornest-learning
+    owner: assessment-agent
+    status: active
+    note: "Phase 2 second batch. Counter; cheaper than listing."
+
+  - tool_name: generate_practice_set_v2
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 2 second batch. Math-only; pulls from Verified Bank first; falls back to LLM-author-requiring flag when empty."
+
+  - tool_name: parent_setup_schema_validate
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Phase 2 second batch. Validates one-shot parent setup payload; rejects school_progress (curriculum-agent's job)."
+
+  - tool_name: parent_setup_schema_copy
+    provider_plugin: mentornest-learning
+    owner: learning-memory-agent
+    status: active
+    note: "Phase 2 second batch. Returns zh-TW copy strings for Web v2; advanced_only flags on school_name / class_name. Updated 2026-08-27 with school_progress copy + privacy note (per user decision)."
+
+  - tool_name: math_specialist_independent_verify
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 2 third batch. Math Specialist calls this BEFORE submitting to question_quality_agent_verify. Deterministic third-party witness; harden against string-fallback trap."
+
+  - tool_name: question_bank_coverage_report
+    provider_plugin: mentornest-learning
+    owner: question-bank-curator
+    status: active
+    note: "Phase 2 third batch. Per-(KP, type, difficulty) gap list. Consumed by ai_question_authoring_orchestrator_run + dashboards."
+
+  - tool_name: ai_question_authoring_orchestrator_run
+    provider_plugin: mentornest-learning
+    owner: question-bank-curator
+    status: active
+    note: "Phase 2 third batch. Coverage-driven authoring cycle. NEVER calls an external LLM; caller supplies authorFn. Default = deterministic stub (5/6 fraction). Orchestrator drives: math-specialist verify → curator → quality gate. AI-authored questions go through the SAME 5 quality gates as human-authored."
+
+  - tool_name: ai_question_authoring_plan
+    provider_plugin: mentornest-learning
+    owner: question-bank-curator
+    status: active
+    note: "Phase 2 third batch. Read-only preview of next authoring batch; never writes to disk."
+
+  - tool_name: learning_director_cross_subject_weakness_aggregator
+    provider_plugin: mentornest-learning
+    owner: learning-director
+    status: active
+    note: "Phase 2 third batch. Per-student ranked weakness list. Flags subjects with >=2 weak cells. Pure read of mastery store."
+
+  - tool_name: learning_director_prerequisite_gap_detector
+    provider_plugin: mentornest-learning
+    owner: learning-director
+    status: active
+    note: "Phase 2 third batch. Walks curriculum prerequisite chain; returns blocking gaps + zh-TW recommendation."
+
+  - tool_name: learning_director_weekly_strategy_emitter
+    provider_plugin: mentornest-learning
+    owner: learning-director
+    status: active
+    note: "Phase 2 third batch. Per-student WeeklyPlan: focus_areas / review_due / suggested_practice + parent_summary_for_week (zh-TW with privacy copy)."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Phase 2 fourth batch (2026-08-27T0809Z) — 14 new tools (43 total)
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - tool_name: mentornest_question_author_production
+    provider_plugin: mentornest-learning
+    owner: mentornest-question-author (production AI)
+    status: active
+    note: "Phase 2 fourth batch. Calls OpenClaw gateway + MiniMax-M3. Privacy fence at input AND output layers (rejects display_name / school_name / parent_concerns / raw_learning_history / voice / image / student_*.jsonl refs). Structured JSON output with schema validation; malformed JSON recovered; timeouts + retries on transient / parse errors; >= 0.4 confidence threshold. No new external API added."
+
+  - tool_name: school_progress_get
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Reads append-only curriculum-progress jsonl for a student; returns latest_by_subject view. Cross-student reads forbidden."
+
+  - tool_name: school_progress_update_confirmed
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Appends (never rewrites) a confirmed school-progress record. source_type ∈ {official_curriculum, parent_confirmed, teacher_material_confirmed, textbook_mapping}. confirmed_at is set; inferred_at is forbidden."
+
+  - tool_name: school_progress_infer
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Computes an inferred record from structured evidence; appends with inferred_at only. Privacy fence on evidence payload. NEVER auto-marks completed."
+
+  - tool_name: school_progress_promote_to_confirmed
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Builds a NEW confirmed record that supersedes a prior inferred record (carries replaces_record_id). Old record stays in jsonl — no truncation. Confidence monotonic non-decreasing."
+
+  - tool_name: confirmed_vs_inferred_progress_tracker
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Read-only tracker returning confirmed and inferred lists separately + flags conflict when both exist for the same (subject, grade). Curriculum-agent or learning-director can consume."
+
+  - tool_name: school_alignment
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Cross-matches mastery records against confirmed school progress; emits zh-TW recommendations (對齊 / 補上進度 / 建議複習). READ-ONLY."
+
+  - tool_name: textbook_mapping_engine
+    provider_plugin: mentornest-learning
+    owner: curriculum-agent
+    status: active
+    note: "Phase 2 fourth batch. Maps publisher / edition / volume / unit to curriculum_unit + knowledge_points. NEVER copies publisher content. Jaccard >= 0.6 fuzzy match on labels. Curriculum Agent v1 skeleton."
+
+  - tool_name: mastery_engine_v2_update_from_evidence
+    provider_plugin: mentornest-learning
+    owner: mastery-engine
+    status: active
+    note: "Phase 2 fourth batch. Updates mastery ONLY from objective evidence (events + assessments). set_mastery and direct mastery inputs are REJECTED. Computes quality_rating from result + hints + first_attempt + error_type. Appends to append-only evidence ledger (data/mastery-evidence/<id>.jsonl)."
+
+  - tool_name: mastery_engine_v2_annotate_school_alignment
+    provider_plugin: mentornest-learning
+    owner: mastery-engine
+    status: active
+    note: "Phase 2 fourth batch. Records school-alignment marker on a mastery record (curriculum-agent only). NEVER affects mastery itself; mastery grows from evidence only."
+
+  - tool_name: mastery_engine_v2_error_pattern_aggregation
+    provider_plugin: mentornest-learning
+    owner: mastery-engine
+    status: active
+    note: "Phase 2 fourth batch. Aggregates error_patterns across all records for a student into { type: count }. Read-only."
+
+  - tool_name: mastery_engine_v2_retention_signal
+    provider_plugin: mentornest-learning
+    owner: mastery-engine
+    status: active
+    note: "Phase 2 fourth batch. Reports average_retention + stale_count across records. R(t) = 2^(-t/H) with H = 21 days. Read-only."
+
+  - tool_name: mastery_engine_v2_list_evidence
+    provider_plugin: mentornest-learning
+    owner: mastery-engine
+    status: active
+    note: "Phase 2 fourth batch. Lists the append-only evidence ledger with subject/knowledge_point/since filters. Read-only."
+
+  - tool_name: mastery_engine_v2_get
+    provider_plugin: mentornest-learning
+    owner: mastery-engine
+    status: active
+    note: "Phase 2 fourth batch. Reads a single mastery v2 record with current retention_at_now. Read-only."
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Phase 3 — Subject Specialists (A Math + B Chinese + C English + D Science + E Social Studies + F Unified Contract)
+  # All 73 Phase 3 tools live here. Each specialist owns its own error taxonomy,
+  # hint ladder, evaluation logic. Unified contract (`subject-v1`) is INTERFACE ONLY.
+  # ──────────────────────────────────────────────────────────────────────────
+
+  # A) Math Specialist v2 + Visual Engine (11 tools)
+  - tool_name: math_error_taxonomy_lookup
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Read-only lookup of math error codes (MATH-CON-COUNT, MATH-OP-PARITY, ...). Returns shape {ok,size,categories,sample,validation} when no filter; by-code returns {ok,entry}; by-category returns {ok,count,entries}."
+
+  - tool_name: math_visual_engine_render
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Renders math concept as structured descriptor (number-line / fraction-bar / area-model). Text-only deterministic; no images."
+
+  - tool_name: math_hint_ladder_v2_next
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Returns next hint level (0..5) and representation suggestion. Decision rules incorporate error_type + representation_history."
+
+  - tool_name: word_problem_decomposer_analyze
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Decomposes Chinese/English word problems into givens + unknowns + operators. Pure text deterministic."
+
+  - tool_name: word_problem_decomposer_match_template
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Matches a decomposed problem to a known problem template (rate/time/distance, mixture, etc.)."
+
+  - tool_name: math_prerequisite_chain_get
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Returns ordered prerequisite chain (G2 → G6) for a knowledge point."
+
+  - tool_name: math_prerequisite_weakest
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Given a mastery snapshot, returns the weakest unmet prerequisite for a target KP."
+
+  - tool_name: math_specialist_diagnose
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Pure deterministic diagnose (no LLM). Returns evidence_payload + diagnosis_payload. NEVER modifies mastery."
+
+  - tool_name: math_specialist_build_teaching_plan
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Generates a teaching plan from diagnose + mastery. Pure."
+
+  - tool_name: math_specialist_decide
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Decides next action among (text_prompt, switch_representation, prerequisite_recall, drill, mastery_check). Math-specific routing."
+
+  - tool_name: math_specialist_emit_evidence
+    provider_plugin: mentornest-learning
+    owner: math-specialist
+    status: active
+    note: "Phase 3-A. Appends evidence to append-only ledger; NEVER modifies mastery directly. Subject=math."
+
+  # B) Chinese Specialist (11 tools)
+  - tool_name: chinese_error_taxonomy_lookup
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. ZH-* error codes (ZH-CONFU-PARAPHRASE, ZH-VOCAB-COLLOCATION, ZH-SYN-MODIFIER, ZH-PUNC-QUOTATION, ZH-COMP-OMISSION, ...)."
+
+  - tool_name: chinese_curriculum_lookup_kp
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Read-only wrapper over architecture/curriculum/chinese.yaml."
+
+  - tool_name: chinese_curriculum_list_for_grade
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. List Chinese KPs for a grade (G1..G6)."
+
+  - tool_name: chinese_subskill_classify
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Classify into subskill (字音 / 字形 / 詞義 / 句型 / 文意 / 標點 / 修辭)."
+
+  - tool_name: chinese_hint_ladder_next
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Returns next hint level + representation suggestion (text/highlight/rewrite/expand)."
+
+  - tool_name: chinese_specialist_diagnose
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Diagnose Chinese response + emit evidence_payload. Pure."
+
+  - tool_name: chinese_specialist_build_teaching_plan
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Build Chinese teaching plan."
+
+  - tool_name: chinese_specialist_decide
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Decides next action (text_prompt, concept_clarification, drill, mastery_check, etc.)."
+
+  - tool_name: chinese_specialist_emit_evidence
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Append evidence to append-only ledger; subject=chinese. NEVER modifies mastery."
+
+  - tool_name: chinese_classify_grammar_error
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Grammar error classifier for Chinese writing."
+
+  - tool_name: chinese_phonetic_lookup
+    provider_plugin: mentornest-learning
+    owner: chinese-specialist
+    status: active
+    note: "Phase 3-B. Phonetic (注音) lookup for given Chinese characters. Pure."
+
+  # C) English Specialist + STT (16 tools)
+  - tool_name: english_error_taxonomy_lookup
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. EN-* error codes (EN-GRAM-TENSE, EN-GRAM-SUBJVERB, EN-VOC-COLL, EN-PRON-ARTICLE, EN-SPELL-..., EN-CAP-PUNCT, ...)."
+
+  - tool_name: english_curriculum_lookup_kp
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Read-only wrapper over architecture/curriculum/english.yaml."
+
+  - tool_name: english_curriculum_list_for_grade
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. List English KPs for a grade."
+
+  - tool_name: english_subskill_classify
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Subskill classifier (reading, writing, grammar, vocabulary, listening, speaking)."
+
+  - tool_name: english_hint_ladder_next
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. 5-level English hint ladder."
+
+  - tool_name: english_specialist_diagnose
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Diagnose English response; returns mode + subskill. Pure."
+
+  - tool_name: english_specialist_build_teaching_plan
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Build English teaching plan."
+
+  - tool_name: english_specialist_decide
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Decide next English action (8 paths: text_prompt, grammar_drill, vocab_drill, speaking_practice, listening_practice, writing_rewrite, mastery_check, backtrack_prerequisite)."
+
+  - tool_name: english_specialist_emit_evidence
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Append evidence; subject=english. NEVER modifies mastery."
+
+  - tool_name: english_stt_transcribe_audio
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. STT interface for English audio input. Pure (interface only; actual STT handled by local SenseVoice pipeline, NOT cloud APIs)."
+
+  - tool_name: english_stt_evaluate_pronunciation
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Pronunciation scoring interface (text-based heuristics). Cloud APIs explicitly NOT used."
+
+  - tool_name: english_specialist_text_rewrite
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Deterministic text rewrite (grammar/spelling normalization) without LLM."
+
+  - tool_name: english_specialist_vocab_drill
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Vocabulary drill composer."
+
+  - tool_name: english_specialist_grammar_drill
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Grammar drill composer."
+
+  - tool_name: english_specialist_listening_practice
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Listening practice composer (script + questions)."
+
+  - tool_name: english_specialist_speaking_practice
+    provider_plugin: mentornest-learning
+    owner: english-specialist
+    status: active
+    note: "Phase 3-C. Speaking practice composer (prompts + self-check heuristics)."
+
+  # D) Science Specialist (11 tools)
+  - tool_name: science_error_taxonomy_lookup
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. SCI-* error codes (SCI-CON-DISCIPLINE, SCI-CAUSAL-REVERSE, SCI-CAUSAL-CONTROL, SCI-DATA-AXIS, SCI-DIAG-LEGEND, ...)."
+
+  - tool_name: science_specialist_diagnose
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Diagnose science response; never modifies mastery."
+
+  - tool_name: science_specialist_analyze_experiment
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Variable control: missing independent/dependent/controlled → error codes."
+
+  - tool_name: science_specialist_interpret_chart_table
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Reasoning steps: confirm axis, units, scale, then read answer."
+
+  - tool_name: science_specialist_interpret_diagram
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Match expected elements against student answer."
+
+  - tool_name: science_specialist_decide
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Routes to experiment_simulation / chart_drilling / diagram_explanation / mastery_check / concept_clarification / text_prompt based on subskill."
+
+  - tool_name: science_specialist_emit_evidence
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Append evidence; subject=science. NEVER modifies mastery."
+
+  - tool_name: science_hint_ladder_next
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. 5-level hint ladder; representation suggestion: text/diagram/chart/experiment."
+
+  - tool_name: science_curriculum_lookup_kp
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Read-only science curriculum lookup."
+
+  - tool_name: science_curriculum_list_for_grade
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. List science KPs for grade G1..G6."
+
+  - tool_name: science_subskill_classify
+    provider_plugin: mentornest-learning
+    owner: science-specialist
+    status: active
+    note: "Phase 3-D. Subskill classifier (concept / experiment / data_interpretation / diagram / safety)."
+
+  # E) Social Studies Specialist (13 tools)
+  - tool_name: social_studies_error_taxonomy_lookup
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. SS-* error codes across history / geography / civics / culture / timeline / causality / source_comparison / data_interpretation."
+
+  - tool_name: social_studies_specialist_diagnose
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Diagnose SS response; never modifies mastery."
+
+  - tool_name: social_studies_specialist_analyze_timeline
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Detect misplaced / missing / extra events on a timeline."
+
+  - tool_name: social_studies_specialist_analyze_map
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Match regions against student answer; detect compass/scale/legend errors."
+
+  - tool_name: social_studies_specialist_analyze_causality
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Short-term / long-term / multi-cause causality analysis."
+
+  - tool_name: social_studies_specialist_compare_sources
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Compare primary vs secondary sources; detect missed perspectives."
+
+  - tool_name: social_studies_specialist_interpret_demographic_chart
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Demography chart interpretation; matched/missed data points."
+
+  - tool_name: social_studies_specialist_decide
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Routes to text_prompt / timeline_walk / map_explanation / source_comparison / concept_clarification / chart_drilling / mastery_check / backtrack_prerequisite."
+
+  - tool_name: social_studies_specialist_emit_evidence
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Append evidence; subject=social_studies. NEVER modifies mastery."
+
+  - tool_name: social_studies_hint_ladder_next
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. 5-level hint ladder; representation suggestion: text/timeline/map/source/chart."
+
+  - tool_name: social_studies_curriculum_lookup_kp
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Read-only social studies curriculum lookup."
+
+  - tool_name: social_studies_curriculum_list_for_grade
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. List SS KPs for grade G1..G6."
+
+  - tool_name: social_studies_subskill_classify
+    provider_plugin: mentornest-learning
+    owner: social-studies-specialist
+    status: active
+    note: "Phase 3-E. Subskill classifier (history / geography / civics / culture / timeline / map / causality / source_comparison / data_interpretation)."
+
+  # F) Unified Subject Contract + Dispatcher (11 tools)
+  - tool_name: subject_v1_contract_version
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Returns contract version 'subject-v1' + supported_subjects list + request/response field schemas."
+
+  - tool_name: subject_v1_validate_request
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Pure validator for SubjectSpecialistRequest; returns {valid, errors[]}. contract_version MUST equal 'subject-v1'."
+
+  - tool_name: subject_v1_validate_response
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Pure validator for SubjectSpecialistResponse."
+
+  - tool_name: subject_specialist_dispatch
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Routes unified request to the per-subject specialist (math/chinese/english/science/social_studies). Preserves subject-specific evidence_payload schema verbatim — NOT a generic tutor."
+
+  - tool_name: subject_specialist_capability_report
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Returns per-subject (or all) capability gaps (no_image_recognition, no_proof_verification, ...)."
+
+  - tool_name: cross_subject_merge_decisions
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Multi-subject merge: priority = mastery_check > backtrack_prerequisite > drill > text_prompt. Tie-break by lower mastery."
+
+  - tool_name: learning_director_v2_dispatch_next_step
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Heuristic subject selection (KP prefix) → dispatchSubjectSpecialist → optional cross-subject merge. Pure."
+
+  - tool_name: learning_director_v2_capability_report
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Full capability report: contract version + per-subject tool inventory + capability gaps."
+
+  - tool_name: subject_v1_request_template
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Canonical empty SubjectSpecialistRequest shape for client construction."
+
+  - tool_name: subject_v1_response_template
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Canonical empty SubjectSpecialistResponse shape."
+
+  - tool_name: subject_v1_dispatch_examples
+    provider_plugin: mentornest-learning
+    owner: learning-director-v2
+    status: active
+    note: "Phase 3-F. Returns 5 worked examples (one per subject) for clients / tests."
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 4. Archived / removed (previously on disk or considered)
+# ──────────────────────────────────────────────────────────────────────────────
+archived:
+  - canonical_name: adaptivetest
+    install_source: external
+    install_slug: adaptivetest-skill
+    local_directory_archived: workspace/_archive/skills/adaptivetest-skill/
+    previous_local_directory: workspace/skills/adaptivetest-skill
+    status: archived
+    archived_on: "2026-08-27"
+    reason: >
+      Third-party adaptive-test engine. Requires ADAPTIVETEST_API_KEY and calls
+      https://adaptivetest-platform-production.up.railway.app/api. Conflicts with
+      policies.yaml (child-data-upload + unknown external API). Removed from
+      active skills per user decision 2026-08-27; directory moved to
+      workspace/_archive/skills/ so the source can be inspected later.
+    reinstall_requires: "explicit skill-vetter pass + level-4 approval"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 5. Known do-not-use (policy or licensing)
+# ──────────────────────────────────────────────────────────────────────────────
+known_do_not_use_for_current_goal:
+  chinese-handwriting-ocr:
+    reason: "Not mathematical handwriting recognition."
+  aidenwu0209-paddleocr-skills:
+    reason: "Cloud SaaS client; child image upload conflict."
+  beagle-docling-wrapper:
+    reason: "Upstream wrapper removed."
+  pix2tex-production:
+    reason: "Pretrained weights have non-commercial licensing constraint."
+  adaptivetest:
+    reason: >
+      See archived entry above. Re-promotion requires explicit level-4 approval
+      and a documented child-data firewall.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 5b. External vetted skills — Phase 5C-1.1 install (third-party UI/UX review)
+# ──────────────────────────────────────────────────────────────────────────────
+# Added 2026-08-28 for Phase 5C-1.1 design review of mentornest-web-v2 child
+# surfaces. All five are prompt-only methodology skills from
+# Owl-Listener/designer-skills (GitHub user Owl-Listener, id 200631076,
+# MIT license, last push 2026-08-08).
+#
+# Rule (always): MentorNest Design Registry (architecture/design/) OVERRIDES
+# any third-party guidance. These skills provide review methodology; the
+# in-house registry remains source-of-truth for tokens, components, age
+# profiles, interaction patterns, and accessibility invariants.
+#
+# All five are physically installed at
+# mentornest-web-v2/.agents/skills/<skill>/SKILL.md
+# (verified 2026-08-28 via `npx skills add owl-listener/designer-skills`).
+# Not bundled with OpenClaw gateway; project-scope only.
+#
+# Scope rule: these skills are loaded ONLY for the
+# child-learning-experience-designer sub-session. Other MentorNest agents
+# must NOT load them — they are presentation-layer review methodology,
+# not learning-layer tooling.
+
+external_vetted_phase5c1_1:
+  - canonical_name: heuristic-evaluation
+    install_source: external
+    install_slug: heuristic-evaluation
+    project_install_path: workspace/mentornest-web-v2/.agents/skills/heuristic-evaluation/SKILL.md
+    source_repo: Owl-Listener/designer-skills
+    source_owner: Owl-Listener
+    source_license: MIT
+    source_last_push: "2026-08-08"
+    status: active
+    load_policy: always-available-to-designer
+    usage_mode: "Loaded on every child-learning-experience-designer spawn for solo heuristic review of design proposals."
+    steering: |
+      Methodology only. Nielsen 10 heuristics: visibility of system status,
+      match real world, user control and freedom, consistency, error
+      prevention, recognition over recall, flexibility, minimalist design,
+      error recovery, help and documentation.
+      MentorNest Design Registry invariants (INV-AP-56-1/2, INV-CL-1..6,
+      INV-FM-3..6, INV-KB-1..4) remain binding. Skill must NOT propose
+      changes that contradict them.
+    consumer_agents:
+      - child-learning-experience-designer
+
+  - canonical_name: design-critique
+    install_source: external
+    install_slug: design-critique
+    project_install_path: workspace/mentornest-web-v2/.agents/skills/design-critique/SKILL.md
+    source_repo: Owl-Listener/designer-skills
+    source_owner: Owl-Listener
+    source_license: MIT
+    source_last_push: "2026-08-08"
+    status: active
+    load_policy: self-review-pass-only
+    usage_mode: |
+      Loaded ONLY for the designer's solo self-critique pass after the
+      first visual design proposal. NOT loaded for initial composition.
+    steering: |
+      This is a SOLO self-critique pass. Do NOT simulate a team workshop.
+      Do NOT invoke "present", "clarify", "feedback rounds", "discuss",
+      "capture" facilitation roles. There is no audience.
+      Apply the "I notice / I wonder / What if / I think because"
+      rubric to the designer's own written spec, against the brief and
+      the MentorNest Design Registry. Output is the designer's own
+      self-critique, not a team facilitation script.
+    consumer_agents:
+      - child-learning-experience-designer
+
+  - canonical_name: visual-hierarchy
+    install_source: external
+    install_slug: visual-hierarchy
+    project_install_path: workspace/mentornest-web-v2/.agents/skills/visual-hierarchy/SKILL.md
+    source_repo: Owl-Listener/designer-skills
+    source_owner: Owl-Listener
+    source_license: MIT
+    source_last_push: "2026-08-08"
+    status: active
+    load_policy: on-demand
+    usage_mode: "Loaded when composing or reviewing screen hierarchy (any spec pass that proposes layout/CTA/emphasis changes)."
+    steering: |
+      Apply hierarchy rubric (size / weight / color-contrast / spacing /
+      position / density) to zh-TW child surfaces.
+      IGNORE F-pattern, Z-pattern, and LTR top-left assumptions — these
+      are LTR-specific and do NOT apply to zh-TW text.
+      Primary reading order is top-down. Secondary visual emphasis follows
+      the size+weight+contrast rubric, not position-based scanning
+      patterns.
+      Always respect INV-CL-1 (one primary question per screen) and
+      INV-CL-2 (one CTA per screen for G1-G2; applies broadly as a
+      hierarchy constraint for G5-G6 too).
+    consumer_agents:
+      - child-learning-experience-designer
+
+  - canonical_name: spacing-system
+    install_source: external
+    install_slug: spacing-system
+    project_install_path: workspace/mentornest-web-v2/.agents/skills/spacing-system/SKILL.md
+    source_repo: Owl-Listener/designer-skills
+    source_owner: Owl-Listener
+    source_license: MIT
+    source_last_push: "2026-08-08"
+    status: active
+    load_policy: methodology-only
+    usage_mode: "Loaded when the designer needs to reason about spacing rhythm, density modes, or padding/margin rules."
+    steering: |
+      Methodology ONLY. NEVER override architecture/design/design-tokens.yaml.
+      The skill's hardcoded px scale (2/4/8/16/24/32/48/64) is NOT to be
+      used directly. MentorNest --mn-* spacing tokens (defined in
+      design-tokens.yaml and emitted to tokens.generated.css) are the
+      sole source-of-truth for spacing values.
+      Apply the skill's spacing-quality concepts (related vs distinct
+      items, density modes compact/comfortable/spacious, consistent page
+      margins, component-internal padding rules) WITHOUT importing its
+      numeric scale.
+    consumer_agents:
+      - child-learning-experience-designer
+
+  - canonical_name: illustration-style
+    install_source: external
+    install_slug: illustration-style
+    project_install_path: workspace/mentornest-web-v2/.agents/skills/illustration-style/SKILL.md
+    source_repo: Owl-Listener/designer-skills
+    source_owner: Owl-Listener
+    source_license: MIT
+    source_last_push: "2026-08-08"
+    status: active
+    load_policy: on-demand
+    usage_mode: "Loaded when reviewing visual personality, illustration choices, or icon system usage."
+    steering: |
+      Preserve no-mascot and non-childish G5-G6 rules (architecture/design/
+      age-profiles.yaml: "成熟簡潔、視覺輔助清楚但不過度卡通").
+      G3-G4 may use slightly more visual storytelling; G5-G6 must remain
+      mature but warm.
+      Accessibility: do NOT convey information only through illustrations
+      (skill's own rule, also aligned with our accessibility.yaml).
+      Illustrations must coexist with — never replace — text labels and
+      ARIA labels.
+    consumer_agents:
+      - child-learning-experience-designer
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 6. Capability gaps we plan to fill via NEW skills (Phase 2+)
+# ──────────────────────────────────────────────────────────────────────────────
+needs_future_build:
+
+  learning-director:
+    shipped_in_phase_2_first_batch:
+      - learning_event_reader
+    shipped_in_phase_2_third_batch:
+      - cross_subject_weakness_aggregator
+      - prerequisite_gap_detector
+      - weekly_strategy_emitter
+    remaining:
+      - parent_weekly_report_agent
+
+  curriculum-agent:
+    shipped_in_phase_2_first_batch:
+      - curriculum_map_lookup
+      - curriculum_meta
+      - taiwan_curriculum_map_g1_g6_skeleton
+    remaining:
+      - textbook_mapping_engine
+      - confirmed_vs_inferred_progress_tracker
+
+  math-specialist:
+    shipped_in_phase_2_first_batch:
+      - deterministic_math_validator
+      - hint_ladder_next
+    shipped_in_phase_2_third_batch:
+      - independent_answer_verification_gate
+    remaining:
+      - fraction_bar_visual
+      - number_line_visual
+      - bar_model_visual
+      - safe_math_renderer
+      - word_problem_decomposition_engine
+      - ratio_proportion_visualizer
+
+  chinese-specialist:
+    remaining:
+      - reading_comprehension_diagnostician
+      - composition_scaffolding
+      - rhetoric_feedback_engine
+
+  english-specialist:
+    remaining:
+      - local_tts_wrapper
+      - pronunciation_assessment_v1
+      - phonics_progression
+      - grammar_error_classifier
+
+  science-specialist:
+    remaining:
+      - variable_control_reasoning
+      - chart_reading_grader
+      - cause_effect_diagram_library
+
+  social-studies-specialist:
+    remaining:
+      - taiwan_history_graph
+      - timeline_canvas
+      - map_reading_canvas
+      - source_comparison_grader
+
+  question-bank-curator:
+    shipped_in_phase_2_second_batch:
+      - question_bank_curator_curate
+    shipped_in_phase_2_third_batch:
+      - coverage_targets_engine
+      - coverage_report_tool
+      - ai_authoring_orchestrator_run
+      - ai_authoring_plan_tool
+    note: "Phase 4 priority order per product decision: 1) student-private uploads, 2) AI original/adapted, 3) open-license, 4) teacher/parent-authored."
+    shipped_in_phase_4a_20260827T1131Z:
+      - raw_question_ingestor
+      - raw_question_segmenter
+    shipped_in_phase_4b_20260827T1518Z:
+      - knowledge_point_classifier
+      - source_license_extractor
+      - license_reviewer
+      - raw_question_ingest_full_pipeline
+    shipped_in_phase_4c_20260827T1615Z:
+      - question_coverage_analyzer
+      - question_generation_planner
+      - difficulty_controller
+      - variation_generator
+      - duplicate_detector
+      - answer_verifier
+      - runCoverageDrivenPlan  # extends ai_authoring_orchestrator_run in place; no new tool name added
+    remaining:
+      - real_llm_authoring_fn_skill
+
+  question-quality-agent:
+    shipped_in_phase_2_second_batch:
+      - question_quality_agent_verify
+      - question_quality_agent_dedupe_check
+      - verified_bank_lookup
+      - verified_bank_count
+      - deterministic_answer_verifier_shares_math_validator_kernel
+    shipped_in_phase_2_third_batch:
+      - math_specialist_independent_verify
+    shipped_in_phase_4b_20260827T1518Z:
+      - license_reviewer # also surfaced in question-bank-curator since it gates Verified Bank eligibility
+    remaining:
+      - difficulty_calibrator
+      - semantic_duplicate_detector_v2_vector
+
+  assessment-agent:
+    shipped_in_phase_2_first_batch:
+      - mastery_store_get
+      - mastery_store_update
+    shipped_in_phase_2_second_batch:
+      - verified_bank_lookup
+      - verified_bank_count
+    remaining:
+      - mastery_check_engine
+      - retention_check_scheduler
+      - diagnostic_assessment_composer
+
+  parent-report-agent:
+    note: "Deferred until ≥ 2 weeks of mastery data per active student."
+    shipped_in_phase_2_first_batch:
+      - learning_event_aggregator_shares_learning_event_reader
+    remaining:
+      - weekly_pattern_recognizer
+      - tone_controlled_report_generator
+
+  system-orchestrator:
+    remaining:
+      - service_registry_enforcer
+      - automated_change_plan_generator
+      - regression_harness
+      - rollback_manager
+      - deployment_adapter_for_mentornest_web
+
+needs_future_evaluate:
+  - candidate: sherpa-onnx-tts
+    use: english / chinese read-aloud
+    gate: sandbox test + skill-vetter
+  - candidate: spike
+    use: prototyping for math validator + question bank
+    gate: orchestrator-only use
+  - candidate: skill-creator
+    use: standardizing new in-house skill authoring
+    gate: none beyond bundling rules
+  - candidate: taskflow
+    use: durable Phase 2 cross-agent jobs
+    gate: sandbox test once Phase 2 first batch lands
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 7. Agents formally added to baseline (deferred implementation)
+# ──────────────────────────────────────────────────────────────────────────────
+agents_baseline_locked_pending_implementation:
+
+  - canonical_name: child-learning-experience-designer
+    install_source: workspace
+    install_slug: child-learning-experience-designer
+    local_directory: workspace/skills/child-learning-experience-designer
+    status: deferred
+    deferred_to: "Phase 5+ (mentornest-web v2)"
+    role: >
+      UI / UX / Design System owner for child-facing surfaces (web, mobile,
+      tablet). Decides presentation, interaction, cognitive-load reduction.
+      Does NOT decide teaching content (Subject Specialists own that).
+    responsibilities_locked:
+      - Design child-facing UI
+      - Maintain Design System (see architecture/design/)
+      - Translate Subject Specialist presentation_request into UI components
+      - Review mentornest-web UX
+      - Author Web v2 implementation spec
+    cannot:
+      - Judge student mastery
+      - Modify learning records
+      - Decide how a math concept should be taught
+      - Override Subject Specialist diagnosis
+      - Trade accessibility / learning clarity for aesthetics
+    handoff_contract:
+      from: subject-specialist
+      to: child-learning-experience-designer
+      request_shape:
+        fields: [subject, grade, question_type, representation_type,
+                learning_goal, interaction_required, hint_level,
+                accessibility_context]
+      response_shape:
+        fields: [component_type, layout, interaction_pattern, visual_priority,
+                responsive_rules, child_copy]
+    design_registry_path: architecture/design/
+    design_registry_files:
+      - design-system.yaml
+      - design-tokens.yaml
+      - age-profiles.yaml
+      - components.yaml
+      - interaction-patterns.yaml
+      - accessibility.yaml
+    age_profiles:
+      - "G1-G2: 大尺寸操作、少文字、圖像優先、簡單導航"
+      - "G3-G4: 增加結構與進度、保留適度圖像與互動"
+      - "G5-G6: 不可幼兒化、成熟簡潔、視覺輔助清楚但不過度卡通"
+      - "G7+: reserved (deferred)"
+    personalization_bounded:
+      - "simple / lively"
+      - "animation tolerance"
+      - "font-size preference"
+      - "character guidance preference"
+    must_not_break:
+      - accessibility
+      - consistency
+      - assessment_fairness
+      - subject_specialist_teaching_intent

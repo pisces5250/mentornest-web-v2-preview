@@ -1,0 +1,101 @@
+version: 1
+subject: "math"
+curriculum_doc: "tw-12yrc-math-v1"
+scope: "G1-G6"
+
+grades:
+  1:
+    knowledge_points:
+      - id: "math.G1.NUM.count-and-compare"
+        description: "10 以內的數、計數、大小比較"
+        stage: "一上"
+      - id: "math.G1.NUM.add-sub-10"
+        description: "10 以內的加減"
+        stage: "一上"
+      - id: "math.G1.NUM.add-sub-20"
+        description: "20 以內的加減"
+        stage: "一下"
+      - id: "math.G1.GEOM.shape-recognition"
+        description: "平面圖形（圓、三角形、四邊形）的辨識"
+        stage: "一下"
+
+  2:
+    knowledge_points:
+      - id: "math.G2.NUM.add-sub-100"
+        description: "100 以內的加減；進位與退位"
+        stage: "二上"
+      - id: "math.G2.NUM.multiply-intro"
+        description: "乘法概念；2、5、10 的乘法表"
+        stage: "二下"
+      - id: "math.G2.MEAS.length-cm-m"
+        description: "長度（公分、公尺）的實測與換算"
+        stage: "二下"
+
+  3:
+    knowledge_points:
+      - id: "math.G3.NUM.multiply-1-9"
+        description: "1–9 乘法表；乘法直式"
+        stage: "三上"
+      - id: "math.G3.FRAC.intro-fraction"
+        description: "分數的初步認識；等分分數"
+        stage: "三下"
+      - id: "math.G3.GEOM.perimeter-intro"
+        description: "周長的認識與計算"
+        stage: "三下"
+
+  4:
+    knowledge_points:
+      - id: "math.G4.NUM.big-numbers"
+        description: "億以內的數；大數位值"
+        stage: "四上"
+      - id: "math.G4.FRAC.proper-fraction-compare"
+        description: "真分數的大小比較與加減（等分母）"
+        stage: "四上"
+      - id: "math.G4.FRAC.proper-fraction-add-sub"
+        description: "異分母真分數的加減（公倍數基礎）"
+        stage: "四下"
+      - id: "math.G4.GEOM.angle-intro"
+        description: "角度的認識與量測"
+        stage: "四下"
+
+  5:
+    knowledge_points:
+      - id: "math.G5.FRAC.add-unlike-denom"
+        description: "異分母分數的加減（含帶分數）"
+        stage: "五上"
+      - id: "math.G5.FRAC.multiply-fraction-by-integer"
+        description: "分數乘以整數"
+        stage: "五上"
+      - id: "math.G5.DECIMAL.intro-and-compare"
+        description: "小數的認識、位值與大小比較"
+        stage: "五上"
+      - id: "math.G5.RATIO.intro"
+        description: "比與比值；等值比"
+        stage: "五下"
+      - id: "math.G5.GEOM.area-triangle-quad"
+        description: "三角形與四邊形面積"
+        stage: "五下"
+      - id: "math.G5.VOLUME.cubic-cm"
+        description: "立方公分；正方體、長方體體積"
+        stage: "五下"
+
+  6:
+    knowledge_points:
+      - id: "math.G6.FRAC.multiply-fraction-fraction"
+        description: "分數乘以分數"
+        stage: "六上"
+      - id: "math.G6.FRAC.divide-fraction-by-integer"
+        description: "分數除以整數"
+        stage: "六上"
+      - id: "math.G6.RATIO.scale-and-proportion"
+        description: "比例與成正比"
+        stage: "六上"
+      - id: "math.G6.DECIMAL.add-sub-multiply"
+        description: "小數的四則運算"
+        stage: "六下"
+      - id: "math.G6.PERCENT.intro"
+        description: "百分率；小數、分數、百分率的互換"
+        stage: "六下"
+      - id: "math.G6.GEOM.surface-area-and-volume"
+        description: "柱體表面積與體積"
+        stage: "六下"

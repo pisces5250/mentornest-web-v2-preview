@@ -1,0 +1,149 @@
+version: "1.0"
+
+status_values:
+  - ready
+  - partial
+  - missing
+  - needs_vetting
+  - future
+
+capabilities:
+
+  student_profile:
+    status: ready
+    owner: learning-memory-agent
+    implementation:
+      - student_profile_get
+      - student_profile_update
+
+  learning_record:
+    status: ready
+    owner: learning-memory-agent
+    implementation:
+      - learning_record_append
+
+  practice_generation:
+    status: ready
+    owner: math-specialist
+    implementation:
+      - generate_practice_set
+
+  math_error_diagnosis:
+    status: ready
+    owner: math-specialist
+    implementation:
+      - classify_math_error
+
+  learning_director:
+    status: missing
+    priority: critical
+
+  curriculum_tracking:
+    status: missing
+    priority: critical
+
+  taiwan_curriculum_mapping:
+    status: missing
+    priority: high
+
+  deterministic_math_validation:
+    status: missing
+    priority: critical
+
+  math_visualization:
+    status: partial
+    existing:
+      - diagram-maker
+    missing:
+      - fraction_bar
+      - number_line
+      - bar_model
+      - safe_math_renderer
+
+  adaptive_learning:
+    status: ready
+    existing:
+      - adaptive-learning
+      - study-buddy
+
+  knowledge_digest:
+    status: ready
+    existing:
+      - eric-knowledge-digest
+
+  local_stt:
+    status: ready
+    existing:
+      - mentornest-stt
+      - SenseVoice-Small-int8
+      - ffmpeg
+      - internal-stt-api
+
+  tts:
+    status: missing
+    priority: medium
+
+  pronunciation_assessment:
+    status: missing
+    priority: medium
+
+  question_bank:
+    status: missing
+    priority: critical
+
+  question_quality:
+    status: missing
+    priority: critical
+
+  question_license_tracking:
+    status: missing
+    priority: high
+
+  mastery_engine:
+    status: partial
+    existing:
+      - adaptive-learning
+    missing:
+      - server_side_mastery_model
+      - subskill_mastery
+      - confidence
+      - school_alignment
+
+  parent_weekly_report:
+    status: missing
+    priority: critical
+
+  web_v2:
+    status: partial
+    existing:
+      - multiple_choice
+      - practice_generation
+      - error_diagnosis
+      - learning_record
+      - microphone_stt
+    missing:
+      - multi_question_type_engine
+      - deterministic_answer_engine
+      - visual_teaching_engine
+      - tutor_dialogue_panel
+      - parent_view
+      - responsive_v2_layout
+
+  handwriting_math:
+    status: future
+    notes:
+      - "Vision API is more practical for MVP than current local HMR ecosystem."
+      - "Canvas should preserve stroke data for future models."
+
+  system_orchestration:
+    status: partial
+    existing:
+      - skill-finder
+      - skill-vetter
+      - safe-self-improving-agent
+    missing:
+      - service_registry_enforcement
+      - automated_change_plan
+      - regression_harness
+      - rollback_manager
+      - deployment_adapter

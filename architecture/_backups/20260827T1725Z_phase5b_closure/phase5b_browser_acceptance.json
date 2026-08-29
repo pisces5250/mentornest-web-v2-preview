@@ -1,0 +1,614 @@
+{
+  "startedAt": "2026-08-27T17:29:46.198Z",
+  "base": "http://localhost:5181/",
+  "axe": {
+    "version": "4.13.0"
+  },
+  "viewports": {
+    "mobile": {
+      "width": 360,
+      "height": 800,
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 1,
+      "consoleErrors": [],
+      "touchTargets": [
+        {
+          "cls": "mn-keypad__field-button",
+          "w": 212,
+          "h": 44,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__field-button",
+          "w": 212,
+          "h": 44,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 71,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 300,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-button",
+          "w": 96,
+          "h": 50,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-button",
+          "w": 96,
+          "h": 50,
+          "meetsG5G6_44": true
+        }
+      ],
+      "allTouchMeet44": true
+    },
+    "tablet": {
+      "width": 768,
+      "height": 1024,
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 1,
+      "consoleErrors": [],
+      "touchTargets": [
+        {
+          "cls": "mn-keypad__field-button",
+          "w": 620,
+          "h": 44,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__field-button",
+          "w": 620,
+          "h": 44,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 173,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 708,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-button",
+          "w": 96,
+          "h": 50,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-button",
+          "w": 96,
+          "h": 50,
+          "meetsG5G6_44": true
+        }
+      ],
+      "allTouchMeet44": true
+    },
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 1,
+      "consoleErrors": [],
+      "touchTargets": [
+        {
+          "cls": "mn-keypad__field-button",
+          "w": 812,
+          "h": 44,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__field-button",
+          "w": 812,
+          "h": 44,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 221,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-keypad__key",
+          "w": 900,
+          "h": 45,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-button",
+          "w": 96,
+          "h": 50,
+          "meetsG5G6_44": true
+        },
+        {
+          "cls": "mn-button",
+          "w": 96,
+          "h": 50,
+          "meetsG5G6_44": true
+        }
+      ],
+      "allTouchMeet44": true
+    }
+  },
+  "keyboard": {
+    "numeratorTyped": true,
+    "denominatorTyped": true,
+    "submitByKeyboard": true,
+    "feedbackVisible": true,
+    "feedbackTextIncludes_5_6": true,
+    "srStatusAnnounced": true
+  },
+  "aria": {
+    "questionCardExists": true,
+    "stemId": "g5-stem",
+    "stemLabelledby": true,
+    "numeratorLabel": "分子",
+    "denominatorLabel": "分母",
+    "keypadAriaLabel": "數字鍵盤",
+    "liveRegionExists": true,
+    "liveRegionAriaLive": "polite",
+    "feedbackSROnly": true
+  },
+  "touchTargets": [
+    {
+      "cls": "mn-keypad__field-button",
+      "w": 212,
+      "h": 44,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__field-button",
+      "w": 212,
+      "h": 44,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 71,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-keypad__key",
+      "w": 300,
+      "h": 45,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-button",
+      "w": 96,
+      "h": 50,
+      "meetsG5G6_44": true
+    },
+    {
+      "cls": "mn-button",
+      "w": 96,
+      "h": 50,
+      "meetsG5G6_44": true
+    }
+  ],
+  "hint_flow": {
+    "first_wrong_hint_stage": "text_only",
+    "first_wrong_visual_count": 0,
+    "second_wrong_hint_stage": "fraction_bar",
+    "second_wrong_visual_count": 2,
+    "first_was_text_only": true,
+    "second_showed_fraction_bar": true
+  },
+  "axeRuns": [
+    {
+      "viewport": "mobile",
+      "violations": [],
+      "incomplete": 1
+    },
+    {
+      "viewport": "tablet",
+      "violations": [],
+      "incomplete": 1
+    },
+    {
+      "viewport": "desktop",
+      "violations": [],
+      "incomplete": 1
+    }
+  ],
+  "svg_a11y": {
+    "svgCount": 2,
+    "allHaveXmlns": true,
+    "allHaveViewBox": true,
+    "allHaveTitle": true,
+    "allHaveDesc": true,
+    "wrappersAriaHidden": true,
+    "srTextExists": true
+  },
+  "finishedAt": "2026-08-27T17:29:52.289Z",
+  "summary": {
+    "totalCritical": 0,
+    "totalSerious": 0,
+    "exit": 0,
+    "failedAt": null
+  }
+}

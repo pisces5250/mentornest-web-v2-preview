@@ -1,0 +1,382 @@
+version: "1.1"
+
+phases:
+
+  phase_1:
+    name: "System foundation"
+    status: completed
+    completed_on: "2026-08-27"
+    goals:
+      - project_registry
+      - system_orchestrator
+      - agent_capability_matrix
+      - skill_gap_analysis
+    delivered:
+      - "architecture/skills-registry.yaml (v1.1)"
+      - "architecture/capabilities.yaml (v1.1)"
+      - "architecture/data-model.yaml (v1.1)"
+      - "architecture/capability-matrix.md"
+      - "architecture/skill-gap-analysis.md"
+      - "architecture/curriculum-source-policy.md"
+      - "architecture/question-bank-source-policy.md"
+      - "architecture/phase-2-implementation-plan.md"
+      - "registry cleanup: 7 discrepancies resolved"
+      - "adaptivetest archived (workspace/_archive/skills/)"
+
+  phase_2:
+    name: "Learning intelligence"
+    status: active
+    started_on: "2026-08-27"
+
+    product_decisions_locked:
+      curriculum_scope: "G1–G6 only in V1; G7–G12 reserved for V2 architecture"
+      curriculum_source: "教育部 十二年國民基本教育課程綱要 only; publishers map into it"
+      question_bank_priority:
+        - "Student-private upload (worksheets, exams, homework)"
+        - "MentorNest AI original / adapted"
+        - "Clear open-license"
+        - "Teacher / parent authored (as available)"
+      profile_v2_consent: "One-shot parent setup; optional fields may be skipped"
+      school_progress_maintainer: "curriculum-agent (continuous)"
+
+    goals:
+      - learning_director
+      - curriculum_agent
+      - server_side_mastery_engine
+      - parent_weekly_report
+
+    first_batch_status: "shipped 2026-08-27"
+    first_batch_tools:
+      - tool: learning_event_reader
+        status: shipped
+        tests: 9
+        notes: "Per-student reader; cross-student reads forbidden."
+      - tool: student_profile_v2_get
+        status: shipped
+        tests: "covered by integration + student_profile_v2 suite"
+        notes: "Backward-compatible v2 view of v1 JSON."
+      - tool: student_profile_v2_update
+        status: shipped
+        tests: 6
+        notes: "One-shot parent setup; optional fields never requested by default."
+      - tool: deterministic_math_validator
+        status: shipped
+        tests: 16
+        notes: "Pure JS, no LLM. Fraction / decimal / percent / mixed / integer / expression equivalence."
+      - tool: curriculum_map_lookup
+        status: shipped
+        tests: 8
+        notes: "G1–G6 skeleton under architecture/curriculum/. 5 subjects. G7+ returns grade-not-in-curriculum-v1."
+      - tool: mastery_store_get
+        status: shipped
+        tests: "covered by mastery_store suite"
+      - tool: mastery_store_update
+        status: shipped
+        tests: 9
+        notes: "Bayesian-like update from learning event; FSRS-like schedule placeholder."
+      - tool: hint_ladder_next
+        status: shipped
+        tests: 10
+        notes: "Math v1; deterministic level selection; representation-change recommendation."
+      - tool: curriculum_meta
+        status: shipped
+        notes: "V1 scope, code, source documents."
+
+    second_batch_status: "shipped 2026-08-27"
+    second_batch_tools:
+      - tool: question_bank_curator_curate
+        status: shipped
+        tests: "covered by integration + question_bank suite"
+        notes: "Validates structure + provenance. Writes curated/ + raw/. Does NOT enter verified."
+      - tool: question_quality_agent_verify
+        status: shipped
+        tests: "covered by integration + question_bank suite"
+        notes: "ONLY path into Verified Question Bank. 5 mandatory gates. AI-authored questions go through the same gates as human-authored."
+      - tool: question_quality_agent_dedupe_check
+        status: shipped
+        tests: "covered by integration"
+        notes: "Read-only pre-flight against verified bank."
+      - tool: verified_bank_lookup
+        status: shipped
+        tests: "covered by integration"
+        notes: "The ONLY retrieval interface for verified questions; consumed by generate_practice_set_v2."
+      - tool: verified_bank_count
+        status: shipped
+        notes: "Counter; cheaper than listing."
+      - tool: generate_practice_set_v2
+        status: shipped
+        notes: "Math-only. Bank first; explicit fallback_llm_author_required flag when empty."
+      - tool: parent_setup_schema_validate
+        status: shipped
+        tests: 18
+        notes: "One-shot parent setup; rejects school_progress (curriculum-agent only)."
+      - tool: parent_setup_schema_copy
+        status: shipped
+        notes: "zh-TW copy strings + advanced_only flags for Web v2."
+
+    third_batch_status: "shipped 2026-08-27"
+    third_batch_tools:
+      - tool: math_specialist_independent_verify
+        status: shipped
+        tests: 14
+        notes: "Deterministic third-party witness for math-specialist. Hardens against string-fallback trap."
+      - tool: question_bank_coverage_report
+        status: shipped
+        tests: 8
+        notes: "Per-(KP, type, difficulty) gap list. Used by orchestrator + dashboards."
+      - tool: ai_question_authoring_orchestrator_run
+        status: shipped
+        tests: 11
+        notes: "Coverage-driven, not cadence-driven. Never calls an LLM. caller provides authorFn. Verified bank quality gate unchanged."
+      - tool: ai_question_authoring_plan
+        status: shipped
+        notes: "Read-only preview of next batch."
+      - tool: learning_director_cross_subject_weakness_aggregator
+        status: shipped
+        tests: 12
+        notes: "Ranks (subject, KP, subskill) cells by weakness score. Flags subjects with >=2 weak cells."
+      - tool: learning_director_prerequisite_gap_detector
+        status: shipped
+        notes: "Walks curriculum prerequisite chain; surfaces blocking gaps + zh-TW recommendation."
+      - tool: learning_director_weekly_strategy_emitter
+        status: shipped
+        notes: "Per-student WeeklyPlan: focus / review / practice + parent_summary_for_week (zh-TW + privacy copy)."
+
+    total_tests_passing: 215
+
+    fourth_batch_status: "shipped 2026-08-27T0809Z"
+    fourth_batch_tools:
+      - tool: mentornest_question_author_production
+        status: shipped
+        owner: mentornest-question-author (production AI)
+        tests: 13
+        notes: "Calls OpenClaw gateway + MiniMax-M3 via reuse of generate_practice_set responses pattern. Privacy fence at input AND output layers. Confidence threshold >= 0.4. Malformed JSON recovered; transient 5xx retried (max 2, exp backoff). No new external API added."
+      - tool: school_progress_get
+        status: shipped
+        tests: 5
+        notes: "Read latest_by_subject from append-only ledger."
+      - tool: school_progress_update_confirmed
+        status: shipped
+        notes: "Append-only. source_type ∈ {official_curriculum, parent_confirmed, teacher_material_confirmed, textbook_mapping}."
+      - tool: school_progress_infer
+        status: shipped
+        notes: "Append-only. inferred_from_learning only. NEVER auto-marks completed."
+      - tool: school_progress_promote_to_confirmed
+        status: shipped
+        notes: "Appends NEW record with replaces_record_id; old record stays in jsonl."
+      - tool: confirmed_vs_inferred_progress_tracker
+        status: shipped
+        notes: "Read-only. Flags when both kinds present for same (subject, grade)."
+      - tool: school_alignment
+        status: shipped
+        notes: "Read-only. zh-TW recommendations (對齊 / 補上進度 / 建議複習)."
+      - tool: textbook_mapping_engine
+        status: shipped
+        tests: 6
+        notes: "Curriculum Agent v1 skeleton. Fuzzy Jaccard >= 0.6 label match. NO publisher content reproduced."
+      - tool: mastery_engine_v2_update_from_evidence
+        status: shipped
+        tests: 9
+        notes: "Server-side mastery grows only from objective evidence. set_mastery REJECTED. Evidence ledger append-only."
+      - tool: mastery_engine_v2_annotate_school_alignment
+        status: shipped
+        notes: "Curriculum-agent only. Does NOT change mastery."
+      - tool: mastery_engine_v2_error_pattern_aggregation
+        status: shipped
+        notes: "Read-only { type: count }."
+      - tool: mastery_engine_v2_retention_signal
+        status: shipped
+        notes: "Read-only. R(t) = 2^(-t/H) with H=21d."
+      - tool: mastery_engine_v2_list_evidence
+        status: shipped
+        notes: "Read-only list of append-only evidence ledger."
+      - tool: mastery_engine_v2_get
+        status: shipped
+        notes: "Read-only single record + retention_at_now."
+      - tool: integration_phase2_fourth_batch
+        status: shipped
+        tests: 18
+        notes: "End-to-end + live learning-records append-only invariant + cross-student isolation."
+
+    fourth_batch_total_tests: 102  # 31 Phase A + 25 Phase B + 28 Phase C + 18 Phase D
+
+    remaining_for_phase_2:
+      - "Semantic duplicate detector v2 (vector-based; v1 uses Jaccard-only)"
+      - "License reviewer"
+      - "Difficulty calibrator (cross-difficulty bias detection)"
+      - "Parent weekly report (deferred until ≥ 2 weeks of mastery data per active student)"
+      - "Production authorFn hardening: fallback paths, multi-locale, rate-limit handling at gateway edge"
+      - "Curriculum Agent v1 polish: bulk promotion (multi-record), inferred-record staleness expiry"
+      - "Mastery Engine v2 polish: cross-subject retention aggregation, evidence-rate backfill"
+
+    rollback_strategy:
+      - "Disable any one tool in openclaw.plugin.json contracts.tools list"
+      - "Revert plugins/mentornest-learning/dist/index.js from backup if needed"
+      - "data/mastery/<student_id>.json is additive; deletion does not destroy learning evidence"
+      - "Profile v2 fields are additive on v1 JSON; reverting to v1 read is automatic if schema_version is stripped"
+      - "data/questions/<bucket>/ are isolated per bucket; deleting a bucket does not touch others"
+      - "data/question-bank/index.jsonl can be regenerated by walking data/questions/verified/"
+
+  phase_3:
+    name: "Subject specialists"
+    status: shipped
+    shipped_date: "2026-08-27T1100Z"
+    shipped_sub_sessions:
+      - "A: math_specialist_v2 + math_visual_engine (11 tools)"
+      - "B: chinese_specialist_v1 (11 tools)"
+      - "C: english_specialist_v1 + local_stt_interface (16 tools)"
+      - "D: science_specialist_v1 (11 tools)"
+      - "E: social_studies_specialist_v1 (13 tools)"
+      - "F: unified_subject_contract_v1 (subject-v1) + learning_director_v2 + cross_subject_merge (11 tools)"
+    shipped_tools_total: 73
+    invariants_kept:
+      - "Each subject owns its own error taxonomy (MATH-*, ZH-*, EN-*, SCI-*, SS-*)"
+      - "Each subject owns its own hint ladder"
+      - "Each subject owns its own evaluation logic (math: deterministic JS validator; others: text-based heuristics)"
+      - "Subject specialists NEVER modify mastery directly — only emit evidence_payload / diagnosis_payload"
+      - "STT remains LOCAL (SenseVoice-Small int8) — no cloud APIs"
+      - "Math validator: pure JS, no LLM"
+      - "Unified contract (subject-v1) is INTERFACE ONLY — does NOT merge subject expertise into generic tutor"
+      - "Cross-subject merge priority: mastery_check > backtrack_prerequisite > drill > text_prompt"
+    remaining_for_phase_3:
+      - "Visual engine polish: image rendering (currently text descriptors)"
+      - "Bulk promotion: verified_bank_lookup → promoted tier"
+      - "Inferred-record staleness expiry"
+      - "Cross-subject retention aggregation"
+      - "Evidence-rate backfill (mastery v2 from existing evidence ledger)"
+    note: "Phase 3 SHIPPED 2026-08-27. 895/895 tests pass. manifest=116 tools. Phase 3 was originally 'planned'; now marked shipped."
+
+  phase_4:
+    name: "Question ecosystem expansion"
+    status: planned
+    note: "Phase 2 second batch SHIPPED the AI-author → curator → quality-gate → verified-bank pipeline (2026-08-27). Phase 4 extends with the remaining sources."
+    source_priority:
+      - status: ACTIVE
+        source: "MentorNest AI original / adapted"
+        shipped_in: "phase_2_second_batch"
+      - status: next
+        source: "student-private uploads"
+        needs: "local OCR pipeline (PDF / image) — pending candidate skill review"
+      - status: pending
+        source: "clear open-license"
+        needs: "license reviewer + candidate-source review"
+      - status: pending
+        source: "teacher / parent authored"
+        needs: "Web v2 entry UI"
+    goals:
+      - student_private_upload_pipeline
+      - license_reviewer
+      - question_difficulty_calibrator
+      - semantic_dedupe_v2_vector
+      - teacher_parent_entry_ui
+      - question_bank_growth_to_1000_verified
+      - question_license_tracking
+
+  phase_5:
+    name: "MentorNest Web v2"
+    status: phase_5a_shipped_20260827T1655Z
+    goals:
+      - multi_question_type_ui
+      - deterministic_answer_engine
+      - visual_teaching_engine
+      - adaptive_hint_ladder
+      - explain_your_thinking_voice
+      - parent_view
+    subphases:
+      phase_5a:
+        name: "Web v2 Foundation + first G3-G4 vertical slice"
+        status: shipped_20260827T1655Z
+        ship_date: 2026-08-27T1655Z
+        acceptance:
+          A: "production mentornest-web HTML MD5 verified unchanged (dbb08728c4b213a1ca7ba55c6261b1d6)"
+          B: "axe-core 0 critical + 0 serious across mobile/tablet/desktop; all behavioral checks pass"
+        snapshot: architecture/_backups/20260827T1655Z_phase5a_acceptance/
+        next_in_phase_5: phase_5b_audit_infra_and_second_pattern (deferred)
+
+  phase_6:
+    name: "Advanced interaction"
+    status: planned
+    goals:
+      - handwriting_canvas
+      - vision_math_input
+      - realtime_voice
+      - pronunciation_assessment
+
+# Phase 4A — RAW QUESTION INGESTOR + SEGMENTER (shipped 2026-08-27T1131Z)
+# Plugin tools: 130 → 132
+# Tests: +117 (total 1253/1253)
+# Constraints: no cloud OCR; PDF/image fail clean; raw pool only (no Verified Bank writes)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 4B — KP CLASSIFIER + LICENSE + LOCAL PDF + RAW→VERIFIED PIPELINE (shipped 2026-08-27T1518Z)
+# Plugin tools: 132 → 136 (+4: kp_classify, license_extract, license_review, raw_question_ingest_full_pipeline)
+# Tests: +148 (total 1401/1401)
+# Constraints:
+#   - single Verified Bank writer remains question_quality_agent_verify
+#   - UNKNOWN / COMMERCIAL_RESTRICTED FORBIDDEN from shared Verified Bank
+#   - local PDF only (pdf-parse/pdfjs-dist if installed; else ascii_fallback)
+#   - scanned/image-only PDFs remain unsupported_in_round_4a
+#   - no cloud OCR; no Tesseract primary; no new npm deps
+#   - KP classifier threshold: confidence < 0.6 = REJECT from Verified Bank
+#   - provenance (source/license) preserved end-to-end
+# Legacy backfill retained: bf_20260827T125900Z_38a828 (24 evidence emitted; 192 total lines).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 4C — AUTONOMOUS QUESTION AUTHORING & COVERAGE ENGINE (SHIPPED 2026-08-27T1615Z)
+# Plugin tools: 136 → 142 (+6: question_coverage_analyzer, question_generation_planner,
+#   difficulty_controller, variation_generator, duplicate_detector, answer_verifier;
+#   ai_authoring_orchestrator_run EXTENDED in place, not added)
+# Tests target: +120 (>=1401 → >=1521)
+# Constraints:
+#   - coverage-driven only; no bulk cadence; default max_new_questions=0
+#   - reuse existing OpenClaw -> MiniMax-M3 production authorFn; do NOT create a second authoring arch
+#   - authorFn receives ONLY structured pedagogical need (no student names, raw history, audio, images, PII)
+#   - AI-generated questions NEVER bypass question_quality_agent_verify; full gate:
+#     answer_verifier -> duplicate_detector -> kp_classify -> license_extract ->
+#     license_review -> question_quality_agent_verify
+#   - low-confidence KP (<0.6) cannot be forced into generation plan
+#   - duplicate questions rejected
+#   - mathematically invalid / ambiguous answers rejected (answer_verifier fails closed)
+#   - generated content MUST carry AI_ORIGINAL or AI_ADAPTED license (license_review surfaces provenance)
+#   - production student data unchanged during tests; fake IDs + after() cleanup
+#   - MiniMax concurrency max 2; targeted tests first; full regression at integration close
+# Hard rules carried forward from Phase 4B:
+#   - single Verified Bank writer: question_quality_agent_verify only
+#   - no cloud OCR; no Tesseract primary
+#   - UNKNOWN + COMMERCIAL_RESTRICTED forbidden from shared Verified Bank
+# Defer (per product decision):
+#   - R9 PDF parser (not a 4C blocker)
+#   - R10 license provenance UI (Phase 5)
+#   - R11 PRIVATE stays private indefinitely; no TTL auto-promotion
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 7 — Child Learning Experience Designer + Design System v1
+# Status: ARCHITECTURE_ONLY (2026-08-27T1239Z); IMPLEMENTATION DEFERRED to Phase 5+
+# Owner: child-learning-experience-designer (architecture row only; runtime deferred)
+# Out of scope this round: mentornest-web modifications, new skills, UI redesign.
+# ──────────────────────────────────────────────────────────────────────────────
+phase_7_design_registry_v1:
+  scope: |
+    Architect and lock the MentorNest child-facing Design System.
+    Phase 7 ships ONLY architecture + capability gap; no runtime code
+    lands in mentornest-web until Phase 5.
+  deliverables:
+    - architecture/design/design-system.yaml     # entry point + handoff contract
+    - architecture/design/design-tokens.yaml     # tokens: type, spacing, radius, sizes, colors, states, motion, touch
+    - architecture/design/age-profiles.yaml      # G1-G2 / G3-G4 / G5-G6 / G7+ reserved
+    - architecture/design/components.yaml       # question_card, hint_panel, progress_bar, feedback_state, drag_drop, math_input, voice_input
+    - architecture/design/interaction-patterns.yaml  # 7 patterns + hint ladder + feedback FSM + voice UX + math input UX
+    - architecture/design/accessibility.yaml     # WCAG AA + child-specific extensions + guardrails
+  agent_added_to_baseline:
+    - child-learning-experience-designer (architecture/agents.yaml; deferred_to_phase5)
+  open_decisions_for_human:
+    - actual UI redesign timing (Phase 5 web v2)
+    - design system implementation tech (CSS variables vs Tailwind vs design tokens JSON)
+    - whether to ship design tokens JSON as a separate npm package (mentornest-design-tokens)
+    - keyboard shortcut policy for G5+ (R for replay, H for hint, etc.)
+

@@ -1,0 +1,10 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {SCIENCE_ERROR_TAXONOMY,lookupScienceErrorCode,listScienceErrorsByCategory,listScienceErrorCategories,scienceErrorTaxonomySize,validateScienceErrorTaxonomy} from '../dist/lib/science_error_taxonomy.mjs';
+test('has 15-25 categories',()=>assert.ok(scienceErrorTaxonomySize()>=15&&scienceErrorTaxonomySize()<=25));
+test('has expected science categories',()=>{for(const c of ['concept','causal_reasoning','experiment','data_interpretation','diagram','safety'])assert.ok(listScienceErrorCategories().includes(c));});
+test('lookup known code',()=>assert.equal(lookupScienceErrorCode('SCI-DATA-AXIS').label_zh,'圖表軸線判讀'));
+test('lookup unknown code',()=>assert.equal(lookupScienceErrorCode('BAD'),null));
+test('category filtering',()=>assert.ok(listScienceErrorsByCategory('safety').every(x=>x.category==='safety')));
+test('unique codes',()=>assert.equal(new Set(SCIENCE_ERROR_TAXONOMY.map(x=>x.code)).size,scienceErrorTaxonomySize()));
+test('taxonomy validation',()=>assert.equal(validateScienceErrorTaxonomy().valid,true));
+test('entry fields complete',()=>assert.ok(SCIENCE_ERROR_TAXONOMY.every(x=>x.examples.length&&x.hint_template&&x.mini_lesson_hint)));
+test('safety codes present',()=>assert.equal(lookupScienceErrorCode('SCI-SAFETY-HOT-PRESSURE').category,'safety'));

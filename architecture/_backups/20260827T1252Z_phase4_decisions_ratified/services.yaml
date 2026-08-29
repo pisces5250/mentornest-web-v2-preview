@@ -1,0 +1,49 @@
+version: "1.0"
+
+services:
+
+  mentornest:
+    service_id: "6a8e84ce9ec391c39ae7a996"
+    role:
+      - openclaw
+      - agent-runtime
+      - learning-backend
+      - local-stt
+    workspace: "/home/node/.openclaw/workspace"
+    gateway_port: 18789
+    stt_api_port: 8502
+    production: true
+
+    important_paths:
+      plugins: "/home/node/.openclaw/plugins"
+      workspace_skills: "/home/node/.openclaw/workspace/skills"
+      architecture: "/home/node/.openclaw/workspace/architecture"
+      student_data: "/home/node/.openclaw/workspace/data/students"
+      learning_records: "/home/node/.openclaw/workspace/data/learning-records"
+      models: "/home/node/.openclaw/workspace/models"
+      services: "/home/node/.openclaw/workspace/services"
+
+  mentornest-web:
+    service_id: "6a8eaa6e7d3d98c91024fb26"
+    role:
+      - child-web-ui
+      - interactive-practice
+      - browser-microphone
+    workspace: "/srv"
+    entry_file: "/srv/index.ts"
+    port: 3000
+    public_domain: "mentornest-web.zeabur.app"
+    production: true
+
+cross_service_rules:
+  - >
+    Before modifying any service, verify ZEABUR_SERVICE_ID against the target
+    service_id in this registry.
+  - >
+    If current service does not match the target service, return
+    TARGET_SERVICE_MISMATCH and do not create placeholder files.
+  - "Never assume /srv exists in the OpenClaw service."
+  - "Never assume /home/node/.openclaw/workspace exists in mentornest-web."
+  - >
+    Use stable Zeabur internal service addressing or injected service variables;
+    never hardcode pod IPs or pod-suffix hostnames.

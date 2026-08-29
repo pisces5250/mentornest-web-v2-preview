@@ -1,0 +1,235 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+purpose: >
+  Bind question_type + interaction_required to a recommended layout +
+  interaction sequence + state transitions.  These are the "recipes"
+  Subject Specialists consume via presentation_request; Designer
+  only implements them.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pattern catalog
+# ─────────────────────────────────────────────────────────────────────────────
+patterns:
+
+  pattern_multiple_choice_basic:
+    triggers:
+      question_type: multiple_choice
+      interaction_required: tap_choice
+    layout: single_column
+    sequence:
+      - 1: render stem + representation
+      - 2: render 2..6 choice cards (one CTA per card for G1-G2)
+      - 3: wait for tap; on tap, lock other choices
+      - 4: render feedback_state (success | error + hint)
+      - 5: if correct, render progress_bar update + next CTA
+    a11y:
+      - keyboard_arrow_keys_navigate: true
+      - screen_reader_announce_choice_label_and_state: true
+    invariants:
+      - INV-IP-MC-1: Choices must be visually distinct without relying on color alone.
+
+  pattern_short_answer_keypad:
+    triggers:
+      question_type: short_answer
+      interaction_required: math_input
+    layout: stage_focus
+    sequence:
+      - 1: render stem + representation
+      - 2: render math_input with on-screen keypad (G1-G4) or system keyboard (G5+)
+      - 3: optional voice_input alt button
+      - 4: submit CTA appears only after non-empty input
+      - 5: render feedback_state
+    a11y:
+      - field_label_required: true
+      - voice_fallback_required: true
+    invariants:
+      - INV-IP-SK-1: keypad numeric / operator keys MUST use semantic_colors.primary surface.
+
+  pattern_drag_drop_matching:
+    triggers:
+      question_type: matching
+      interaction_required: drag_drop
+    layout: two_column
+    sequence:
+      - 1: render stem + representation
+      - 2: render source_items (left) and target_zones (right)
+      - 3: monitor drag start / over / drop events; announce progress
+      - 4: on drop, render success/error feedback inline
+      - 5: when all zones filled correctly, render progress_bar update
+    a11y:
+      - keyboard_alternative_required: true
+      - screen_reader_announce_zone_state_on_drop: true
+    invariants:
+      - INV-IP-DD-1: Final state MUST be reachable via keyboard alone.
+
+  pattern_true_false_swipe:
+    triggers:
+      question_type: true_false
+      interaction_required: swipe
+    layout: stage_focus
+    sequence:
+      - 1: render stem
+      - 2: large Yes/No swipe card with arrow affordances
+      - 3: on swipe, render feedback_state
+      - 4: also offer tap-to-confirm for users who don't swipe (a11y)
+    a11y:
+      - tap_alternative_required: true
+      - reduced_motion_required_for_swipe_animation: true
+    invariants:
+      - INV-IP-TF-1: Tap alternative is mandatory; swipe is optional.
+
+  pattern_fill_in_blank_inline:
+    triggers:
+      question_type: fill_in_blank
+      interaction_required: inline_text
+    layout: single_column
+    sequence:
+      - 1: render stem with inline ____ placeholders
+      - 2: each blank becomes a math_input (compact)
+      - 3: render submit CTA when all blanks filled
+      - 4: render feedback_state per blank + overall
+    a11y:
+      - each_blank_label_required: true
+    invariants:
+      - INV-IP-FB-1: blanks MUST be announced by screen reader in order.
+
+  pattern_essay_open_response:
+    triggers:
+      question_type: essay
+      interaction_required: free_text
+    layout: single_column
+    sequence:
+      - 1: render stem + word/char budget
+      - 2: render free text area with auto-save
+      - 3: render submit CTA; optional draft save
+      - 4: render confirmation_state (queued-for-review); not feedback_state
+    a11y:
+      - text_area_label_required: true
+    constraints:
+      - G1_G2_BLOCKED: this pattern is rejected for g1_g2 profile.
+    invariants:
+      - INV-IP-ES-1: essay NEVER auto-grades; response goes to Subject Specialist (chinese_specialist_evaluate_composition or english_specialist_evaluate_conversation) for review.
+
+  pattern_voice_response:
+    triggers:
+      interaction_required: voice_input
+    layout: stage_focus
+    sequence:
+      - 1: render stem + large mic button
+      - 2: on tap, start local STT (sherpa-onnx)
+      - 3: render live transcript chip (no cloud; no retention)
+      - 4: render feedback_state based on Subject Specialist grading
+    a11y:
+      - text_input_fallback_required: true
+    invariants:
+      - INV-IP-VO-1: NO audio leaves device; local STT only.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hint presentation
+# ─────────────────────────────────────────────────────────────────────────────
+hint_presentation:
+  hint_level_0: not_shown
+  hint_level_1:
+    surface: minimal
+    text_only: true
+    audio: optional
+  hint_level_2:
+    surface: standard
+    include_relevant_visual: true
+    audio: available
+  hint_level_3:
+    surface: standard
+    include_worked_example: true
+    audio: required
+  invariants:
+    - INV-IP-HINT-1: Hint ladder content is owned by hint_ladder_next; Designer never invents hint text.
+    - INV-IP-HINT-2: Each level reveal is a distinct user action (button press), not auto-triggered.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Feedback state machine
+# ─────────────────────────────────────────────────────────────────────────────
+feedback_state_machine:
+  states: [idle, correct, partial, incorrect, hint_pending, hint_revealed, review_needed]
+  transitions:
+    - from: idle
+      on_submit_correct: correct
+    - from: idle
+      on_submit_partial: partial
+    - from: idle
+      on_submit_incorrect: incorrect
+    - from: incorrect
+      on_request_hint: hint_pending
+    - from: hint_pending
+      on_hint_revealed: hint_revealed
+    - from: any
+      on_repeated_failure: review_needed
+  invariants:
+    - INV-IP-FSM-1: review_needed state surfaces a "需要複習" CTA linking to the relevant curriculum KP.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Progress visualization
+# ─────────────────────────────────────────────────────────────────────────────
+progress_visualization:
+  session: |
+    Session progress bar in the top region (or top-left on tablet).
+    Updates immediately on each correct answer; never shows future steps.
+  chapter: |
+    Chapter progress segmented bar; one segment per lesson.
+  streak: |
+    Streak counter with last-7-days mini bar; visual only, never
+    intimidating when broken.
+  invariants:
+    - INV-IP-PV-1: Streak MUST NOT shame when broken.
+    - INV-IP-PV-2: Progress visualizations MUST NOT predict future correctness.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Voice interaction UX
+# ─────────────────────────────────────────────────────────────────────────────
+voice_interaction_ux:
+  states: [idle, listening, transcript_visible, error, retry]
+  microcopy:
+    idle: "按下開始錄音"
+    listening: "我在聽喔"
+    transcript_visible: "我聽到：{transcript}"
+    error: "沒聽清楚，再試一次"
+    retry: "重新錄音"
+  constraints:
+    - never_displays_raw_audio
+    - no_recording_indicator_after_stop
+  invariants:
+    - INV-IP-VU-1: Audio is ephemeral; transcript is the only retained artifact (and only if Subject Specialist needs it).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Math input UX
+# ─────────────────────────────────────────────────────────────────────────────
+math_input_ux:
+  keypad_layout:
+    g1_g2: large numeric pad only (0..9, dot, backspace, submit)
+    g3_g4: numeric + operators (+, -, ×, ÷, =)
+    g5_g6: numeric + operators + parentheses + fraction slash
+  input_validation:
+    visual_signal: state_colors.error surface flash (≤200ms)
+    audio_signal: optional error tone
+    message_voiceover: "這格好像有點問題，再試一次"
+  invariants:
+    - INV-IP-MI-1: Validation message MUST be friendly, never "wrong".
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Future handwriting / canvas UX
+# ─────────────────────────────────────────────────────────────────────────────
+future_handwriting_canvas:
+  status: deferred_to_phase_6
+  placeholder_contract:
+    triggers:
+      interaction_required: handwriting
+    constraints_documented_now:
+      - canvas_area_min_css_px: [320, 240]
+      - ink_color_default: semantic_colors.primary
+      - undo_required: true
+      - redo_required: true
+      - clear_required: true
+      - local_recognition_only: true
+  invariants:
+    - INV-IP-FH-1: When implemented, NO cloud OCR; recognition happens on-device only.

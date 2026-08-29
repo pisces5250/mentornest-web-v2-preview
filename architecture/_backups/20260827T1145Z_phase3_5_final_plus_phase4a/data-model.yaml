@@ -1,0 +1,480 @@
+version: "1.3"
+
+# v1.3 changes (2026-08-27T0809Z, Phase 2 fourth batch):
+#   - learning_records.annotated with `append_only: true`, `record_immutability: strict`
+#   - curriculum_progress.jsonl schema added (append-only ledger)
+#   - mastery_v2 schema added (separate evidence ledger + retention signal)
+#   - data/mastery-evidence/<id>.jsonl documented (append-only)
+#   - data/curriculum-progress/<id>.jsonl documented (append-only)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Student learning model
+# ──────────────────────────────────────────────────────────────────────────────
+student_learning_model:
+
+  # v2 schema — extends the v1 baseline.
+  # Backward compatible: all v1 fields remain present and required.
+  # New fields are optional unless marked required.
+  profile_v2:
+    identity:
+      required:
+        - student_id
+        - display_name
+      optional:
+        - school_name       # explicitly OPTIONAL; never requested by default
+        - class_name        # explicitly OPTIONAL; never requested by default
+
+    grade_info:
+      required:
+        - grade             # int 1..12
+        - school_year       # e.g. "2026"
+      optional:
+        - school_curriculum # enum: "taiwan-108-curriculum" | "taiwan-12-year-curriculum" | other
+                            # default: "taiwan-12-year-curriculum" (現行)
+                            # source-of-truth: 教育部 十二年國民基本教育課程綱要
+
+    textbook_versions:
+      # Per-subject textbook version (publisher + edition + volume).
+      # Stored ONLY as a mapping reference; we do NOT copy publisher content
+      # into a shared commercial pool (see question-bank-source-policy.md).
+      fields:
+        - subject                 # math | chinese | english | science | social_studies
+        - publisher               # e.g. "康軒" | "南一" | "翰林" | "自編" | "其他"
+        - edition                 # e.g. "2024-revised"
+        - volume                  # e.g. "5上" | "5下"
+        - curriculum_alignment    # confirmed | inferred
+        - notes
+
+    learning_goals:
+      # Goals are set jointly by parent and (age-appropriately) the child.
+      # They are NOT objective mastery evidence.
+      fields:
+        - goal_id
+        - subject
+        - knowledge_point
+        - description
+        - target_date          # ISO date or null
+        - status               # active | achieved | paused | dropped
+        - created_by           # parent | student
+        - created_at
+        - updated_at
+
+    parent_concerns:
+      # Free-text concerns from the parent, scoped per child.
+      # Stored verbatim; summarized only by parent-report-agent, never echoed
+      # back to the student.
+      fields:
+        - concern_id
+        - subject
+        - description
+        - severity             # low | medium | high  (parent's own rating)
+        - created_at
+        - resolved_at          # null while open
+
+    school_progress:
+      # The source-of-truth for "where in school" is the Taiwan curriculum.
+      # Textbook is a mapping reference; progress is unit-based.
+      # MAINTAINED BY curriculum-agent, NEVER by parent payload.
+      fields:
+        - subject
+        - confirmed_progress   # unit / chapter ids confirmed by parent or teacher
+        - confirmed_source     # parent | teacher | test | "verified-via-curriculum-yaml"
+        - confirmed_at
+        - inferred_progress    # derived from learning_event stream
+        - inference_confidence # 0..1
+        - updated_at
+
+    learning_preferences:
+      # Optional UX preferences (UI hints, language, pacing).
+      fields:
+        - primary_language     # "zh-TW" default
+        - session_length_min   # suggested session length
+        - representation_preference  # "visual-first" | "concrete-first" | "symbolic-first"
+        - hint_style           # "minimal" | "scaffolded" | "explicit"
+
+    privacy_defaults:
+      audio_retention: "none"            # see policies.yaml
+      learning_memory_audio: forbidden   # see policies.yaml
+      profile_minimal_onboarding: true   # do not collect teacher_name / phone / address
+
+    # Backward compat: keep the original flat keys readable by v1 readers.
+    legacy_flat_keys:
+      - student_id
+      - display_name
+      - grade
+      - school_year
+      - curriculum            # legacy; school_curriculum supersedes
+      - textbook_versions     # legacy list shape; superseded by per-subject objects
+      - learning_preferences
+
+  # Existing learning event stream — append-only ledger.
+  learning_event:
+    append_only: true
+    record_immutability: strict
+    persistence:
+      path: "data/learning-records/<student_id>.jsonl"
+      format: append_only_jsonl
+      invariant: "Records are NEVER rewritten, truncated, or reordered. event_id and ingested_at are immutable. Regression comparison MUST operate on snapshots (architecture/_backups/<TS>/), NOT on live files."
+    fields:
+      - student_id
+      - subject
+      - knowledge_point
+      - subskill
+      - question_id
+      - question_type
+      - difficulty
+      - result
+      - attempts
+      - hints
+      - first_wrong_answer
+      - error_type
+      - representation_used
+      - review_needed
+      - event_id                 # immutable; generated at ingest
+      - ingested_at              # immutable; generated at ingest
+      - timestamp
+
+  # Mastery record — unchanged in v2; Phase 2 introduces the persistent store.
+  mastery:
+    fields:
+      - student_id
+      - subject
+      - knowledge_point
+      - subskill
+      - mastery
+      - confidence
+      - last_seen
+      - review_due
+      - school_alignment
+      - error_patterns
+
+  # Mastery v2 — Phase 2 fourth batch (2026-08-27T0809Z)
+  mastery_v2:
+    schema_version: "mastery-v2"
+    persistence:
+      mutable_store:
+        path: "data/mastery/<student_id>.json"
+        format: json_object
+        upgrade: "auto-upgrades from mastery-v1 if present"
+      evidence_ledger:
+        path: "data/mastery-evidence/<student_id>.jsonl"
+        format: append_only_jsonl
+        record_immutability: strict
+        invariant: "Lines are NEVER rewritten, truncated, or reordered."
+    fields:
+      - student_id
+      - subject
+      - knowledge_point
+      - subskill
+      - mastery                  # computed; never written directly
+      - mastery_delta            # last applied delta
+      - confidence
+      - evidence_count
+      - last_seen
+      - review_due               # ISO timestamp, FSRS-lite
+      - retention_at_now         # derived; not stored on disk
+      - school_alignment         # {aligned, lagging, ahead, completed_in_class}
+      - error_patterns           # flat { type: count }
+      - quality_rating           # 1–5; computed from result + hints + first_attempt + error_type
+      - source                   # which tool / surface produced the evidence
+      - source_event_id          # optional cross-reference
+    invariants:
+      - "set_mastery forbidden (DIRECT_MASTERY_FORBIDDEN)"
+      - "Direct mastery field forbidden on non-mastery tools"
+      - "Browser localStorage NEVER source-of-truth"
+      - "R(t) = 2^(-t/H) where H = 21 days; clamp >= 0.01; blend with decay"
+      - "FSRS-lite: q1=10min, q2=1d, q3=3d, q4=max(3, mastery*30), q5=max(5, mastery*45)"
+      - "school_alignment annotation does NOT change mastery"
+
+  # Curriculum Progress — Phase 2 fourth batch (2026-08-27T0809Z)
+  curriculum_progress:
+    schema_version: "progress-v1"
+    persistence:
+      path: "data/curriculum-progress/<student_id>.jsonl"
+      format: append_only_jsonl
+      record_immutability: strict
+      invariant: "Lines are NEVER rewritten, truncated, or reordered. Promotions append a NEW record carrying replaces_record_id."
+    fields:
+      - record_id
+      - student_id
+      - subject
+      - grade
+      - curriculum_unit
+      - knowledge_points
+      - status                   # {in_progress, completed, lagging, ahead}
+      - source_type              # ∈ {official_curriculum, parent_confirmed, teacher_material_confirmed, textbook_mapping, inferred_from_learning}
+      - source_reference         # free-text provenance pointer
+      - confidence               # 0.0–1.0
+      - confirmed_at             # present only on confirmed records
+      - inferred_at              # present only on inferred records
+      - replaces_record_id       # present only on promotion records
+      - source_event_id          # optional learning-event cross-reference
+    invariants:
+      - "EXACTLY ONE of confirmed_at / inferred_at is set on any record"
+      - "source_type ∈ allowed set (5 values); no others accepted"
+      - "Publishers (康軒/翰林/南一) only for mapping; NO publisher content reproduced"
+      - "V1 curriculum scope = Taiwan 教育部 G1–G6 only"
+      - "inferred records may NEVER be auto-marked 'completed'"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Parent Setup Payload (one-shot) — Phase 2 second batch
+# ──────────────────────────────────────────────────────────────────────────────
+parent_setup_payload:
+  schema_version: "profile-v2.1"
+  description: "One-shot parent setup; web v2 will surface this. school_name / class_name are advanced_only and never requested by default."
+
+  required:
+    - display_name
+    - school_year
+
+  recommended:
+    - grade             # int 1..12; G1–G6 used by curriculum-map lookup today
+    - school_curriculum # default: "taiwan-12-year-curriculum"
+
+  optional:
+    - textbook_version  # free-text publisher name + edition (mapping only, NOT into shared bank)
+    - learning_goals    # free text ≤ 500 chars
+    - parent_concerns   # free text ≤ 1000 chars
+    - school_name       # advanced_only
+    - class_name        # advanced_only
+
+  forbidden_in_parent_payload:
+    - school_progress   # maintained by curriculum-agent only
+    - student_id        # server-resolved from auth
+    - schema_version    # server-assigned
+    - updated_at        # server-assigned
+
+  copy:
+    locale: "zh-TW"
+    invariant: "AI 老師只會在學習流程中問孩子關於學習的事，不會主動詢問學校或班級。"
+    copy_source: "plugins/mentornest-learning/lib/parent_setup_schema.mjs § COPY_ZH_TW"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Question Bank — see architecture/question-bank-source-policy.md for source rules.
+# ──────────────────────────────────────────────────────────────────────────────
+question_bank:
+
+  storage_layout:
+    data_root: "/home/node/.openclaw/workspace/data"
+    raw_path: "questions/raw/<subject>/G<grade>/<id>.json"
+    curated_path: "questions/curated/<subject>/G<grade>/<id>.json"
+    verified_path: "questions/verified/<subject>/G<grade>/<id>.json"
+    rejected_path: "questions/rejected/<subject>/G<grade>/<id>.json"
+    verified_index: "question-bank/index.jsonl"
+
+  layers:
+    - raw_question_pool          # ingest only; NEVER served to students
+    - verified_question_bank     # promoted by question-quality-agent (5 mandatory gates)
+    - personalized_practice_pool # consumed by practice composers
+
+  question_v2_schema:
+    description: "Canonical schema for ALL questions (raw/curated/verified). Verified adds `quality` metadata; rejected adds `reason`."
+    fields:
+      - id                      # q.<source_class>.<kp>.<uuid>
+      - type                    # short_answer | multiple_choice | true_false
+      - subject                 # math | chinese | english | science | social_studies
+      - grade                   # int 1..12 (V1 only 1..6 in current curriculum)
+      - knowledge_point         # "<subject>.G<grade>.<TOPIC>.<subtopic>"
+      - difficulty              # easy | medium | hard
+      - stem                    # the question text
+      - answer                  # string | number | boolean (type-specific)
+      - choices                 # multiple_choice only
+      - alt_answers             # short_answer only; must all be equivalent to `answer`
+      - explanation             # optional; string
+      - provenance:
+          - source_class        # ai_authored | student_private | open_license | teacher_authored
+          - source_id           # opaque authoring-batch / upload id
+          - license             # AI_ORIGINAL | AI_ADAPTED | CC-BY | CC-BY-SA | CC0 | PRIVATE
+          - generated_at        # ISO 8601
+          - generated_by        # "mentornest_ai" | "<human>" | "<system>"
+          - prompt_hash         # 16 hex chars (sha256 of prompt)
+          - parent_question_id  # required when license=AI_ADAPTED
+
+    curator_metadata:
+      - curated_at              # ISO timestamp
+      - stage_passed            # ["structure", "provenance"]
+
+    quality_metadata:
+      # Verified-only. Set by question-quality-agent.
+      - verified_at
+      - gate_version            # 1
+      - stages_passed           # ["structure", "provenance", "answer", "dedupe", "parent"]
+      - soft_warnings           # optional; near-duplicates (0.85 ≤ score < 0.95) recorded but not blocking
+
+    legacy_v1_fields:
+      description: "Subset of v1 fields preserved for backward read compat."
+      fields:
+        - question_id           # alias for `id`
+        - curriculum            # "taiwan-12-year-curriculum"
+        - publisher             # null for non-publisher sources
+        - unit
+        - question_type         # alias for `type`
+        - prompt                # alias for `stem`
+        - source
+        - source_license        # alias for `provenance.license`
+        - commercial_use_allowed # always false in shared bank v1
+        - attribution_required
+        - verified
+        - provenance_meta:      # free-form JSON, schema-versioned
+            - ingested_at
+            - ingested_by
+            - original_author
+            - ai_rewrite_integrity
+
+  source_classes_v1:
+    student_private:
+      active: false
+      status: "deferred to Phase 4 + OCR pipeline"
+    ai_authored:
+      active: true
+      status: "Phase 2 second batch — V1 first source ACTIVE 2026-08-27"
+      license_set: ["AI_ORIGINAL", "AI_ADAPTED"]
+      gate: "ALL 5 quality gates mandatory, same as human-authored"
+    open_license:
+      active: false
+      status: "V1 third source; pending candidate review + license reviewer"
+    teacher_authored:
+      active: false
+      status: "V1 fourth source; requires Web v2 entry UI"
+
+  quality_gate_v1:
+    description: "Every question — AI or human — must pass ALL gates to enter verified/."
+    gates:
+      - id: structure
+        description: "All required fields present + types valid + stem length OK + curriculum alignment"
+      - id: provenance
+        description: "All provenance fields present + AI_ADAPTED requires parent_question_id"
+      - id: answer
+        description: "short_answer: answer parses into a single numeric kind (fraction/decimal/integer/percent/mixed); NOT string-fallback. alt_answers must be equivalent."
+      - id: dedupe
+        description: "Stem not ≥ 0.95 similar (Jaccard) to any existing verified question"
+      - id: parent
+        description: "AI_ADAPTED: parent_question_id must exist in verified bank"
+    note: "V1 does NOT verify mathematical correctness against a separate ground truth. Subject Specialist (math-specialist) is responsible for confirming the answer is correct before submission. The Quality Agent rejects only unparseable / multi-form answers."
+
+  rejected_path:
+    description: "Failed questions go to questions/rejected/<subject>/G<grade>/<id>.json with `reason` and `stage`."
+    retention: "permanent (for human audit)"
+
+  verified_index:
+    description: "Streaming JSONL; one entry per verified question. Used by verified_bank_lookup for fast pre-filter."
+    path: "data/question-bank/index.jsonl"
+    fields:
+      - id
+      - subject
+      - grade
+      - knowledge_point
+      - difficulty
+      - type
+      - license
+      - source_class
+      - generated_at
+      - verified_at
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 3 — Subject Specialist Data Models (subject-v1 contract)
+# ──────────────────────────────────────────────────────────────────────────────
+subject_v1_contract:
+  version: "subject-v1"
+  description: "Unified Subject Specialist contract. Learning Director dispatches any subject through this single shape. INTERFACE ONLY — each subject keeps its own expertise."
+  shipped_date: "2026-08-27T1100Z"
+
+  subject_specialist_request:
+    fields:
+      - contract_version  # MUST equal "subject-v1"
+      - subject  # one of: math / chinese / english / science / social_studies
+      - student_id  # matches STUDENT_ID_RE pattern
+      - learning_goal  # free text
+      - knowledge_point  # e.g. "math.G2.NUMBER.add-1digit"
+      - school_progress  # optional, read-only reference
+      - mastery_context  # optional, current mastery snapshot
+      - teaching_plan  # optional, from learning_director_v2
+      - question_request  # nest student_answer / expected_answer / stem / hint_history here
+      - diagnosis  # optional, prior diagnosis
+      - next_action  # optional, prior action
+    invariants:
+      - "contract_version MUST be present and equal to 'subject-v1'"
+      - "subject MUST be one of the 5 supported"
+      - "student_id MUST match /^student_[A-Za-z0-9_-]+$/"
+      - "knowledge_point MUST be a non-empty string"
+
+  subject_specialist_response:
+    fields:
+      - subject
+      - student_id
+      - knowledge_point
+      - evidence_payload  # SCHEMA per-subject (math-specialist-evidence-v1 / chinese-specialist-evidence-v1 / english-specialist-evidence-v1 / science-specialist-evidence-v1 / social-studies-specialist-evidence-v1)
+      - diagnosis_payload  # SCHEMA per-subject (*-specialist-diagnosis-v1)
+      - next_action  # {action, rationale}
+      - teaching_plan  # optional
+      - capability_gaps  # e.g. ["no_image_recognition","experiment_simulation_is_text_only"]
+      - contract_version
+    invariants:
+      - "evidence_payload schema MUST match subject's specialist schema (NOT generic)"
+      - "diagnosis_payload schema MUST match subject's specialist schema"
+      - "Subject expertise preserved verbatim — no merging into generic tutor"
+
+  per_subject_evidence_payload_schemas:
+    math:
+      schema: "math-specialist-evidence-v1"
+      fields:
+        - student_id
+        - subject: math
+        - knowledge_point
+        - subskill
+        - error_code  # single (vs Chinese list)
+        - result: correct | incorrect | partially_correct
+        - diagnosis.verdict  # correct / fraction-equal / etc.
+        - validator_version: "1"
+    chinese:
+      schema: "chinese-specialist-evidence-v1"
+      fields:
+        - student_id
+        - subject: chinese
+        - knowledge_point
+        - error_codes  # LIST with ZH-* prefix
+        - result
+    english:
+      schema: "english-specialist-evidence-v1"
+      fields:
+        - student_id
+        - subject: english
+        - knowledge_point
+        - subskill  # reading / writing / grammar / vocab / listening / speaking
+        - mode  # written / spoken
+        - error_codes  # LIST with EN-* prefix
+        - result
+    science:
+      schema: "science-specialist-evidence-v1"
+      fields:
+        - student_id
+        - subject: science
+        - knowledge_point
+        - subskill  # concept / experiment / data_interpretation / diagram / safety
+        - error_codes  # LIST with SCI-* prefix
+        - result
+    social_studies:
+      schema: "social-studies-specialist-evidence-v1"
+      fields:
+        - student_id
+        - subject: social_studies
+        - knowledge_point
+        - subskill  # history / geography / civics / culture / timeline / map / causality / source_comparison / data_interpretation
+        - error_codes  # LIST with SS-* prefix
+        - result
+
+  cross_subject_merge:
+    description: "When multiple subjects surface decisions in one session, merge by priority."
+    priority_order:
+      - mastery_check
+      - backtrack_prerequisite
+      - drill
+      - text_prompt
+    tie_break: "lower mastery wins (the more uncertain subject gets the action)"
+
+  invariants:
+    - "Subject specialists NEVER write to data/mastery/<id>.json directly — only append to evidence ledger"
+    - "evidence ledger (data/mastery-evidence/<id>.jsonl) is APPEND-ONLY"
+    - "Cross-student reads/writes ALWAYS forbidden"
+    - "All dispatch paths pure (no I/O except via emit_evidence)"
+    - "Unified contract dispatcher preserves subject-specific evidence_payload schema verbatim"

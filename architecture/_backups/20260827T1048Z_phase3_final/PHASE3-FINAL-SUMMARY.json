@@ -1,0 +1,39 @@
+{
+  "phase": 3,
+  "phase_name": "Subject Intelligence",
+  "shipped_date": "2026-08-27T1100Z",
+  "sub_sessions": ["A:Math", "B:Chinese", "C:English", "D:Science", "E:SocialStudies", "F:UnifiedContract"],
+  "tools_total": 116,
+  "tools_breakdown": {
+    "phase_2_baseline": 43,
+    "math": 11,
+    "chinese": 11,
+    "english": 16,
+    "science": 11,
+    "social_studies": 13,
+    "unified_contract": 11
+  },
+  "tests_total": 895,
+  "tests_pass": 895,
+  "tests_fail": 0,
+  "protected_files_md5": {
+    "AGENTS.md": "fc0a1477c9bd6ae631cf2aea5ce75f1e",
+    "SOUL.md": "e067ae104d26c5ca90679be0b23a4fe7",
+    "USER.md": "9f90803726401fa166be4ab1ad848182",
+    "IDENTITY.md": "d165c2d42796d1f41455020b31785def",
+    "student_001.jsonl": "5facdbf0b47e67d30baea59704ef0a90",
+    "student_001.json": "a6bd940971b06b5a1e24b20dd804cc48",
+    "student_002.json": "6bf5cb74e9e5b9febdfc9f5fe72ad87e"
+  },
+  "learning_records_student_001_lines": 26,
+  "invariants_kept": [
+    "Each subject owns its own error taxonomy (MATH-/ZH-/EN-/SCI-/SS-)",
+    "Each subject emits own evidence_payload schema",
+    "Subject specialists NEVER modify mastery directly",
+    "Math validator: pure JS, no LLM",
+    "STT local-only (SenseVoice), cloud STT forbidden",
+    "Unified contract is INTERFACE ONLY",
+    "Protected file MD5s unchanged",
+    "learning-records append-only invariant maintained"
+  ]
+}

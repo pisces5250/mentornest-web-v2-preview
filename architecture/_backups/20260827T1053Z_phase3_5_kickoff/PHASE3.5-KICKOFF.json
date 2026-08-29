@@ -1,0 +1,28 @@
+{
+  "phase": "3.5",
+  "phase_name": "Teaching Infrastructure",
+  "kickoff_date": "2026-08-27T1052Z",
+  "product_decisions_locked": {
+    "visual_engine": "SVG-first; Canvas reserved for handwriting",
+    "tts": "Local TTS via sherpa-onnx-tts; pronunciation scoring NOT a blocker",
+    "verified_bank_promotion": "coverage-driven realtime, NOT bulk cadence",
+    "inferred_school_progress_ttl_days": 30,
+    "inferred_school_progress_expiry_policy": "mark stale; NEVER delete; NEVER auto-promote to confirmed",
+    "legacy_backfill_policy": "dry-run-first; raw records immutable; evidence tag = 'legacy_backfill'"
+  },
+  "subsessions": [
+    {"id": "A", "task": "Math Visual Engine v1 SVG-first", "depends_on": [], "spawn_now": true},
+    {"id": "B", "task": "Local TTS integration (sherpa-onnx-tts)", "depends_on": [], "spawn_now": false},
+    {"id": "C", "task": "Legacy mastery backfill dry-run + migration", "depends_on": [], "spawn_now": true},
+    {"id": "D", "task": "Curriculum inferred TTL/stale lifecycle", "depends_on": [], "spawn_now": false},
+    {"id": "E", "task": "Final integration / regression", "depends_on": ["A","B","C","D"], "spawn_now": false}
+  ],
+  "concurrency_cap": 2,
+  "invariants": [
+    "Do NOT modify mentornest-web",
+    "Do NOT modify AGENTS/SOUL/USER/IDENTITY",
+    "Do NOT add cloud APIs",
+    "All production data migration: snapshot-first, dry-run-first",
+    "Raw learning-records/*.jsonl is APPEND-ONLY (existing 26 lines must remain)"
+  ]
+}

@@ -1,0 +1,510 @@
+version: "1.0"
+
+status_values:
+  - ready
+  - partial
+  - missing
+  - needs_vetting
+  - future
+
+capabilities:
+
+  student_profile:
+    status: ready
+    owner: learning-memory-agent
+    implementation:
+      - student_profile_get
+      - student_profile_update
+      - student_profile_v2_get
+      - student_profile_v2_update
+
+  learning_record:
+    status: ready
+    owner: learning-memory-agent
+    implementation:
+      - learning_record_append
+
+  practice_generation:
+    status: ready
+    owner: math-specialist
+    implementation:
+      - generate_practice_set
+
+  math_error_diagnosis:
+    status: ready
+    owner: math-specialist
+    implementation:
+      - classify_math_error
+      - deterministic_math_validator
+      - hint_ladder_next
+      - math_specialist_independent_verify
+
+  learning_director:
+    status: ready
+    owner: learning-director
+    implementation:
+      - learning_event_reader
+      - learning_director_cross_subject_weakness_aggregator
+      - learning_director_prerequisite_gap_detector
+      - learning_director_weekly_strategy_emitter
+    note: "Phase 2 third batch (2026-08-27): full v1 SHIPPED. weekly_strategy_emitter emits parent_summary_for_week with privacy copy. Parent weekly report (deferred ≥2 weeks mastery) still to."
+
+  curriculum_tracking:
+    status: ready
+    owner: curriculum-agent
+    implementation:
+      - curriculum_map_lookup
+      - curriculum_meta
+      - school_progress_get
+      - school_progress_update_confirmed
+      - school_progress_infer
+      - school_progress_promote_to_confirmed
+      - confirmed_vs_inferred_progress_tracker
+      - school_alignment
+      - textbook_mapping_engine
+    invariants:
+      - "confirmed_at / inferred_at NEVER co-exist on the same record"
+      - "source_type ∈ {official_curriculum, parent_confirmed, teacher_material_confirmed, textbook_mapping, inferred_from_learning}"
+      - "Publishers (康軒/翰林/南一) used only for mapping; NO publisher content reproduced"
+      - "V1 curriculum scope = Taiwan 教育部 G1–G6 only"
+      - "data/curriculum-progress/<id>.jsonl is APPEND-ONLY (one record per line, fsync)"
+    note: "Phase 2 fourth batch (2026-08-27T0809Z): Curriculum Agent v1 SHIPPED. 7 new tools (school_progress_* + school_alignment + confirmed_vs_inferred_progress_tracker + textbook_mapping_engine). Confirmed and inferred records kept physically separate (different timestamp fields, different lines in the ledger). Read tools (get, tracker, alignment) are side-effect free."
+
+  taiwan_curriculum_mapping:
+    status: partial
+    owner: curriculum-agent
+    implementation:
+      - architecture/curriculum/index.yaml
+      - architecture/curriculum/{math,chinese,english,science,social_studies}.yaml
+    note: "Phase 2 first batch (2026-08-27): V1 = G1–G6 only. Source = 教育部 十二年國民基本教育課程綱要 (各領域). No publisher content."
+
+  deterministic_math_validation:
+    status: ready
+    owner: math-specialist
+    implementation:
+      - deterministic_math_validator
+    note: "Phase 2 first batch (2026-08-27): pure-JS, no LLM, supports fraction/decimal/percent/mixed/integer/expression equivalence."
+
+  math_visualization:
+    status: partial
+    existing:
+      - diagram-maker
+    missing:
+      - fraction_bar
+      - number_line
+      - bar_model
+      - safe_math_renderer
+
+  adaptive_learning:
+    status: ready
+    existing:
+      - adaptive-learning
+      - study-buddy
+
+  knowledge_digest:
+    status: ready
+    existing:
+      - knowledge-digest  # canonical_name; local_directory workspace/skills/eric-knowledge-digest (see skills-registry.yaml)
+
+  local_stt:
+    status: ready
+    existing:
+      - mentornest-stt
+      - SenseVoice-Small-int8
+      - ffmpeg
+      - internal-stt-api
+
+  tts:
+    status: missing
+    priority: medium
+
+  pronunciation_assessment:
+    status: missing
+    priority: medium
+
+  question_bank:
+    status: missing
+    priority: critical
+
+  question_quality:
+    status: missing
+    priority: critical
+
+  question_license_tracking:
+    status: missing
+    priority: high
+
+  mastery_engine:
+    status: partial
+    existing:
+      - adaptive-learning
+      - mastery_store_get
+      - mastery_store_update
+    missing:
+      - server_side_mastery_model_full_FSRS
+      - subskill_mastery_visualization
+      - school_alignment_signals
+    note: "Phase 2 first batch (2026-08-27): mastery store SHIPPED with simplified schedule placeholder; full FSRS adapter still to build."
+
+  question_bank_v1:
+    status: ready
+    owner: question-bank-curator
+    implementation:
+      - question_bank_curator_curate
+      - question_quality_agent_verify
+      - question_quality_agent_dedupe_check
+      - verified_bank_lookup
+      - verified_bank_count
+      - question_bank_coverage_report
+      - ai_question_authoring_orchestrator_run
+      - ai_question_authoring_plan
+      - math_specialist_independent_verify
+    source_priority_locked:
+      - "MentorNest AI original / adapted (V1 first source, ACTIVE 2026-08-27)"
+      - "student-private upload (V1 second source, deferred to Phase 4 + OCR pipeline)"
+      - "clear open-license (V1 third source, pending candidate review)"
+      - "teacher/parent-authored (V1 fourth source, requires Web v2 entry)"
+    authoring_mode: "coverage-driven, not cadence-driven"
+    note: "Phase 2 second batch (2026-08-27) + third batch (2026-08-27): orchestrator + coverage report + math-specialist independent verify ALL SHIPPED. AI authoring is coverage-driven: every cycle computes gaps then fills them. Production authorFn to be supplied by in-house generator skill; V1 ships with deterministic stub."
+
+  parent_setup_v1:
+    status: ready
+    owner: learning-memory-agent
+    implementation:
+      - parent_setup_schema_validate
+      - parent_setup_schema_copy
+    invariants:
+      - "school_name / class_name NEVER requested by default (advanced_only)"
+      - "school_progress maintained by curriculum-agent, not parent"
+      - "zh-TW only in V1"
+    note: "Phase 2 second batch (2026-08-27). One-shot payload + zh-TW copy. No web UI yet; Web v2 will consume."
+
+  production_question_authoring:
+    status: ready
+    owner: mentornest-question-author (production AI)
+    implementation:
+      - mentornest_question_author_production
+      - ai_question_authoring_orchestrator_run
+      - question_bank_coverage_report
+    invariants:
+      - "Input payload filtered: NO display_name, school_name, class_name, parent_concerns, raw_learning_history, voice, image, audio, photo, child_voice, child_image, school_progress_inferred_from_history, raw_learning_events"
+      - "Output payload filtered: same forbidden fields blocked on the model response"
+      - "No new external API; reuses OpenClaw gateway + MiniMax-M3 (same as generate_practice_set)"
+      - "Coverage-driven authoring: no fixed weekly quota. Each cycle computes gaps and fills them."
+      - "Confidence threshold >= 0.4 (below = reject)"
+      - "Malformed JSON recovered by fence; transient 5xx retried with exp backoff (max 2)"
+      - "AI-authored questions go through the SAME 5 Quality Gates as human-authored"
+    note: "Phase 2 fourth batch (2026-08-27T0809Z). Production authorFn usable today via mentornest_question_author_production tool. Feeds directly into the existing author → math-specialist verify → curator → quality gate → verified bank pipeline."
+
+  mastery_engine_v2:
+    status: ready
+    owner: mastery-engine
+    implementation:
+      - mastery_engine_v2_update_from_evidence
+      - mastery_engine_v2_annotate_school_alignment
+      - mastery_engine_v2_error_pattern_aggregation
+      - mastery_engine_v2_retention_signal
+      - mastery_engine_v2_list_evidence
+      - mastery_engine_v2_get
+      - mastery_store_update (v1 retained for backward compat)
+      - mastery_store_get (v1 retained for backward compat)
+    invariants:
+      - "Mastery grows ONLY from objective evidence (events + assessments). NO direct mastery writes."
+      - "set_mastery and direct mastery inputs REJECTED on every tool surface"
+      - "Browser localStorage NEVER source-of-truth; storage is server-side (data/mastery/<id>.json + data/mastery-evidence/<id>.jsonl)"
+      - "evidence ledger (data/mastery-evidence/<id>.jsonl) is APPEND-ONLY"
+      - "subskill mastery tracked separately under subskill field"
+      - "R(t) = 2^(-t/H) with H = 21 days; clamp >= 0.01; blend with decay (no snap to 1)"
+      - "FSRS-lite intervals: q1=10min, q2=1d, q3=3d, q4=max(3, mastery*30), q5=max(5, mastery*45)"
+      - "school_alignment annotation does NOT change mastery"
+    note: "Phase 2 fourth batch (2026-08-27T0809Z). Server-side engine v2 SHIPPED with 6 new tools + retained v1. error_pattern aggregation produces { type: count } flat map. Retention signal reports average_retention + stale_count. Mastery updated from evidence ledger alone; LLM/agent cannot override."
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Phase 3 — Subject Specialists (5 subjects × per-subject surface)
+  # ──────────────────────────────────────────────────────────────────────────
+  math_specialist_v2:
+    status: ready
+    owner: math-specialist
+    implementation:
+      - math_error_taxonomy_lookup
+      - math_visual_engine_render
+      - math_hint_ladder_v2_next
+      - word_problem_decomposer_analyze
+      - word_problem_decomposer_match_template
+      - math_prerequisite_chain_get
+      - math_prerequisite_weakest
+      - math_specialist_diagnose
+      - math_specialist_build_teaching_plan
+      - math_specialist_decide
+      - math_specialist_emit_evidence
+    invariants:
+      - "All math validation PURE JS — no LLM"
+      - "Math specialist NEVER modifies mastery; only emits evidence_payload"
+      - "Math-specific error codes: MATH-CON-COUNT, MATH-OP-PARITY, MATH-PROC-SWAP, ..."
+      - "Visual engine returns structured descriptor (number-line / fraction-bar / area-model); text-only deterministic"
+      - "Math specialist is the ONLY subject that owns a pure deterministic validator"
+    note: "Phase 3-A (2026-08-27T0923Z). 11 tools shipped. Math visual engine is text descriptor based, NOT image rendering — avoids vision-API dependency."
+
+  chinese_specialist_v1:
+    status: ready
+    owner: chinese-specialist
+    implementation:
+      - chinese_error_taxonomy_lookup
+      - chinese_curriculum_lookup_kp
+      - chinese_curriculum_list_for_grade
+      - chinese_subskill_classify
+      - chinese_hint_ladder_next
+      - chinese_specialist_diagnose
+      - chinese_specialist_build_teaching_plan
+      - chinese_specialist_decide
+      - chinese_specialist_emit_evidence
+      - chinese_classify_grammar_error
+      - chinese_phonetic_lookup
+    invariants:
+      - "Chinese uses ZH-* error codes (NOT shared with English/Japanese)"
+      - "Subskills: 字音 / 字形 / 詞義 / 句型 / 文意 / 標點 / 修辭"
+      - "zh-TW only — no simplified Chinese variants"
+      - "Chinese specialist NEVER modifies mastery"
+    note: "Phase 3-B (2026-08-27). 11 tools shipped. Phonetic lookup is note-based (注音) without TTS — TTS forbidden via cloud."
+
+  english_specialist_v1:
+    status: ready
+    owner: english-specialist
+    implementation:
+      - english_error_taxonomy_lookup
+      - english_curriculum_lookup_kp
+      - english_curriculum_list_for_grade
+      - english_subskill_classify
+      - english_hint_ladder_next
+      - english_specialist_diagnose
+      - english_specialist_build_teaching_plan
+      - english_specialist_decide
+      - english_specialist_emit_evidence
+      - english_stt_transcribe_audio
+      - english_stt_evaluate_pronunciation
+      - english_specialist_text_rewrite
+      - english_specialist_vocab_drill
+      - english_specialist_grammar_drill
+      - english_specialist_listening_practice
+      - english_specialist_speaking_practice
+    invariants:
+      - "English uses EN-* error codes"
+      - "STT is LOCAL (SenseVoice-Small int8 + sherpa-onnx). Cloud STT explicitly forbidden."
+      - "TTS / pronunciation scoring interface present but DOES NOT pull cloud APIs"
+      - "Voice input NEVER default — opt-in only"
+      - "Text rewrite is deterministic, no LLM"
+    note: "Phase 3-C (2026-08-27). 16 tools shipped. STT is interface-only; production routes through local STT pipeline (skills/mentornest-stt)."
+
+  science_specialist_v1:
+    status: ready
+    owner: science-specialist
+    implementation:
+      - science_error_taxonomy_lookup
+      - science_specialist_diagnose
+      - science_specialist_analyze_experiment
+      - science_specialist_interpret_chart_table
+      - science_specialist_interpret_diagram
+      - science_specialist_decide
+      - science_specialist_emit_evidence
+      - science_hint_ladder_next
+      - science_curriculum_lookup_kp
+      - science_curriculum_list_for_grade
+      - science_subskill_classify
+    invariants:
+      - "Science uses SCI-* error codes (separate taxonomy from math)"
+      - "Variable control enforcement: independent / dependent / controlled must all be present"
+      - "Observation vs inference distinction enforced via subskill classifier"
+      - "Chart/table interpretation requires axis-confirmation reasoning step"
+      - "experiment_simulation is text-only — no virtual lab"
+    note: "Phase 3-D (2026-08-27T1010Z). 11 tools shipped. Subskills: concept / experiment / data_interpretation / diagram / safety."
+
+  social_studies_specialist_v1:
+    status: ready
+    owner: social-studies-specialist
+    implementation:
+      - social_studies_error_taxonomy_lookup
+      - social_studies_specialist_diagnose
+      - social_studies_specialist_analyze_timeline
+      - social_studies_specialist_analyze_map
+      - social_studies_specialist_analyze_causality
+      - social_studies_specialist_compare_sources
+      - social_studies_specialist_interpret_demographic_chart
+      - social_studies_specialist_decide
+      - social_studies_specialist_emit_evidence
+      - social_studies_hint_ladder_next
+      - social_studies_curriculum_lookup_kp
+      - social_studies_curriculum_list_for_grade
+      - social_studies_subskill_classify
+    invariants:
+      - "Social studies uses SS-* error codes"
+      - "Timeline ordering: detects misplaced / missing / extra events"
+      - "Source comparison: primary vs secondary perspectives"
+      - "Causality: short-term vs long-term vs multi-cause"
+      - "No image OCR / map image recognition (text descriptors only)"
+    note: "Phase 3-E (2026-08-27T1030Z). 13 tools shipped. Subskills: history / geography / civics / culture / timeline / map / causality / source_comparison / data_interpretation."
+
+  unified_subject_contract_v1:
+    status: ready
+    owner: learning-director-v2
+    implementation:
+      - subject_v1_contract_version
+      - subject_v1_validate_request
+      - subject_v1_validate_response
+      - subject_specialist_dispatch
+      - subject_specialist_capability_report
+      - cross_subject_merge_decisions
+      - learning_director_v2_dispatch_next_step
+      - learning_director_v2_capability_report
+      - subject_v1_request_template
+      - subject_v1_response_template
+      - subject_v1_dispatch_examples
+    invariants:
+      - "Contract version: 'subject-v1'"
+      - "INTERFACE ONLY — must NOT merge subject expertise into generic tutor"
+      - "Each subject keeps its own: skill stack / error taxonomy / hint ladder / evaluation logic"
+      - "evidence_payload schema preserved verbatim per subject (math-specialist-evidence-v1 / chinese-specialist-evidence-v1 / ...)"
+      - "Cross-subject merge priority: mastery_check > backtrack_prerequisite > drill > text_prompt"
+      - "Tie-break in multi-subject decisions: lower mastery wins"
+    note: "Phase 3-F (2026-08-27T1100Z). 11 tools shipped. Learning Director v2 EXTENDS (does not modify) the original learning_director.mjs. Each subject's specialist remains the source of expertise."
+
+  parent_weekly_report:
+    status: missing
+    priority: critical
+    note: "Deferred until ≥ 2 weeks of mastery data per active student."
+
+  web_v2:
+    status: partial
+    existing:
+      - multiple_choice
+      - practice_generation
+      - error_diagnosis
+      - learning_record
+      - microphone_stt
+    missing:
+      - multi_question_type_engine
+      - deterministic_answer_engine
+      - visual_teaching_engine
+      - tutor_dialogue_panel
+      - parent_view
+      - responsive_v2_layout
+
+  handwriting_math:
+    status: future
+    notes:
+      - "Vision API is more practical for MVP than current local HMR ecosystem."
+      - "Canvas should preserve stroke data for future models."
+
+  system_orchestration:
+    status: partial
+    existing:
+      - skill-finder  # canonical_name "Skill Finder (Find ClawHub skills + Search Skills.sh)"
+      - skill-vetter
+      - self-improving-agent       # canonical_name; local_directory workspace/skills/stitch-self-improver
+      - self-improvement           # canonical_name; local_directory workspace/skills/self-improving-agent-c
+      - self-evolving-skills
+      - student-profile            # workflow-only, not a tool provider
+      - mentornest-system-orchestrator
+      - browser-automation         # plugin-skills source
+    archived_skills:
+      - adaptivetest  # archived 2026-08-27; see skills-registry.yaml §4
+    missing:
+      - service_registry_enforcement
+      - automated_change_plan
+      - regression_harness
+      - rollback_manager
+      - deployment_adapter
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 4A — Question ingestor + segmenter (raw pool only)
+# ──────────────────────────────────────────────────────────────────────────────
+
+phase_4a_raw_question_ingestor_and_segmenter:
+  status: shipped_20260827T1131Z
+  plugin: mentornest-learning
+  new_tools:
+    - name: raw_question_ingest
+      purpose: Ingest text/structured/pdf/image into RawCandidate[] (no writes)
+      kinds_supported: [text, structured, pdf, image]
+      pdf_image_behavior: "ok=false with errors[0].code='unsupported_in_round_4a' (no cloud OCR installed this round)"
+      writes_to_disk: false
+    - name: raw_question_segment
+      purpose: Segment RawCandidate[] into SegmentedQuestion[] (no writes)
+      types_recognized: [short_answer, multiple_choice, true_false, fill_in_blank, essay, unknown]
+      writes_to_disk: false
+  invariants:
+    - "Raw Pool only; Verified Bank writes remain the curator's job"
+    - "No new npm packages installed (no pdf-parse, no cloud OCR, no vision packages)"
+    - "PDF/image binary paths fail with clean unsupported_in_round_4a error, not silent"
+  test_count_phase_4a: 117
+  plugin_tools_total_after_phase_4a: 132
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 4 — Child Learning Experience Designer (architecture only)
+# ──────────────────────────────────────────────────────────────────────────────
+
+phase_4_child_learning_experience_designer:
+  status: architecture_only_20260827T1239Z
+  plugin: mentornest-web (NOT modified this round)
+  new_agent:
+    canonical_name: child-learning-experience-designer
+    role: child-facing UI/UX + Design System owner
+    responsibilities:
+      - child_facing_ui_design
+      - design_system_maintenance
+      - subject_specialist_to_ui_translation
+      - mentornest_web_ux_review
+      - web_v2_implementation_spec
+      - age_appropriateness_review
+      - accessibility_review
+      - cognitive_load_review
+    cannot:
+      - judge_student_mastery
+      - modify_learning_records
+      - decide_teaching_content
+      - override_subject_specialist_diagnosis
+      - trade_accessibility_for_aesthetics
+  handoff_contract:
+    name: presentation_request_v1
+    direction: subject_specialist → child_learning_experience_designer
+    request_fields:
+      - subject
+      - grade
+      - question_type
+      - representation_type
+      - learning_goal
+      - interaction_required
+      - hint_level
+      - accessibility_context
+    response_fields:
+      - component_type
+      - layout
+      - interaction_pattern
+      - visual_priority
+      - responsive_rules
+      - child_copy
+  design_registry_path: architecture/design/
+  files:
+    - design-system.yaml
+    - design-tokens.yaml
+    - age-profiles.yaml
+    - components.yaml
+    - interaction-patterns.yaml
+    - accessibility.yaml
+  personalization_bounded:
+    allowed:
+      - simple_vs_lively
+      - animation_tolerance
+      - font_size_preference
+      - character_guidance_preference
+    invariants:
+      - must_not_break_accessibility
+      - must_not_break_consistency
+      - must_not_break_assessment_fairness
+      - must_not_alter_subject_specialist_teaching_intent
+  out_of_scope_this_round:
+    - mentornest-web code modifications
+    - new skill installation
+    - actual UI redesign
+    - subject_specialist pedagogy changes
+

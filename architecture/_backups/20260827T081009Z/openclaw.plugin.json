@@ -1,0 +1,45 @@
+{
+  "id": "mentornest-learning",
+  "name": "MentorNest Learning",
+  "description": "MentorNest Phase 2 learning plugin: profile v1/v2, learning records, deterministic math validator, hint ladder, learning event reader, mastery store, curriculum map, question bank (curator + quality agent), verified bank lookup, parent setup schema, coverage-driven AI authoring orchestrator, math-specialist independent answer verification, learning director (cross-subject weakness, prerequisite gap, weekly strategy).",
+  "contracts": {
+    "tools": [
+      "student_profile_get",
+      "student_profile_update",
+      "student_profile_v2_get",
+      "student_profile_v2_update",
+      "learning_record_append",
+      "learning_event_reader",
+      "generate_practice_set",
+      "generate_practice_set_v2",
+      "classify_math_error",
+      "deterministic_math_validator",
+      "hint_ladder_next",
+      "mastery_store_get",
+      "mastery_store_update",
+      "curriculum_map_lookup",
+      "curriculum_meta",
+      "question_bank_curator_curate",
+      "question_quality_agent_verify",
+      "question_quality_agent_dedupe_check",
+      "verified_bank_lookup",
+      "verified_bank_count",
+      "parent_setup_schema_validate",
+      "parent_setup_schema_copy",
+      "math_specialist_independent_verify",
+      "question_bank_coverage_report",
+      "ai_question_authoring_orchestrator_run",
+      "ai_question_authoring_plan",
+      "learning_director_cross_subject_weakness_aggregator",
+      "learning_director_prerequisite_gap_detector",
+      "learning_director_weekly_strategy_emitter"
+    ]
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  }
+}

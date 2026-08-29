@@ -1,0 +1,170 @@
+{
+  "checkpoint_kind": "phase3-provider-wait",
+  "checkpoint_reason": "User requested pause; provider (MiniMax-M3) experienced event that interrupted mid-batch work. Enter WAITING_PROVIDER state.",
+  "created_at": "2026-08-27T08:55:50Z",
+  "owner_skill": "mentornest-system-orchestrator",
+
+  "main_session": {
+    "session_key": "agent:main:line:direct:ua3b82723abfd8b1b0083debf534a09c5",
+    "state": "WAITING_PROVIDER",
+    "status_summary": "Paused per user instruction at 2026-08-27T08:55:50Z. No architecture or production changes allowed while in this state.",
+    "context_usage_at_pause": {
+      "tokens_in_cached": 127000,
+      "context_pct_at_last_status_check": 37,
+      "max_active_children_cap": 5
+    },
+    "previous_batch_status": "Phase 2 fourth batch delivered (43 tools, 317 tests); Phase 3 dispatch attempted; sub-sessions A-E spawned; sub-session F rejected by 5/5 cap and was awaiting completion of A-E."
+  },
+
+  "child_sessions": {
+    "dispatched_in_phase3": 5,
+    "sub_session_F_dispatched": false,
+    "reason_F_not_dispatched": "Hit max active children cap (5/5); runtime-policy.yaml requires sequential F dispatch after A-E reconcile.",
+    "sessions": [
+      {
+        "task_name": "phase3_a_math_specialist",
+        "session_key": "agent:main:subagent:8d5605a6-2660-4dc9-9b25-725f0cd997f4",
+        "run_id": "69a7b62c-8888-4aed-b0e8-fb65e5ebda30",
+        "spawned_at": "2026-08-27T08:44:42Z",
+        "last_observed_runtime": "2m49s",
+        "status": "unknown",
+        "status_basis": "Last observed running at 08:47:31Z. Active subagents list at 08:55:50Z shows session no longer active. No completion event received and no failed event received. Treated as 'unknown' — needs reconciliation on resume.",
+        "on_disk_artifacts": "none observed",
+        "tests_completed": "unknown — no test file under test/ matching math_visual / math_hint_ladder_v2 / word_problem / prerequisite / math_specialist_v2 / math_error_taxonomy",
+        "deliverables_expected": [
+          "lib/math_visual_engine.mjs", "lib/math_hint_ladder_v2.mjs", "lib/word_problem_decomposer.mjs",
+          "lib/prerequisite_chain.mjs", "lib/math_specialist_v2.mjs", "lib/math_error_taxonomy.mjs",
+          "11 plugin tools", "6 test files + integration_phase3_a.test.mjs"
+        ]
+      },
+      {
+        "task_name": "phase3_b_chinese_specialist",
+        "session_key": "agent:main:subagent:d77c200e-b942-471c-b9e6-6f9142565e3c",
+        "run_id": "6496bac2-e0ae-4fcc-aa5b-d8d7b6179da7",
+        "spawned_at": "2026-08-27T08:45:25Z",
+        "last_observed_runtime": "10m25s",
+        "status": "running",
+        "status_basis": "Active subagents list at 08:55:50Z confirms still running. Most-recent of the 5 originally dispatched. May or may not still be active at provider-recovery time.",
+        "on_disk_artifacts": {
+          "lib": [
+            "chinese_error_taxonomy.mjs (+.d.mts) — 15622 bytes",
+            "chinese_curriculum_map.mjs (+.d.mts) — 10118 bytes",
+            "chinese_hint_ladder_v1.mjs (+.d.mts) — 9075 bytes",
+            "chinese_subskill_map.mjs (+.d.mts) — 6153 bytes",
+            "chinese_specialist.mjs (+.d.mts) — 35858 bytes"
+          ],
+          "test": ["chinese_error_taxonomy.test.mjs — 2814 bytes"],
+          "missing": [
+            "tests: chinese_specialist.test.mjs, chinese_hint_ladder.test.mjs, chinese_curriculum_map.test.mjs, chinese_subskill_map.test.mjs, integration_phase3_b.test.mjs",
+            "plugin tools wiring (index.ts) — Chinese tools NOT yet registered",
+            "dist rebuild"
+          ]
+        },
+        "tests_completed": "unknown — only chinese_error_taxonomy.test.mjs on disk; rest of suite not yet written"
+      },
+      {
+        "task_name": "phase3_c_english_specialist",
+        "session_key": "agent:main:subagent:f39d1f5a-b78b-402b-980b-beea907f3124",
+        "run_id": "dfed7e7e-76db-4760-a9df-77b93cb7a2db",
+        "spawned_at": "2026-08-27T08:46:01Z",
+        "last_observed_runtime": "1m29s",
+        "status": "unknown",
+        "status_basis": "Last observed running at 08:47:30Z. Active subagents list at 08:55:50Z shows session no longer active. No completion event received. Treated as 'unknown' — needs reconciliation on resume.",
+        "on_disk_artifacts": "none observed",
+        "tests_completed": "unknown — no test file under test/ matching english_* or integration_phase3_c",
+        "deliverables_expected": [
+          "lib/english_error_taxonomy.mjs", "lib/english_specialist.mjs", "lib/english_hint_ladder_v1.mjs",
+          "lib/english_stt_interface.mjs", "lib/english_curriculum_map.mjs", "lib/english_subskill_map.mjs",
+          "16 plugin tools", "7 test files"
+        ]
+      },
+      {
+        "task_name": "phase3_d_science_specialist",
+        "session_key": "agent:main:subagent:20c9983c-ad19-4904-965a-254b38dbd228",
+        "run_id": "44aaa03a-07f3-4858-bb4d-06aa96594ce6",
+        "spawned_at": "2026-08-27T08:46:34Z",
+        "last_observed_runtime": "55s",
+        "status": "unknown",
+        "status_basis": "Last observed running at 08:47:29Z. Active subagents list at 08:55:50Z shows session no longer active. No completion event received. Treated as 'unknown' — needs reconciliation on resume.",
+        "on_disk_artifacts": "none observed",
+        "tests_completed": "unknown — no test file under test/ matching science_* or integration_phase3_d",
+        "deliverables_expected": [
+          "lib/science_error_taxonomy.mjs", "lib/science_specialist.mjs", "lib/science_hint_ladder_v1.mjs",
+          "lib/science_curriculum_map.mjs", "lib/science_subskill_map.mjs",
+          "11 plugin tools", "6 test files"
+        ]
+      },
+      {
+        "task_name": "phase3_e_social_studies_specialist",
+        "session_key": "agent:main:subagent:5fb2b03e-f8fe-4f25-afbc-1a6b7668c0cf",
+        "run_id": "cc85d859-d8dd-4efd-b924-d11f488747b8",
+        "spawned_at": "2026-08-27T08:47:01Z",
+        "last_observed_runtime": "28s",
+        "status": "unknown",
+        "status_basis": "Last observed running at 08:47:29Z. Active subagents list at 08:55:50Z shows session no longer active. No completion event received. Treated as 'unknown' — needs reconciliation on resume.",
+        "on_disk_artifacts": "none observed",
+        "tests_completed": "unknown — no test file under test/ matching social_studies_* or integration_phase3_e",
+        "deliverables_expected": [
+          "lib/social_studies_error_taxonomy.mjs", "lib/social_studies_specialist.mjs", "lib/social_studies_hint_ladder_v1.mjs",
+          "lib/social_studies_curriculum_map.mjs", "lib/social_studies_subskill_map.mjs",
+          "13 plugin tools", "6 test files"
+        ]
+      }
+    ]
+  },
+
+  "resume_protocol": {
+    "step_1": "On resume, list active subagents and compare against the 5 session_keys above. Mark each as running / completed / failed / unknown based on actual runtime state.",
+    "step_2": "Inventory plugins/mentornest-learning/lib and test/ directories. Cross-reference on-disk artifacts with each sub-session's deliverables_expected list.",
+    "step_3": "Do NOT respawn completed sub-sessions. If artifacts are on disk and look complete, run tests on them locally; if green, integrate.",
+    "step_4": "Retry only unfinished/failed sub-sessions. LIMIT concurrency to MAX 2 sub-sessions at a time per user instruction (this is stricter than runtime-policy.yaml default).",
+    "step_5": "Only spawn Integration F (sub-session F: Unified Subject Specialist contract) AFTER A-E are reconciled AND all 5 Subject Specialist modules are confirmed present (or marked as gaps in capability_report).",
+    "step_6": "Do NOT make architecture or production changes (skills-registry / capabilities / data-model / roadmap / changelog / agents / capability-matrix) until ALL Phase 3 sub-sessions are integrated and tested."
+  },
+
+  "protected_file_md5": {
+    "AGENTS.md": "fc0a1477c9bd6ae631cf2aea5ce75f1e",
+    "SOUL.md": "e067ae104d26c5ca90679be0b23a4fe7",
+    "USER.md": "9f90803726401fa166be4ab1ad848182",
+    "IDENTITY.md": "d165c2d42796d1f41455020b31785def",
+    "data/students/student_001.json": "a6bd940971b06b5a1e24b20dd804cc48",
+    "data/students/student_002.json": "6bf5cb74e9e5b9febdfc9f5fe72ad87e",
+    "data/learning-records/student_001.jsonl": "5facdbf0b47e67d30baea59704ef0a90",
+    "data/learning-records/student_001.jsonl_line_count": 26
+  },
+
+  "forbidden_during_wait": [
+    "spawn new sub-sessions",
+    "retry failed MiniMax calls",
+    "restart completed work",
+    "modify production",
+    "run integration phase F yet",
+    "modify architecture YAMLs (skills-registry, capabilities, data-model, roadmap, changelog, agents, capability-matrix)",
+    "modify AGENTS.md / SOUL.md / USER.md / IDENTITY.md",
+    "modify data/students/*",
+    "modify data/learning-records/*",
+    "modify data/mastery/*",
+    "modify data/curriculum-progress/*",
+    "modify plugins/mentornest-learning/index.ts",
+    "modify plugins/mentornest-learning/dist/index.js",
+    "modify mentornest-web/"
+  ],
+
+  "unfinished_work": {
+    "phase3_a_math_specialist": "All 6 lib modules, 6 test files, 11 plugin tools, dist rebuild — status unknown, needs reconciliation",
+    "phase3_b_chinese_specialist": "5 lib modules on disk; 5 test files + plugin wiring + dist rebuild pending; sub-session still possibly running",
+    "phase3_c_english_specialist": "All 6 lib modules, 7 test files, 16 plugin tools, dist rebuild — status unknown, needs reconciliation",
+    "phase3_d_science_specialist": "All 5 lib modules, 6 test files, 11 plugin tools, dist rebuild — status unknown, needs reconciliation",
+    "phase3_e_social_studies_specialist": "All 5 lib modules, 6 test files, 13 plugin tools, dist rebuild — status unknown, needs reconciliation",
+    "phase3_f_unified_contract": "NOT dispatched; awaiting A-E reconciliation",
+    "phase3_registry_updates": "skills-registry / capabilities / data-model / roadmap / changelog / agents / capability-matrix — NOT done; gate on full integration"
+  },
+
+  "previous_baseline_preserved": {
+    "phase2_total_tests_passing": 317,
+    "phase2_total_lib_modules": 23,
+    "phase2_total_test_files": 24,
+    "phase2_total_tools": 43,
+    "phase2_backup_snapshot": "/home/node/.openclaw/workspace/architecture/_backups/20260827T0840Z/"
+  }
+}

@@ -1,0 +1,47 @@
+version: 1
+subject: "english"
+curriculum_doc: "tw-12yrc-english-v1"
+scope: "G1-G6"
+
+grades:
+  3:
+    knowledge_points:
+      - id: "english.G3.PHONE.letter-sound"
+        description: "字母與基本字母拼讀"
+        stage: "三上"
+      - id: "english.G3.VOC.basic-vocab"
+        description: "基礎日常字彙"
+        stage: "三下"
+
+  4:
+    knowledge_points:
+      - id: "english.G4.READ.short-passage"
+        description: "短篇閱讀理解"
+        stage: "四上"
+      - id: "english.G4.GRAMMAR.present-simple"
+        description: "現在簡單式"
+        stage: "四下"
+
+  5:
+    knowledge_points:
+      - id: "english.G5.READ.passage-inference"
+        description: "段落推論閱讀"
+        stage: "五上"
+      - id: "english.G5.GRAMMER.present-progressive"
+        description: "現在進行式"
+        stage: "五上"
+      - id: "english.G5.SPEAK.short-dialog"
+        description: "短對話口語練習"
+        stage: "五下"
+
+  6:
+    knowledge_points:
+      - id: "english.G6.READ.longer-passage"
+        description: "較長篇章閱讀"
+        stage: "六上"
+      - id: "english.G6.GRAMMAR.past-future"
+        description: "過去式與未來式基礎"
+        stage: "六下"
+      - id: "english.G6.WRITE.short-paragraph"
+        description: "短文寫作"
+        stage: "六下"

@@ -1,0 +1,50 @@
+version: "1.0"
+architecture_version: "v2-baseline"
+
+project:
+  name: "MentorNest"
+  type: "AI learning management and tutoring system"
+  primary_language: "zh-TW"
+
+mission: >
+  Long-term management of each child's learning progress using a structured
+  multi-agent system. MentorNest tracks school curriculum progress, current
+  mastery, learning weaknesses, error patterns, review needs and parent goals.
+  Subject-specialist agents provide teaching. A Learning Director coordinates
+  learning strategy. A Parent Report Agent produces weekly parent-facing reports.
+
+core_principles:
+  - "Student learning history must remain isolated by student_id."
+  - "Do not compare siblings."
+  - "Objective learning events and AI interpretations must remain distinguishable."
+  - "Do not treat inferred school progress as confirmed school progress."
+  - "Deterministic validation should decide objective math correctness when possible."
+  - "LLMs diagnose and teach; they should not invent objective mastery evidence."
+  - "When explanation fails, change representation before increasing text."
+  - "Each subject specialist must have its own professional skill stack."
+  - "Question sources, licensing and verification status must be traceable."
+  - "Children's voice and learning data must not be silently sent to external services."
+  - "Architecture evolves by versioned additions/removals rather than undocumented rewrites."
+
+baseline_agents:
+  - system-orchestrator
+  - learning-director
+  - curriculum-agent
+  - math-specialist
+  - chinese-specialist
+  - english-specialist
+  - science-specialist
+  - social-studies-specialist
+  - question-bank-curator
+  - question-quality-agent
+  - assessment-agent
+  - learning-memory-agent
+  - parent-report-agent
+
+shared_engines:
+  - visual-teaching-engine
+  - hint-ladder
+  - mastery-analytics
+  - answer-normalization
+  - question-bank
+  - local-stt

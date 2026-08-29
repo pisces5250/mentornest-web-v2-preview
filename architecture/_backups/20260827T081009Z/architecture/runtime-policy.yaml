@@ -1,0 +1,139 @@
+version: "1.0"
+
+# Runtime / context-window governance for the MentorNest orchestrator.
+# Owned by: mentornest-system-orchestrator
+# Referenced from: skills/mentornest-system-orchestrator/SKILL.md
+# ("Session & Context Governance" section).
+
+owner_skill: mentornest-system-orchestrator
+
+runtime_targets:
+
+  orchestrator_session:
+    service_id: "6a8e84ce9ec391c39ae7a996"  # mentornest (see services.yaml)
+    model: "minimax/MiniMax-M3"
+    context_window_tokens: 204800           # confirmed via gateway log 2026-08-27
+    soft_warn_ratio: 0.80                   # ~163840 tokens; emit a checkpoint
+    hard_cap_ratio: 0.90                    # ~184320 tokens; refuse large tool calls
+
+  derived_thresholds:
+    soft_warn_tokens: 163840
+    hard_cap_tokens: 184320
+    per_task_token_budget: 61440           # ~30% of context_window per batch
+    max_messages_per_session: 400           # empirical; <500 keeps compaction safe
+
+session_archetypes:
+
+  orchestrator_main:
+    purpose: long-running coordination session
+    spawn_policy: parent (created on demand)
+    allowed_tools_default: all
+    bounded_response: false                # orchestrator may narrate at high level
+    handoff_style: structured table        # see Reporting Style in SKILL.md
+
+  batch_subagent:
+    purpose: one batch / one delivery
+    spawn:
+      tool: sessions_spawn
+      runtime: subagent
+      mode: run
+      cleanup: delete                      # never reuse a sub-session
+      context: isolated                    # default; do not pass full transcript
+    allowed_tools_default: all
+    bounded_response: true                 # enforced via system prompt in spawn
+    return_shape:
+      - completion_status                 # ok | failed | blocked
+      - artifact_paths
+      - test_results                       # counts + exit code only
+      - changelog_entry_reference
+      - blockers
+
+  recovery_check_subagent:
+    purpose: runtime env audit (env vars, registry parse, test baseline, memory file, failed-exec tally)
+    spawn:
+      tool: sessions_spawn
+      runtime: subagent
+      mode: run
+      cleanup: delete
+      context: isolated
+    bounded_response: true
+    return_shape:
+      - service_id_match
+      - registry_parse_status
+      - test_baseline_status
+      - failed_exec_root_cause
+      - restart_required
+      - continue_safe
+
+invariants_under_context_pressure:
+
+  never_sacrifice_data_integrity_to_save_context:
+    description: >
+      When a session is approaching hard_cap_tokens, the orchestrator MUST
+      spawn a new session rather than rewrite live data, drop checks, or
+      skip verification. The two domains are independent: a context
+      shortage does not authorize data-integrity shortcuts.
+
+  never_re_run_full_phase_just_to_fill_tests:
+    description: >
+      If a regression test result cannot be cleanly captured within the
+      current session, prefer spawning a verification sub-session over
+      re-running the entire phase inside the orchestrator main session.
+
+  never_silent_trim_or_rewrite_live_data:
+    description: >
+      Even when the live file looks like it has "extra" records vs the
+      remembered baseline (concurrent write from mentornest-web, parent
+      setup, or webhook), do not trim. Re-read the snapshot / count
+      delta, append-only as needed. See policies.yaml § data_integrity.
+
+compaction_policy:
+
+  auto_compaction:
+    provider_native: true                  # model native precheck
+    trigger_ratio: 0.85                    # ~174080 tokens
+    acceptable_to_lose:
+      - long exec outputs older than 5 turns
+      - intermediate grep / find / ls verbosity
+    must_preserve:
+      - registry reads (project.yaml, services.yaml, agents.yaml,
+        capabilities.yaml, policies.yaml, data-model.yaml,
+        skills-registry.yaml, roadmap.yaml, runtime-policy.yaml)
+      - last 10 user / assistant messages verbatim
+      - any pending blocker or decision
+      - active student_id / batch_id / snapshot path
+
+  manual_checkpoint:
+    when_to_take: at the end of every shipped batch (within the same session)
+    path_pattern: architecture/_backups/checkpoint_<UTC_TS>/
+    contents:
+      - last shipped changelog entry reference
+      - snapshot of data/learning-records/ (event_count + digest only,
+        do NOT copy the file content; reference the existing backup)
+      - manifest of any _backups/ snapshot currently in use
+
+observability:
+
+  metric_to_watch_manually:
+    - session message count (via /status or transcript line count)
+    - approximate input token total (via cumulative usage in transcript)
+    - open process count (via `process list`)
+    - any `isError: true` tool result in transcript tail
+
+  alert_threshold:
+    user_facing_warning_message: >
+      Approaching model context budget; if you see "Context overflow:
+      prompt too large" in /tmp/openclaw-gateway.log, request a
+      checkpoint before the next batch.
+
+history:
+
+  - date: 20260827T0755Z
+    event: runtime_policy_v1_added
+    trigger: agent session context overflow at 07:48:45 UTC on session
+      40d11f28-0694-4707-8bcc-ca63908de90d.jsonl during retrospective
+      batch delivery
+    basis:
+      - "gateway log: compactionTokens=204801, error=Context overflow: prompt too large for the model (precheck)"
+      - prior successful auto-compaction at 06:52:45 truncated 43 tool results
+      - "observed context_window = 204800 for minimax/MiniMax-M3"

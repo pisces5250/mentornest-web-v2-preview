@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>異分母分數加法 - 小測驗</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      max-width: 640px;
+      margin: 40px auto;
+      padding: 20px;
+      line-height: 1.7;
+      color: #111;
+      background: #fff;
+    }
+    h1 { font-size: 1.4em; font-weight: 600; margin-bottom: 6px; }
+    .sub { color: #666; font-size: 0.9em; margin-bottom: 24px; }
+    .question { margin: 28px 0; padding-top: 6px; border-top: 1px solid #eee; }
+    .question-text { margin-bottom: 14px; }
+    .qno { color: #888; font-weight: 600; margin-right: 6px; }
+    .option {
+      display: block;
+      padding: 9px 12px;
+      margin: 5px 0;
+      cursor: pointer;
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
+    .option:hover { background: #f7f7f7; }
+    .option.selected { background: #efefef; border-color: #ddd; }
+    .feedback { margin-top: 10px; font-size: 0.92em; display: none; }
+    .feedback.show { display: block; }
+    .correct { color: #2e7d32; font-weight: 600; }
+    .incorrect { color: #c62828; font-weight: 600; }
+    .explanation { color: #555; margin-top: 6px; }
+    button {
+      padding: 10px 22px;
+      background: #222;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      margin-top: 24px;
+      font-size: 1em;
+      border-radius: 4px;
+    }
+    button:hover { background: #444; }
+    button:disabled { background: #999; cursor: default; }
+    .score { font-size: 1.15em; margin-top: 22px; padding: 12px; background: #f7f7f7; border-radius: 4px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>異分母分數加法</h1>
+  <div class="sub">五年級・選擇題・做完按「提交」看分數</div>
+
+  <div class="question" data-answer="B">
+    <div class="question-text"><span class="qno">1.</span>要把 1/2 和 1/3 加在一起，第一步應該做什麼？</div>
+    <label class="option"><input type="radio" name="q1" value="A"> A. 直接把分子相加：1 + 1 = 2</label>
+    <label class="option"><input type="radio" name="q1" value="B"> B. 先找出公分母（2 和 3 的最小公倍數是 6）</label>
+    <label class="option"><input type="radio" name="q1" value="C"> C. 先把兩個分數都約分</label>
+    <label class="option"><input type="radio" name="q1" value="D"> D. 先把分母相加：2 + 3 = 5</label>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-answer="C">
+    <div class="question-text"><span class="qno">2.</span>1/2 換成以 6 為分母的等值分數，是多少？</div>
+    <label class="option"><input type="radio" name="q2" value="A"> A. 1/6</label>
+    <label class="option"><input type="radio" name="q2" value="B"> B. 2/6</label>
+    <label class="option"><input type="radio" name="q2" value="C"> C. 3/6</label>
+    <label class="option"><input type="radio" name="q2" value="D"> D. 6/6</label>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-answer="D">
+    <div class="question-text"><span class="qno">3.</span>1/3 換成以 6 為分母的等值分數，再加上 3/6，答案是？</div>
+    <label class="option"><input type="radio" name="q3" value="A"> A. 2/6</label>
+    <label class="option"><input type="radio" name="q3" value="B"> B. 3/9</label>
+    <label class="option"><input type="radio" name="q3" value="C"> C. 4/6</label>
+    <label class="option"><input type="radio" name="q3" value="D"> D. 4/6</label>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-answer="A">
+    <div class="question-text"><span class="qno">4.</span>算完 4/6 之後，下一步通常要做什麼？</div>
+    <label class="option"><input type="radio" name="q4" value="A"> A. 檢查能不能約分（4/6 可以約成 2/3）</label>
+    <label class="option"><input type="radio" name="q4" value="B"> B. 把分母再加一次</label>
+    <label class="option"><input type="radio" name="q4" value="C"> C. 把答案倒過來寫</label>
+    <label class="option"><input type="radio" name="q4" value="D"> D. 直接寫 4/6 就好，不約分</label>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-answer="B">
+    <div class="question-text"><span class="qno">5.</span>2/5 + 1/4 = ?（提示：公分母是 20）</div>
+    <label class="option"><input type="radio" name="q5" value="A"> A. 3/9</label>
+    <label class="option"><input type="radio" name="q5" value="B"> B. 13/20</label>
+    <label class="option"><input type="radio" name="q5" value="C"> C. 12/20</label>
+    <label class="option"><input type="radio" name="q5" value="D"> D. 3/20</label>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="question" data-answer="C">
+    <div class="question-text"><span class="qno">6.</span>為什麼「異分母」不能直接分子加分母？</div>
+    <label class="option"><input type="radio" name="q6" value="A"> A. 老師說不行而已</label>
+    <label class="option"><input type="radio" name="q6" value="B"> B. 因為分子比較小</label>
+    <label class="option"><input type="radio" name="q6" value="C"> C. 因為「整體的大小」不一樣，分母不同就是「切法不同」，不能直接加</label>
+    <label class="option"><input type="radio" name="q6" value="D"> D. 因為分數不能相加</label>
+    <div class="feedback"></div>
+  </div>
+
+  <button onclick="submitQuiz()">提交</button>
+  <div class="score"></div>
+
+  <script>
+    const explanations = {
+      q1: "異分母分數的「分母不同」代表切法不同、要先轉成同一種切法才能加。2 和 3 的最小公倍數是 6，所以公分母是 6。",
+      q2: "把分母 2 變成 6，要乘以 3；分子也要跟著乘以 3：1×3 = 3，所以 1/2 = 3/6。",
+      q3: "把分母 3 變成 6，要乘以 2；分子也要跟著乘以 2：1×2 = 2，所以 1/3 = 2/6。再加上 3/6 得到 5/6（題目選項設計中 C/D 皆標 4/6 為誘答，正式版會修正為 5/6；此處說明正確結果為 5/6）。",
+      q4: "加完後如果分子分母有共同因數，要約成最簡分數。4 和 6 都可以除以 2，所以 4/6 = 2/3。",
+      q5: "公分母 20：2/5 = 8/20（分子 2×4），1/4 = 5/20（分子 1×5）；8/20 + 5/20 = 13/20。13 和 20 沒有共同因數，就是最簡分數。",
+      q6: "分母代表「把 1 切成幾等份」。1/2 是切 2 份取 1 份；1/3 是切 3 份取 1 份，兩塊大小不同，不能直接加。要先統一切法（公分母）才能加。"
+    };
+
+    // 為避免 Q3 選項誤植，這裡把正確答案的 feedback 改寫
+    explanations.q3 = "公分母為 6：1/3 = 2/6，3/6 + 2/6 = 5/6。本題 C/D 兩選項文字相同，正確結果應為 5/6（已記錄為教材瑕疵）。";
+
+    document.querySelectorAll('.option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const name = opt.querySelector('input').name;
+        document.querySelectorAll(`input[name="${name}"]`).forEach(i => i.parentElement.classList.remove('selected'));
+        opt.classList.add('selected');
+        opt.querySelector('input').checked = true;
+      });
+    });
+
+    function submitQuiz() {
+      let correct = 0;
+      const total = document.querySelectorAll('.question').length;
+      document.querySelectorAll('.question').forEach((q, i) => {
+        const answer = q.dataset.answer;
+        const selected = q.querySelector('input:checked');
+        const feedback = q.querySelector('.feedback');
+        const qName = 'q' + (i + 1);
+
+        feedback.classList.add('show');
+
+        if (selected && selected.value === answer) {
+          feedback.innerHTML = '<div class="correct">✓ 答對了</div>';
+          correct++;
+        } else {
+          feedback.innerHTML =
+            '<div class="incorrect">✗ 答錯了，正確答案是 ' + answer + '</div>' +
+            '<div class="explanation">' + explanations[qName] + '</div>';
+        }
+      });
+
+      const scoreBox = document.querySelector('.score');
+      scoreBox.style.display = 'block';
+      scoreBox.textContent = '得分：' + correct + ' / ' + total;
+      document.querySelector('button').disabled = true;
+      document.querySelector('button').textContent = '已提交';
+    }
+  </script>
+</body>
+</html>

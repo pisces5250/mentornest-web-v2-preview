@@ -1,0 +1,439 @@
+# MentorNest Agent Capability Matrix
+
+Status: Phase 1 — System foundation (active)
+Owner: system-orchestrator
+Method: Project Registry v1 + live inspection of `/home/node/.openclaw/workspace/`, `/home/node/.openclaw/plugins/`, `/app/skills/`. No production changes.
+
+## Legend
+
+| Symbol | Meaning |
+|---|---|
+| ✅ ready | Capability exists and is wired into the agent runtime |
+| ◐ partial | Some scaffolding exists; missing production-grade pieces |
+| ❌ missing | Declared in registry, no implementation found |
+| 🟦 planned | Roadmap phase, not yet started |
+| ⛔ blocked | Requires policy/credential/architecture decision |
+
+## 1. Master matrix — Agent × Capability
+
+Status reflects (a) registry declaration and (b) what the runtime actually exposes today.
+
+| Agent | Profile & Memory | Practice Gen | Error Diag | Visual Teaching | Curriculum / Progress | Mastery Model | Question Bank | Quality & License | Assessment | Parent Report | Local STT | TTS / Pronunciation | System / Orchestration |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| system-orchestrator | — | — | — | — | — | — | — | — | — | — | — | — | ◐ partial |
+| learning-director | ✅ ready | — | — | — | ❌ missing | ❌ missing | ❌ missing | — | ❌ missing | ❌ missing | — | — | — |
+| curriculum-agent | ✅ ready | — | — | — | ❌ missing | — | — | — | — | — | — | — | — |
+| math-specialist | ✅ ready | ✅ ready | ✅ ready | ◐ partial | — | ◐ partial | ❌ missing | — | — | — | — | — | — |
+| chinese-specialist | ✅ ready | — | — | ◐ partial | — | ◐ partial | ❌ missing | — | — | — | — | — | — |
+| english-specialist | ✅ ready | — | — | ◐ partial | — | ◐ partial | ❌ missing | — | — | — | ✅ ready | ❌ missing / ❌ missing | — |
+| science-specialist | ✅ ready | — | — | ◐ partial | — | ◐ partial | ❌ missing | — | — | — | — | — | — |
+| social-studies-specialist | ✅ ready | — | — | ◐ partial | — | ◐ partial | ❌ missing | — | — | — | — | — | — |
+| question-bank-curator | — | — | — | — | — | — | ❌ missing | — | — | — | — | — | — |
+| question-quality-agent | — | — | — | — | — | — | — | ❌ missing | — | — | — | — | — |
+| assessment-agent | ✅ ready | — | — | — | — | ◐ partial | ❌ missing | — | ❌ missing | — | — | — | — |
+| learning-memory-agent | ✅ ready | — | — | — | — | — | — | — | — | — | — | — | — |
+| parent-report-agent | ✅ ready | — | — | — | ❌ missing | — | — | — | — | ❌ missing | — | — | — |
+
+Notes:
+- ✅ in *Profile & Memory* = the custom plugin `mentornest-learning` exposes `student_profile_get`, `student_profile_update`, `learning_record_append`; this is the spine every teaching agent inherits.
+- ◐ in *Visual Teaching* = only `diagram-maker` (general SVG/HTML/Excalidraw) exists; the subject-specific visual primitives (`fraction_bar`, `number_line`, `bar_model`, `safe_math_renderer`) are still missing.
+- ◐ in *Mastery Model* = `adaptive-learning` provides FSRS scheduling for flashcard apps, but there is no persistent server-side mastery model keyed by student_id × knowledge_point × subskill with confidence and `review_due`.
+
+## 2. Per-agent professional skill stack
+
+Each specialist agent must own a curated stack, not a renamed generic prompt.
+
+### 2.1 system-orchestrator
+**Owned by:** MentorNest itself (this role).
+**Stack:**
+- `mentornest-system-orchestrator` (current skill)
+- `Skill Finder` (ClawHub + Skills.sh discovery)
+- `skill-vetter` (security review before install)
+- `self-evolving-skills` (turn recurring solutions into new skills)
+- `spike` (throwaway prototypes; bundled gateway skill)
+- `skill-creator` (bundled; SKILL.md authoring)
+- `taskflow` (bundled; durable multi-step orchestration)
+
+**Gaps in stack:**
+- service-registry enforcement at write time
+- automated change-plan generation
+- regression harness against the custom plugin
+- rollback manager for low-risk production edits
+- deployment adapter for mentornest-web (Zeabur)
+
+### 2.2 learning-director
+**Stack today:** none (role not implemented).
+**Stack needed:**
+- reading learning_event stream (`data/learning-records/*.jsonl`) — no current reader
+- cross-subject weakness aggregator
+- prerequisite-gap detector
+- weekly strategy planner
+- recommendation emitter consumed by `parent-report-agent`
+
+This is the single largest capability gap in Phase 2.
+
+### 2.3 curriculum-agent
+**Stack today:** none.
+**Stack needed:**
+- Taiwan K-12 curriculum map (grade × publisher × unit × knowledge_point)
+- textbook-version normalizer
+- confirmed-vs-inferred progress tracker
+- exam-scope parser
+
+Critical: no curriculum source-of-truth exists; we cannot separate "school-aligned" from "general" progress without it.
+
+### 2.4 math-specialist
+**Owned tools (verified):** `generate_practice_set`, `classify_math_error`, `student_profile_get`, `student_profile_update`, `learning_record_append`.
+**Stack today:**
+- `mentornest-tutor` (tutoring workflow)
+- `Homework`, `Learning`, `Studying`, `Flashcards` (general pedagogy)
+- `study-buddy`, `adaptive-learning` (practice + FSRS scheduling — but FSRS here is flashcard-app level, not mastery-store level)
+- `diagram-maker` (general diagrams only)
+- `knowledge-digest` (textbook → quiz/mindmap pipeline)
+- `classify_math_error` (custom tool) — covers 1–2 dimensions of error taxonomy; needs full taxonomy
+
+**Gaps in stack:**
+- deterministic math validator (symbolic / numeric equivalence) — `missing · critical`
+- `fraction_bar`, `number_line`, `bar_model` visual primitives — `missing`
+- safe math renderer for MentorNest Web (LaTeX/JSX-safe) — `missing`
+- geometry primitives (compass / protractor / shape canvas) — `missing`
+- word-problem decomposition engine (bar-model → equation) — `missing`
+- ratio / proportion visualizer — `missing`
+
+### 2.5 chinese-specialist
+**Stack today:**
+- `mentornest-tutor`
+- `Homework`, `Learning`, `Studying`, `Flashcards`
+- `study-buddy` (text → quiz)
+- `knowledge-digest` (textbook → summary)
+- `diagram-maker` (lightweight diagrams for rhetoric/mindmaps)
+
+**Gaps in stack:**
+- Traditional Chinese reading comprehension diagnostician (specific error types: 主旨, 推論, 詞義, 文法, 修辭)
+- composition scaffolding (outline → paragraph → 修辭 feedback)
+- 字詞 / 成語 / 修辭 spaced repetition pool keyed to grade + publisher
+- character / handwriting feedback (Phase 6 — `future`)
+
+### 2.6 english-specialist
+**Stack today:**
+- `mentornest-tutor`
+- `Homework`, `Learning`, `Studying`, `Flashcards`
+- `study-buddy`, `Flashcards`
+- `mentornest-stt` (English via SenseVoice multilingual)
+- `knowledge-digest`
+
+**Gaps in stack:**
+- local TTS for read-aloud / shadowing — `missing · medium`
+- pronunciation assessment (phoneme-level scoring) — `missing · medium`
+- phonics progression (K–G3) tied to phonics skills
+- grammar error taxonomy
+- listening drill pipeline (audio → comprehension question)
+
+### 2.7 science-specialist
+**Stack today:**
+- `mentornest-tutor`
+- `Homework`, `Learning`, `Studying`
+- `knowledge-digest` (this is the strongest existing primitive)
+- `diagram-maker` (concept maps, process diagrams)
+
+**Gaps in stack:**
+- variable-control reasoning scaffolding
+- experiment simulator (interactive)
+- chart-reading grader (table/line/bar)
+- cause-effect diagram library specific to elementary science
+
+### 2.8 social-studies-specialist
+**Stack today:**
+- `mentornest-tutor`
+- `Homework`, `Learning`, `Studying`
+- `knowledge-digest`
+- `diagram-maker` (timelines, maps)
+
+**Gaps in stack:**
+- Taiwan / regional history knowledge graph
+- map-reading interactive canvas
+- source-comparison grader (primary vs secondary)
+- timeline authoring tool
+
+### 2.9 question-bank-curator
+**Stack today:** none.
+**Stack needed:**
+- raw question ingestion pipeline (PDF / image / OCR / text)
+- knowledge-point classifier (taxonomy-aware)
+- source/license extractor
+- deduplication engine (text + semantic)
+- segmentation (passage + sub-question)
+
+Note: `knowledge-digest` and `adaptivetest` are adjacent but neither is suitable as the curator's engine — `knowledge-digest` is summary-oriented; `adaptivetest` requires an external API key.
+
+### 2.10 question-quality-agent
+**Stack today:** none.
+**Stack needed:**
+- deterministic answer validator (math expression equivalence; multiple-choice uniqueness)
+- difficulty calibrator (model fit on empirical p-value)
+- duplicate detector (semantic)
+- license / commercial-use reviewer (writes verdict into `question.verified` and `question.source_license`)
+
+### 2.11 assessment-agent
+**Stack today:** `classify_math_error` (math-only), `generate_practice_set` (math-only), shared `student_profile_*` tools.
+
+**Gaps in stack:**
+- mastery check engine (multi-subject, knowledge-point + subskill)
+- retention check (spacing schedule → recall test)
+- difficulty calibration feedback loop
+- cross-subject diagnostic assessment composer
+
+### 2.12 learning-memory-agent
+**Stack today:**
+- `mentornest-learning` custom plugin (verified, 5 tools)
+- student-profile skill (workflow rules; not a tool provider)
+- `learning_record_append` (event append to per-student JSONL)
+
+**Status:** production-grade. The data spine is in place.
+
+### 2.13 parent-report-agent
+**Stack today:** none.
+**Stack needed:**
+- longitudinal reader over learning_event stream
+- weekly aggregation (mastery delta, error pattern frequency, review queue, school alignment)
+- pattern recognizer (recurring gap vs occasional mistake)
+- tone-controlled report generator (warm, non-comparative, zh-TW)
+
+## 3. Shared engines (cross-agent)
+
+These belong to the *platform*, not any single specialist. Specialists consume them; no specialist owns them.
+
+| Engine | Status | Owner | Notes |
+|---|---|---|---|
+| visual-teaching-engine | ◐ partial | platform | `diagram-maker` covers generic diagrams; subject primitives missing |
+| hint-ladder | ❌ missing | platform | Declared in `project.yaml`; no implementation |
+| mastery-analytics | ◐ partial | platform | FSRS exists in `adaptive-learning`, but no server-side mastery store |
+| answer-normalization | ❌ missing | platform | Required for deterministic math validator |
+| question-bank | ❌ missing | platform | Three-layer model declared in `data-model.yaml`; no engine |
+| local-stt | ✅ ready | platform | `mentornest-stt` + SenseVoice-Small int8; verified |
+
+## 4. Custom plugin tool surface (verified live)
+
+Source: `/home/node/.openclaw/plugins/mentornest-learning/openclaw.plugin.json`
+Total: **43 tools** as of 2026-08-27T0809Z (Phase 2 fourth batch).
+
+### v1 (preserved, backward compat)
+
+```
+student_profile_get               → learning-memory-agent (read)
+student_profile_update            → learning-memory-agent (write, profile only)
+learning_record_append            → learning-memory-agent (write, events only)
+generate_practice_set             → math-specialist (math only)
+classify_math_error               → math-specialist (math only)
+```
+
+### Phase 2 first batch
+
+```
+student_profile_v2_get            → learning-memory-agent
+student_profile_v2_update         → learning-memory-agent
+learning_event_reader             → learning-memory-agent
+deterministic_math_validator      → math-specialist
+hint_ladder_next                  → math-specialist
+mastery_store_get                 → mastery-engine (v1)
+mastery_store_update              → mastery-engine (v1)
+curriculum_map_lookup             → curriculum-agent
+curriculum_meta                   → curriculum-agent
+```
+
+### Phase 2 second batch
+
+```
+question_bank_curator_curate      → question-bank-curator
+question_quality_agent_verify     → question-quality-agent (ONLY path into Verified)
+question_quality_agent_dedupe_check→ question-quality-agent (read-only)
+verified_bank_lookup              → assessment-agent (ONLY retrieval interface)
+verified_bank_count               → assessment-agent
+generate_practice_set_v2          → math-specialist (bank-first; math-only)
+parent_setup_schema_validate      → learning-memory-agent
+parent_setup_schema_copy          → learning-memory-agent (zh-TW strings)
+```
+
+### Phase 2 third batch
+
+```
+math_specialist_independent_verify      → math-specialist
+question_bank_coverage_report           → question-bank-curator
+ai_question_authoring_orchestrator_run  → question-bank-curator
+ai_question_authoring_plan              → question-bank-curator
+learning_director_cross_subject_weakness_aggregator → learning-director
+learning_director_prerequisite_gap_detector          → learning-director
+learning_director_weekly_strategy_emitter            → learning-director
+```
+
+### Phase 2 fourth batch (2026-08-27T0809Z)
+
+```
+mentornest_question_author_production   → mentornest-question-author (production AI)
+school_progress_get                     → curriculum-agent
+school_progress_update_confirmed        → curriculum-agent
+school_progress_infer                   → curriculum-agent
+school_progress_promote_to_confirmed    → curriculum-agent
+confirmed_vs_inferred_progress_tracker  → curriculum-agent
+school_alignment                        → curriculum-agent
+textbook_mapping_engine                 → curriculum-agent
+mastery_engine_v2_update_from_evidence   → mastery-engine
+mastery_engine_v2_annotate_school_alignment → mastery-engine
+mastery_engine_v2_error_pattern_aggregation → mastery-engine
+mastery_engine_v2_retention_signal      → mastery-engine
+mastery_engine_v2_list_evidence         → mastery-engine
+mastery_engine_v2_get                   → mastery-engine
+```
+
+### Phase 3 — Subject Specialists + Unified Contract (2026-08-27T1100Z, SHIPPED)
+
+Total Phase 3 tools: **73** (Math 11 + Chinese 11 + English 16 + Science 11 + Social Studies 13 + Unified Contract 11). Plugin manifest total: **116**.
+
+```
+# Phase 3-A — Math Specialist v2 + Visual Engine (11 tools)
+math_error_taxonomy_lookup              → math-specialist
+math_visual_engine_render               → math-specialist  (text descriptor only)
+math_hint_ladder_v2_next                → math-specialist
+word_problem_decomposer_analyze         → math-specialist
+word_problem_decomposer_match_template  → math-specialist
+math_prerequisite_chain_get             → math-specialist
+math_prerequisite_weakest               → math-specialist
+math_specialist_diagnose                → math-specialist  (pure JS, no LLM)
+math_specialist_build_teaching_plan     → math-specialist
+math_specialist_decide                  → math-specialist
+math_specialist_emit_evidence           → math-specialist  (append-only ledger, never mastery)
+
+# Phase 3-B — Chinese Specialist v1 (11 tools)
+chinese_error_taxonomy_lookup           → chinese-specialist  (ZH-* codes)
+chinese_curriculum_lookup_kp            → chinese-specialist
+chinese_curriculum_list_for_grade       → chinese-specialist
+chinese_subskill_classify               → chinese-specialist
+chinese_hint_ladder_next                → chinese-specialist
+chinese_specialist_diagnose             → chinese-specialist
+chinese_specialist_build_teaching_plan  → chinese-specialist
+chinese_specialist_decide               → chinese-specialist
+chinese_specialist_emit_evidence        → chinese-specialist
+chinese_classify_grammar_error          → chinese-specialist
+chinese_phonetic_lookup                 → chinese-specialist  (注音; no TTS)
+
+# Phase 3-C — English Specialist v1 + STT interface (16 tools)
+english_error_taxonomy_lookup           → english-specialist  (EN-* codes)
+english_curriculum_lookup_kp            → english-specialist
+english_curriculum_list_for_grade       → english-specialist
+english_subskill_classify               → english-specialist
+english_hint_ladder_next                → english-specialist
+english_specialist_diagnose             → english-specialist
+english_specialist_build_teaching_plan  → english-specialist
+english_specialist_decide               → english-specialist  (8 paths)
+english_specialist_emit_evidence        → english-specialist
+english_stt_transcribe_audio            → english-specialist  (interface; local SenseVoice)
+english_stt_evaluate_pronunciation      → english-specialist  (interface; no cloud TTS)
+english_specialist_text_rewrite         → english-specialist  (deterministic, no LLM)
+english_specialist_vocab_drill          → english-specialist
+english_specialist_grammar_drill        → english-specialist
+english_specialist_listening_practice   → english-specialist
+english_specialist_speaking_practice    → english-specialist
+
+# Phase 3-D — Science Specialist v1 (11 tools)
+science_error_taxonomy_lookup           → science-specialist  (SCI-* codes)
+science_specialist_diagnose             → science-specialist
+science_specialist_analyze_experiment   → science-specialist  (variable control)
+science_specialist_interpret_chart_table → science-specialist
+science_specialist_interpret_diagram    → science-specialist
+science_specialist_decide               → science-specialist  (experiment_simulation, ...)
+science_specialist_emit_evidence        → science-specialist
+science_hint_ladder_next                → science-specialist
+science_curriculum_lookup_kp            → science-specialist
+science_curriculum_list_for_grade       → science-specialist
+science_subskill_classify               → science-specialist
+
+# Phase 3-E — Social Studies Specialist v1 (13 tools)
+social_studies_error_taxonomy_lookup    → social-studies-specialist  (SS-* codes)
+social_studies_specialist_diagnose      → social-studies-specialist
+social_studies_specialist_analyze_timeline    → social-studies-specialist
+social_studies_specialist_analyze_map         → social-studies-specialist
+social_studies_specialist_analyze_causality   → social-studies-specialist
+social_studies_specialist_compare_sources     → social-studies-specialist
+social_studies_specialist_interpret_demographic_chart → social-studies-specialist
+social_studies_specialist_decide        → social-studies-specialist
+social_studies_specialist_emit_evidence → social-studies-specialist
+social_studies_hint_ladder_next         → social-studies-specialist
+social_studies_curriculum_lookup_kp     → social-studies-specialist
+social_studies_curriculum_list_for_grade→ social-studies-specialist
+social_studies_subskill_classify        → social-studies-specialist
+
+# Phase 3-F — Unified Subject Contract + Dispatcher (11 tools)
+subject_v1_contract_version             → learning-director-v2
+subject_v1_validate_request             → learning-director-v2
+subject_v1_validate_response            → learning-director-v2
+subject_specialist_dispatch             → learning-director-v2  (5-subject router)
+subject_specialist_capability_report    → learning-director-v2
+cross_subject_merge_decisions           → learning-director-v2
+learning_director_v2_dispatch_next_step → learning-director-v2
+learning_director_v2_capability_report  → learning-director-v2
+subject_v1_request_template             → learning-director-v2
+subject_v1_response_template            → learning-director-v2
+subject_v1_dispatch_examples            → learning-director-v2
+```
+
+**Phase 3 invariants verified:**
+- Each subject uses its OWN error-code prefix: MATH-* / ZH-* / EN-* / SCI-* / SS-*. No cross-subject leakage.
+- Each subject emits its OWN evidence_payload schema (`math-specialist-evidence-v1`, `chinese-specialist-evidence-v1`, ...). Unified Contract dispatcher preserves schemas verbatim — no generic tutor merging.
+- All `*_specialist_emit_evidence` tools APPEND to `data/mastery-evidence/<id>.jsonl` (append-only). NEVER touch `data/mastery/<id>.json`.
+- Math validator: pure JS, no LLM.
+- English STT: interface only; production uses local SenseVoice-Small int8 (skills/mentornest-stt). Cloud STT explicitly forbidden.
+- Live `data/learning-records/student_001.jsonl` line count UNCHANGED (26) across Phase 3 (A+B+C+D+E+F).
+- Protected MD5s UNCHANGED: AGENTS / SOUL / USER / IDENTITY.
+
+## 5. Discrepancies — Registry vs environment
+
+These are facts the orchestrator found, not opinions.
+
+> Resolution status as of 2026-08-27 registry cleanup (see changelog).
+
+1. **`skills-registry.yaml` referenced `safe-self-improving-agent`** but the actual installed skills in this category are `self-evolving-skills`, `self-improving-agent-c` (`self-improvement`), and `stitch-self-improver` (`self-improving-agent`). The literal name `safe-self-improving-agent` did not exist on disk. — **Resolved**: registry now uses canonical `self-improving-agent` (stitch-self-improver) + `self-improvement` (self-improving-agent-c).
+2. **`skills-registry.yaml` listed `eric-knowledge-digest`** as `shared_ready`; the on-disk directory is `knowledge-digest/` and its SKILL.md front-matter `name:` is `knowledge-digest`. Same skill, different identifier. — **Resolved**: registry canonical name is `knowledge-digest`; `install_slug` keeps the original `eric-knowledge-digest` slug so any external references do not break.
+3. **`skills-registry.yaml` did not list `student-profile`** even though `skills/student-profile/SKILL.md` is present and AGENTS.md explicitly references it. — **Resolved**: added to `shared_ready` (workflow-only; not a tool provider).
+4. **`skills-registry.yaml` did not list `adaptivetest`**; the third-party `adaptivetest-skill` was installed and calling `https://adaptivetest-platform-production.up.railway.app/api` with `ADAPTIVETEST_API_KEY`. — **Resolved (user decision 2026-08-27)**: archived to `workspace/_archive/skills/adaptivetest-skill/`; registry records canonical name, install_slug, original directory, archive directory, and the re-promotion gate.
+5. **`capabilities.yaml` `system_orchestration.existing`** listed `safe-self-improving-agent`. — **Resolved**: replaced with the three actual canonical names.
+6. **`agents.yaml` mentions `required_capabilities`** for `math-specialist` and `preferred_tools` for `english-specialist**, but no registry currently enforces or even inventories those tool lists. — **Open**: see decisions appendix below; will become part of Phase 2 implementation plan.
+7. **Two students on disk but profile data is thin**: `student_001` (奐奐, grade 5) has artifacts from a fraction-addition lab; `student_002` (靚靚) has grade=null. No publisher, no current_unit stored for either. Curriculum-agent cannot function until this is populated — by the parent, not by the agent. — **Schema fixed**: Student Profile v2 schema drafted in `data-model.yaml` § profile_v2. Existing student JSON files intentionally not migrated automatically (would touch learning data); migration gated on parent opt-in.
+
+## 5a. Decisions adopted 2026-08-27
+
+See changelog for the full list. Summary:
+
+- **Curriculum source-of-truth**: Taiwan 教育部 official curriculum documents only; publishers map *into* the curriculum, never *into* the bank.
+- **Question Bank**: V1 shared bank accepts only parent-private upload, teacher/parent-authored, clear open-license, or MentorNest AI-original/adapted content. Commercial publisher content is not accumulated into a shared commercial bank.
+- **Student Profile v2**: extends schema with `school_curriculum`, `textbook_version`, `learning_goals`, `parent_concerns`, `school_progress`. `school_name` / `class_name` are explicitly OPTIONAL and never requested by default.
+- **`adaptivetest`**: archived from active skills; recorded in registry § `archived`.
+- **Canonical naming**: registry `canonical_name` matches each SKILL.md front-matter `name:`; `install_slug` and `local_directory` are recorded alongside so external links survive.
+- **No SOUL / USER / IDENTITY / AGENTS edits**.
+- **No new external APIs**.
+- **No modification to existing learning_event records**.
+
+## 6. Cross-agent vs specialist isolation
+
+Must be **shared (platform-level)** — every agent depends on it:
+- student profile + learning_event persistence (already shared)
+- local STT (already shared, kid-safe)
+- hint-ladder, mastery-analytics, answer-normalization, question-bank (declared shared but not yet built)
+- knowledge-digest, diagram-maker, study-buddy, adaptive-learning, Flashcards (pedagogy primitives — usable by any subject agent)
+
+Must be **specialist-isolated** — wrong to share:
+- `generate_practice_set` — today is math-only; do not let other specialists reuse the same tool definition. Each subject needs its own practice-set composer that respects subject-specific question_type taxonomy (e.g. chinese 成語 vs math word problem).
+- `classify_math_error` — math-specific; the name says so. Other subjects need their own classifiers with their own error taxonomies.
+- math visual primitives (fraction_bar, bar_model, number_line) — semantically meaningful only in math contexts; sharing them risks misuse in chinese/english.
+- subject knowledge graphs — chinese idiom graph, english phonics graph, science concept graph must not bleed into each other.
+
+Reusable but **gated**:
+- `adaptive-learning` (FSRS scheduler) is reusable for any subject's review queue, but only if the persistence layer is shared. Today it ships its own JSON store — must be refactored to read/write the canonical learning_event stream.
+- `knowledge-digest` is reusable for any subject for "textbook → summary" but the output quiz generator is generic; subject specialists must post-process its output, not consume it raw.
+
+## 7. Readiness snapshot (one-line)
+
+**Phase 3 shipped 2026-08-27 — subject specialists now GREEN.**
+
+- **Green (production-ready):** learning-memory-agent · local-STT platform engine · **math-specialist (Phase 3-A)** · **chinese-specialist (Phase 3-B)** · **english-specialist (Phase 3-C)** · **science-specialist (Phase 3-D)** · **social-studies-specialist (Phase 3-E)** · **learning-director-v2 (Phase 3-F)** · question-bank-curator · question-quality-agent · assessment-agent
+- **Yellow (functional but incomplete):** system-orchestrator (regression harness + rollback manager still TODO) · learning-director v1 (superseded by v2 but not removed)
+- **Red (declared but unimplemented):** curriculum-agent (read-only working; bulk promotion + staleness expiry TODO) · parent-report-agent (deferred until ≥2 weeks mastery data)

@@ -1,0 +1,217 @@
+version: "1.0"
+
+orchestrator_policy:
+
+  core_rule: >
+    If a fact can be discovered from the environment, files or tools, do not ask
+    the user to manually discover it. If a test can be safely automated, do not
+    ask the user to perform the test manually.
+
+  autonomy_levels:
+
+    level_1_analysis:
+      approval_required: false
+      allowed:
+        - inspect_environment
+        - inspect_files
+        - search_skills
+        - compare_architecture
+        - capability_gap_analysis
+        - static_security_review
+        - produce_plans
+
+    level_2_sandbox:
+      approval_required: false
+      allowed:
+        - create_sandbox
+        - install_in_sandbox
+        - smoke_test
+        - benchmark
+        - prototype
+        - regression_test
+        - remove_sandbox
+
+    level_3_low_risk_production:
+      approval_required: false
+      prerequisites:
+        - backup
+        - explicit_target_service
+        - automated_test
+        - regression_check
+        - rollback_plan
+      allowed:
+        - add_isolated_skill
+        - add_backward_compatible_field
+        - add_test
+        - add_isolated_internal_service
+        - low_risk_ui_change
+
+    level_4_approval_required:
+      approval_required: true
+      includes:
+        - change_parent_guardrails
+        - change_SOUL
+        - change_USER
+        - change_IDENTITY
+        - destructive_database_migration
+        - mass_delete_student_data
+        - external_child_data_transfer
+        - enable_cloud_stt_for_children
+        - public_domain_creation
+        - gateway_auth_change
+        - credential_rotation
+        - paid_service_commitment
+        - install_high_risk_skill
+        - irreversible_change
+
+  production_change_lifecycle:
+    - verify_target_service
+    - inspect_current_state
+    - create_backup
+    - generate_change_plan
+    - apply_change
+    - smoke_test
+    - regression_test
+    - rollback_on_failure
+    - update_architecture_registry
+    - update_changelog
+    - report_final_result
+
+  service_mismatch:
+    required_behavior: >
+      Return TARGET_SERVICE_MISMATCH. Do not create replacement files, clone
+      unrelated repositories, modify OpenClaw Control UI, or guess paths.
+
+child_privacy:
+
+  audio:
+    cloud_fallback: forbidden
+    default_retention: none
+    learning_memory_write: forbidden
+
+  student_data:
+    cross_student_merge: forbidden
+    sibling_comparison: forbidden
+
+data_integrity:
+
+  learning_records_append_only:
+    id: learning_records_append_only
+    rule: >
+      data/learning-records/*.jsonl and data/learning-records/*.ndjson are
+      APPEND-ONLY production event streams. No tool, sub-agent, test fixture,
+      or rollback procedure may rewrite, truncate, trim, drop, reorder or
+      delete any individual record. Each record carries an immutable event_id
+      and ingested_at timestamp; existing records are by definition immutable.
+    applies_to:
+      - data/learning-records/*.jsonl
+      - data/learning-records/*.ndjson
+    enforcement: >
+      Any regression, cleanup, or restore procedure MUST operate on a snapshot
+      or baseline prefix, never on the live JSONL file. Live file mutations
+      must only ever be appends.
+    audit:
+      - Before and after every operation on data/learning-records/, capture
+        event_count and a content digest (e.g. sha256 of last-N records or
+        of the entire file for files under 1 MB).
+      - If event_count decreases across an operation, treat it as a violation
+        and refuse to continue; report governance_alert and revert to snapshot.
+
+  concurrent_production_writes_protected:
+    id: concurrent_production_writes_protected
+    rule: >
+      Concurrently-produced production writes during a session are
+      first-class state and MUST NOT be rolled back, trimmed, or rewritten
+      in order to restore a pre-session MD5 or line count. The pre-session
+      baseline is informational only — never a precondition for an operation
+      against live data.
+    rationale: >
+      mentornest-web, the parent setup flow, and the learning-event ingest
+      path can all produce learning_events at any moment. Treating the
+      "baseline MD5" as a hard invariant against live data is incorrect;
+      MD5 equality is a hygiene signal, not a correctness guarantee.
+    enforcement: >
+      If a regression or verification step requires a known baseline, load
+      the snapshot from architecture/_backups/ (or restore a fresh snapshot).
+      Never rewrite live data to match a remembered MD5.
+
+  regression_via_snapshot_not_live:
+    id: regression_via_snapshot_not_live
+    rule: >
+      Regression testing and baseline comparison MUST operate on a frozen
+      snapshot of the pre-session state (architecture/_backups/<TS>/) or on
+      a temp copy, not on the live learning-records files. The snapshot path
+      MUST be recorded in the changelog entry for that batch.
+    enforcement: >
+      Steps 4 (Create backup), 7 (Smoke test), and 8 (Regression test) of
+      production_change_lifecycle MUST verify against a snapshot when
+      learning-records files are in scope. The snapshot reference (path + TS)
+      is part of the change record.
+
+skills_policy:
+
+  env_naming_locked_v1:
+    description: >
+      Locked env var names for production-portable path resolution.
+      Used by `lib/mastery_backfill_engine.mjs` and `lib/raw_question_ingestor.mjs`
+      and any future plugin lib that needs workspace/data paths.
+      Sandbox fallback is `/home/node/.openclaw/workspace` ONLY when these
+      are unset; production must set BOTH explicitly.
+    vars:
+      MENTORNEST_WORKSPACE:
+        purpose: "Root directory of MentorNest workspace (contains architecture/, data/, skills/, etc.)"
+        required_in_production: true
+        sandbox_fallback: "/home/node/.openclaw/workspace"
+      MENTORNEST_DATA_DIR:
+        purpose: "Override for the data/ root only. Defaults to <MENTORNEST_WORKSPACE>/data when unset."
+        required_in_production: false
+        sandbox_fallback: "<MENTORNEST_WORKSPACE>/data"
+    rule: >
+      Production deployments MUST set MENTORNEST_WORKSPACE. Hardcoded absolute
+      paths under /home/node/.openclaw are sandbox artifacts; the lib MUST
+      prefer env values when present.
+
+  visual_theme_hook:
+    status: deferred_to_web_v2_and_child_learning_experience_designer
+    description: >
+      Visual theme customization (color tokens beyond the SVG default palette,
+      per-student dark/light mode, etc.) is NOT owned by math_visual_engine.
+      It is owned by the upcoming `Child Learning Experience Designer` agent
+      (Phase 5+) and consumed by mentornest-web v2.
+    current_owner: math_visual_engine (SVG defaults only: #4a90e2 / #f5a623 / #7ed321 / #d0021b)
+    forbids:
+      - "Math visual engine MUST NOT introduce per-user theme hooks before Phase 5"
+      - "Math visual engine MUST NOT introduce user-configurable color tokens before Phase 5"
+      - "Subject specialists MUST NOT propose color/typography changes — that is the designer's job"
+
+  required_workflow:
+    - search
+    - skill_vetter
+    - decide
+    - sandbox_if_needed
+    - install
+    - post_install_verify
+
+  do_not_install_without_review:
+    - unknown_external_api
+    - credential_access
+    - child_data_upload
+    - core_policy_modification
+    - suspicious_shell_or_network_behavior
+
+question_bank_policy:
+
+  raw_question_must_not_be_served_directly: true
+
+  required_metadata:
+    - source
+    - source_page_or_location
+    - verification_status
+    - subject
+    - grade
+    - knowledge_points
+    - question_type
+
+  commercial_system_requires:
+    - source_license
+    - commercial_use_allowed

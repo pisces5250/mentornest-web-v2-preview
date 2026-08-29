@@ -1,0 +1,187 @@
+version: "1.0"
+status: locked_pending_implementation
+owner_agent: child-learning-experience-designer
+created: 2026-08-27T1239Z
+purpose: >
+  Per-age-band adjustments to typography density, hit target size,
+  navigation depth, character guidance, and feedback verbosity.
+  Selection rule: one profile per session, set by student.grade.
+  G7+ reserved.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Profile table
+# ─────────────────────────────────────────────────────────────────────────────
+profiles:
+
+  g1_g2:
+    grade_range: [1, 2]
+    label: "Early Elementary"
+    intent: "Tappable, image-led, minimal text; one action at a time."
+    typography:
+      base_size_rem: 1.125       # body_lg
+      weight_preference: medium   # avoid extra-light body
+    touch_target_min_css_px: 56
+    layout:
+      max_visible_actions: 1     # one CTA per screen; secondary actions hidden behind a clear "more" affordance
+      question_card_padding_rem: 1.5
+      illustration_first: true
+      image_text_ratio: "60% image / 40% text"
+    copy:
+      sentence_max_chars_cjk: 18
+      sentence_max_chars_latin: 30
+      voiceover_required: true
+      audio_play_on_load_for_instructions: true
+    navigation:
+      back_button_label: "回到上一頁"
+      depth: 2                   # at most 2 levels deep
+      breadcrumbs: false         # use big back button instead
+    feedback:
+      celebration_intensity: expressive   # generous celebration
+      error_tone: gentle                 # no red error page; use hint panel + audio
+      progress_visual: large_progress_bar_with_character
+    character_guidance:
+      enabled: true
+      default_character: "學習小助手"   # persona placeholder; TBD Phase 5
+      voice_id_default: tts.voice_default_child_friendly
+    motion:
+      default_intensity: standard
+      celebration_duration_ms: 1200
+    representation_priority:
+      - visual_svg_first
+      - audio_prompt_first
+      - text_after_audio
+    out_of_scope_for_g1_g2:
+      - open_ended_essay_writing
+      - long_passage_reading > 80 chars
+      - multi_step_navigation
+    invariants:
+      - INV-AP-12-1: One CTA per screen.
+      - INV-AP-12-2: Every instruction MUST have audio.
+
+  g3_g4:
+    grade_range: [3, 4]
+    label: "Upper Elementary"
+    intent: "Add structure + progress; keep moderate imagery + interaction."
+    typography:
+      base_size_rem: 1.0         # body_md
+      weight_preference: regular
+    touch_target_min_css_px: 48
+    layout:
+      max_visible_actions: 2
+      question_card_padding_rem: 1.0
+      illustration_first: false
+      image_text_ratio: "40% image / 60% text"
+    copy:
+      sentence_max_chars_cjk: 28
+      sentence_max_chars_latin: 50
+      voiceover_required: false     # opt-in
+      audio_play_on_load_for_instructions: false
+    navigation:
+      back_button_label: "上一頁"
+      depth: 3
+      breadcrumbs: true
+    feedback:
+      celebration_intensity: standard
+      error_tone: warm              # still friendly but more direct
+      progress_visual: segmented_progress_bar_with_streak
+    character_guidance:
+      enabled: true
+      default_character: "學習小助手"
+      voice_id_default: tts.voice_default_child_friendly
+    motion:
+      default_intensity: standard
+      celebration_duration_ms: 800
+    representation_priority:
+      - visual_svg_first
+      - text_primary
+    out_of_scope_for_g3_g4:
+      - long_passage_reading > 200 chars without paragraph break
+      - complex_branching_navigation
+    invariants:
+      - INV-AP-34-1: Breadcrumbs must always show current chapter/lesson.
+
+  g5_g6:
+    grade_range: [5, 6]
+    label: "Middle Elementary"
+    intent: "Mature, clean, real learning app. Not childish. Visual aids clear but not over-cartooned."
+    typography:
+      base_size_rem: 1.0         # body_md default
+      weight_preference: regular
+    touch_target_min_css_px: 44
+    layout:
+      max_visible_actions: 3
+      question_card_padding_rem: 1.0
+      illustration_first: false
+      image_text_ratio: "30% image / 70% text"
+    copy:
+      sentence_max_chars_cjk: 40
+      sentence_max_chars_latin: 80
+      voiceover_required: false
+      audio_play_on_load_for_instructions: false
+      terminology_use: true   # introduce subject-specific terms (e.g. "因數", "分母")
+    navigation:
+      back_button_label: "返回"
+      depth: 4
+      breadcrumbs: true
+    feedback:
+      celebration_intensity: minimal    # subtle; no big animation
+      error_tone: direct                # short explanation + link to review
+      progress_visual: slim_progress_bar_with_stats
+    character_guidance:
+      enabled: false                    # child may opt in via personalization
+      default_character: null
+      voice_id_default: null
+    motion:
+      default_intensity: minimal
+      celebration_duration_ms: 400
+    representation_priority:
+      - text_primary
+      - visual_svg_when_supports_comprehension
+      - no_decorative_illustration
+    out_of_scope_for_g5_g6:
+      - decorative_illustrations_unrelated_to_question
+      - child_character_mascot_animations
+      - high-saturation_celebrations
+    invariants:
+      - INV-AP-56-1: No mascot character or decorative illustration by default.
+      - INV-AP-56-2: Error feedback MUST include a concrete next step (review link or example).
+
+  g7_plus:
+    grade_range: [7, 12]
+    label: "Reserved"
+    intent: >
+      Profile reserved for middle/high school. NOT IMPLEMENTED THIS
+      ROUND.  When activated in a future phase, default values mirror
+      g5_g6 with relaxed typography and reduced motion.
+    status: reserved_unimplemented
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Selection rule
+# ─────────────────────────────────────────────────────────────────────────────
+selection_rule:
+  rule: >
+    active_profile = profile_for_grade(student.grade).  If student.grade
+    is null or outside 1..6, default to g5_g6 (most conservative).
+  enforced_by: child_learning_experience_designer (Phase 5+)
+  invariants:
+    - INV-AP-SEL-1: Exactly one profile is active per session.
+    - INV-AP-SEL-2: Profile selection MUST be deterministic and reproducible.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Personalization overlay
+# ─────────────────────────────────────────────────────────────────────────────
+personalization_overlay:
+  allowed_keys:
+    - simple_vs_lively       # enum: simple | lively | default
+    - animation_tolerance    # enum: reduced | standard | default
+    - font_size_preference   # enum: small | medium | large
+    - character_guidance_preference  # enum: off | on
+  rules:
+    - Personalization overlay NEVER crosses the active profile's invariants.
+    - font_size_preference=large pushes typography one step up the scale (e.g. body_md → body_lg) but never exceeds display.
+    - simple_vs_lively=simple collapses imagery priority and disables character guidance even if profile enables it.
+    - animation_tolerance=reduced is equivalent to prefers-reduced-motion media query.
+  constraints:
+    - INV-AP-PER-1: Personalization MAY NOT override accessibility constraints.
+    - INV-AP-PER-2: Personalization MAY NOT alter Subject Specialist teaching intent.
+    - INV-AP-PER-3: Personalization MAY NOT change assessment item order, scoring, or content.

@@ -1,0 +1,4067 @@
+import { Type, type Static } from "typebox";
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import type { AnyAgentTool } from "openclaw/plugin-sdk/agent-harness";
+import type { AgentToolResult } from "openclaw/plugin-sdk/agent-sessions";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import {
+  validateMathAnswer,
+  type MathValidationResult,
+} from "./lib/math_validator.mjs";
+import { nextHintLevel, HINT_LEVELS } from "./lib/hint_ladder.mjs";
+import {
+  readLearningEvents,
+  summarizeLearningEvents,
+} from "./lib/learning_event_reader.mjs";
+import {
+  getMastery,
+  listMastery,
+  updateMasteryFromEvent,
+  setMastery,
+} from "./lib/mastery_store.mjs";
+import {
+  lookupKnowledgePoint,
+  listKnowledgePoints,
+  listSubjects as listCurriculumSubjects,
+  curriculumMeta,
+} from "./lib/curriculum_map.mjs";
+import {
+  readProfileV2,
+  updateProfileV2,
+} from "./lib/student_profile_v2.mjs";
+import {
+  SOURCE_CLASS,
+  VALID_SOURCE_CLASSES,
+  LICENSE,
+  makeQuestionId,
+  parseQuestionId,
+} from "./lib/question_id.mjs";
+import {
+  buildProvenance,
+  validateProvenance,
+  hashPrompt,
+} from "./lib/question_provenance.mjs";
+import {
+  validateQuestionStructure,
+  isValidDifficulty,
+} from "./lib/question_validator.mjs";
+import {
+  findDuplicates,
+  normalizeStem,
+} from "./lib/question_dedupe.mjs";
+import {
+  atomicWriteJson,
+  questionPath,
+  listAllVerified,
+  listQuestions,
+  BUCKETS,
+} from "./lib/question_store.mjs";
+import { curateQuestion } from "./lib/question_bank_curator.mjs";
+import { verifyQuestion, rejectQuestion } from "./lib/question_quality_agent.mjs";
+import {
+  lookupVerified,
+  countVerified,
+} from "./lib/verified_bank_lookup.mjs";
+import { buildMergedIndex } from "./lib/curriculum_map.mjs";
+import {
+  validateParentSetupPayload,
+  PARENT_SETUP_SCHEMA_VERSION,
+  COPY_ZH_TW,
+  getParentSetupCopy,
+  FIELD_REQUIRED,
+  FIELD_RECOMMENDED,
+  FIELD_OPTIONAL,
+  FIELD_FORBIDDEN_IN_PARENT_PAYLOAD,
+} from "./lib/parent_setup_schema.mjs";
+import {
+  runAuthoringCycle,
+  planAuthoringCycle,
+  planTopGaps,
+  defaultStubAuthor,
+} from "./lib/ai_question_authoring_orchestrator.mjs";
+import { createProductionAuthorFn } from "./lib/production_ai_author.mjs";
+import {
+  appendProgressRecord,
+  readProgress,
+  buildConfirmedRecord,
+  buildInferredRecord,
+  buildPromotionToConfirmed,
+  inferProgressFromEvidence,
+  buildTextbookMapping,
+  suggestCurriculumUnit,
+  computeSchoolAlignment,
+  trackConfirmedVsInferred,
+} from "./lib/school_progress.mjs";
+import {
+  getTtlConfig,
+  sweepStudent as ttlSweepStudent,
+  buildExplicitPromotion,
+} from "./lib/school_progress_ttl.mjs";
+import {
+  updateMasteryFromEvidence as updateMasteryV2FromEvidence,
+  annotateMasteryWithSchoolAlignment,
+  getMasteryV2,
+  listMasteryV2,
+  aggregateErrorPatterns,
+  getRetentionSignal,
+  listEvidence,
+  appendEvidence as appendEvidenceStudent,
+  assertNotDirectMasteryAssignment,
+  retentionScore,
+} from "./lib/mastery_engine_v2.mjs";
+import {
+  buildCoverageReport,
+  topGaps,
+} from "./lib/coverage_report.mjs";
+import {
+  computeCoverageTargets,
+  defaultTargetFor,
+} from "./lib/coverage_targets.mjs";
+import {
+  verifyMathQuestion,
+  receiptPassed,
+} from "./lib/math_specialist_verifier.mjs";
+import {
+  crossSubjectWeaknessAggregator,
+  prerequisiteGapDetector,
+  weeklyStrategyEmitter,
+} from "./lib/learning_director.mjs";
+import {
+  CHINESE_ERROR_TAXONOMY,
+  lookupErrorCode,
+  listByCategory as listChineseErrorsByCategory,
+  listCategories as listChineseErrorCategories,
+  taxonomySize as chineseErrorTaxonomySize,
+  validateTaxonomy as validateChineseErrorTaxonomy,
+} from "./lib/chinese_error_taxonomy.mjs";
+import {
+  classifyChineseSubskill,
+  listSubskills as listChineseSubskills,
+} from "./lib/chinese_subskill_map.mjs";
+import {
+  lookupChineseKP,
+  listChineseKPForGrade,
+  gradeAppropriateVocabulary,
+  totalLadderSize,
+  listLadderGrades,
+} from "./lib/chinese_curriculum_map.mjs";
+import {
+  nextChineseHint,
+  CHINESE_HINT_LEVELS,
+} from "./lib/chinese_hint_ladder_v1.mjs";
+import {
+  diagnoseChineseResponse,
+  analyzeReadingComprehension,
+  evaluateCompositionScaffolding,
+  buildWritingFeedback,
+  chineseSpecialistDecide,
+  emitEvidence as emitChineseEvidence,
+  matchVocabularyToKnowledgePoint,
+} from "./lib/chinese_specialist.mjs";
+import {
+  ENGLISH_ERROR_TAXONOMY,
+  lookupErrorCode as lookupEnglishErrorCode,
+  listByCategory as listEnglishErrorsByCategory,
+  listCategories as listEnglishErrorCategories,
+  taxonomySize as englishErrorTaxonomySize,
+  validateTaxonomy as validateEnglishErrorTaxonomy,
+} from "./lib/english_error_taxonomy.mjs";
+import {
+  classifyEnglishSubskill,
+  listSubskills as listEnglishSubskills,
+} from "./lib/english_subskill_map.mjs";
+import {
+  lookupEnglishKP,
+  listEnglishKPForGrade,
+  gradeAppropriateVocabulary as englishGradeAppropriateVocabulary,
+  totalLadderSize as englishTotalLadderSize,
+  listLadderGrades as englishListLadderGrades,
+} from "./lib/english_curriculum_map.mjs";
+import {
+  nextEnglishHint,
+  ENGLISH_HINT_LEVELS,
+  ENGLISH_REPRESENTATIONS,
+} from "./lib/english_hint_ladder_v1.mjs";
+import {
+  validateAudioPath,
+  validateTranscriptPayload,
+  transcriptionGate,
+  capabilityReport as englishSttCapabilityReport,
+  requestSTT,
+} from "./lib/english_stt_interface.mjs";
+import {
+  ttsSynthesize,
+  ttsListVoices,
+  ttsStatus,
+  ttsComputeContentHash,
+} from "./lib/tts_local.mjs";
+import {
+  ingestRawQuestion,
+  VALID_KINDS as RAW_INGEST_KINDS,
+  VALID_SOURCE_CLASSES as RAW_INGEST_SOURCE_CLASSES,
+  VALID_LICENSES as RAW_INGEST_LICENSES,
+} from "./lib/raw_question_ingestor.mjs";
+import {
+  segmentCandidates,
+  VALID_QUESTION_TYPES,
+} from "./lib/question_segmenter.mjs";
+import {
+  diagnoseEnglishResponse,
+  analyzeReadingComprehensionEnglish,
+  transcribeAndGradeOralResponse,
+  evaluateConversationTurn,
+  englishSpecialistDecide,
+  englishToPhonicsMap,
+  emitEvidence as emitEnglishEvidence,
+} from "./lib/english_specialist.mjs";
+import {
+  renderFractionBar,
+  renderNumberLine,
+  renderBarModel,
+  renderPercentageGrid,
+  renderGeometryDiagram,
+  renderUnitConversionDiagram,
+  generateVisualSVG,
+  VISUAL_PRIMITIVES,
+} from "./lib/math_visual_engine.mjs";
+import {
+  nextMathHint,
+  representationEffectiveness,
+  MATH_HINT_LEVELS_V2,
+} from "./lib/math_hint_ladder_v2.mjs";
+import {
+  decomposeWordProblem,
+  matchWordProblemTemplate,
+  listWordProblemTemplates,
+} from "./lib/word_problem_decomposer.mjs";
+import {
+  getMathPrerequisites,
+  weakestPrerequisite,
+} from "./lib/prerequisite_chain.mjs";
+import {
+  diagnoseMathResponse,
+  buildMathTeachingPlan,
+  evidencePayload as buildMathEvidencePayload,
+  diagnosisPayload as buildMathDiagnosisPayload,
+  mathSpecialistDecide,
+} from "./lib/math_specialist_v2.mjs";
+
+import {
+  SCIENCE_ERROR_TAXONOMY,
+  lookupScienceErrorCode,
+  listScienceErrorsByCategory,
+  listScienceErrorCategories,
+  scienceErrorTaxonomySize,
+  validateScienceErrorTaxonomy,
+} from "./lib/science_error_taxonomy.mjs";
+import { nextScienceHint, SCIENCE_HINT_LEVELS } from "./lib/science_hint_ladder_v1.mjs";
+import { classifyScienceSubskill, listScienceSubskills } from "./lib/science_subskill_map.mjs";
+import { lookupScienceKP, listScienceKPForGrade, gradeAppropriateScienceTopic } from "./lib/science_curriculum_map.mjs";
+import { diagnoseScienceResponse, analyzeExperiment, interpretChartTable, interpretDiagram, scienceSpecialistDecide, emitEvidence as emitScienceEvidence } from "./lib/science_specialist.mjs";
+import {
+  SOCIAL_STUDIES_ERROR_TAXONOMY,
+  lookupSocialStudiesErrorCode,
+  listSocialStudiesErrorsByCategory,
+  listSocialStudiesErrorCategories,
+  socialStudiesErrorTaxonomySize,
+  validateSocialStudiesErrorTaxonomy,
+} from "./lib/social_studies_error_taxonomy.mjs";
+import {
+  nextSocialStudiesHint,
+  SOCIAL_STUDIES_HINT_LEVELS,
+} from "./lib/social_studies_hint_ladder_v1.mjs";
+import {
+  classifySocialStudiesSubskill,
+  listSocialStudiesSubskills,
+} from "./lib/social_studies_subskill_map.mjs";
+import {
+  lookupSocialStudiesKP,
+  listSocialStudiesKPForGrade,
+  gradeAppropriateSocialStudiesTopic,
+} from "./lib/social_studies_curriculum_map.mjs";
+import {
+  diagnoseSocialStudiesResponse,
+  analyzeTimeline,
+  analyzeMap,
+  analyzeCausality,
+  compareSources,
+  interpretDemographicChart,
+  socialStudiesSpecialistDecide,
+  emitSocialStudiesEvidence,
+} from "./lib/social_studies_specialist.mjs";
+import {
+  SUBJECT_SPECIALIST_CONTRACT_VERSION,
+  SUPPORTED_SUBJECTS,
+  validateRequest as validateSubjectSpecialistRequest,
+  validateResponse as validateSubjectSpecialistResponse,
+  emptySubjectSpecialistRequest,
+  emptySubjectSpecialistResponse,
+  describeContractShape,
+  dispatchExamples as subjectV1DispatchExamples,
+} from "./lib/subject_v1_contract.mjs";
+import {
+  dispatchSubjectSpecialist,
+  subjectCapabilityReport,
+} from "./lib/subject_dispatcher.mjs";
+import {
+  mergeCrossSubjectDecisions,
+  ACTION_PRIORITY,
+  validateDecisions,
+} from "./lib/cross_subject_merge.mjs";
+import {
+  dispatchNextStep,
+  chooseSubject,
+  chooseSubjectFromKnowledgePoint,
+  extractKnowledgePointFromInput,
+  learningDirectorV2CapabilityReport,
+  PER_SUBJECT_TOOL_NAMES,
+} from "./lib/learning_director_v2.mjs";
+import {
+  masteryBackfillDryRun,
+  masteryBackfillApply,
+  masteryBackfillStatus,
+  masteryBackfillRollback,
+  masteryBackfillClassifyEvent,
+} from "./lib/mastery_backfill_engine.mjs";
+import {
+  MATH_ERROR_TAXONOMY as MATH_ERR_TAXONOMY,
+  lookupMathErrorCode,
+  listMathErrorsByCategory as listMathErrorsByCategoryFn,
+  listMathErrorCategories,
+  mathErrorTaxonomySize,
+  validateMathErrorTaxonomy,
+} from "./lib/math_error_taxonomy.mjs";
+
+const WORKSPACE = "/home/node/.openclaw/workspace";
+const STUDENTS_DIR = path.join(WORKSPACE, "data", "students");
+const RECORDS_DIR = path.join(WORKSPACE, "data", "learning-records");
+const DATA_ROOT = WORKSPACE + "/data";
+
+async function ensureDirs() {
+  await fs.mkdir(STUDENTS_DIR, { recursive: true });
+  await fs.mkdir(RECORDS_DIR, { recursive: true });
+}
+
+const STUDENT_ID_RE = /^student_[A-Za-z0-9_-]+$/;
+
+function safeStudentId(id: string) {
+  if (!STUDENT_ID_RE.test(id)) {
+    throw new Error("Invalid student_id");
+  }
+  return id;
+}
+
+async function readStudent(studentId: string) {
+  const id = safeStudentId(studentId);
+  const file = path.join(STUDENTS_DIR, `${id}.json`);
+  const raw = await fs.readFile(file, "utf8");
+  return JSON.parse(raw);
+}
+
+async function writeStudent(studentId: string, data: unknown) {
+  const id = safeStudentId(studentId);
+  const file = path.join(STUDENTS_DIR, `${id}.json`);
+  await fs.writeFile(file, JSON.stringify(data, null, 2) + "\n", "utf8");
+}
+
+// ---------- Schemas ----------
+
+const StudentIdParam = Type.Object({
+  student_id: Type.String(),
+});
+
+type StudentIdParams = Static<typeof StudentIdParam>;
+
+const StudentProfileUpdateParams = Type.Object({
+  student_id: Type.String(),
+  display_name: Type.Optional(Type.String()),
+  grade: Type.Optional(Type.Number()),
+  subject: Type.Optional(Type.String()),
+  publisher: Type.Optional(Type.String()),
+  current_unit: Type.Optional(Type.String()),
+});
+
+type StudentProfileUpdateInput = Static<typeof StudentProfileUpdateParams>;
+
+const LearningRecordAppendParams = Type.Object({
+  student_id: Type.String(),
+  subject: Type.String(),
+  knowledge_point: Type.String(),
+  result: Type.Optional(Type.String()),
+  attempts: Type.Optional(Type.Number()),
+  hints: Type.Optional(Type.Number()),
+  error_type: Type.Optional(Type.String()),
+  review_needed: Type.Optional(Type.Boolean()),
+  note: Type.Optional(Type.String()),
+});
+
+type LearningRecordAppendInput = Static<typeof LearningRecordAppendParams>;
+
+const GeneratePracticeSetParams = Type.Object({
+  student_id: Type.String(),
+  subject: Type.String(),
+  knowledge_point: Type.String(),
+  count: Type.Optional(Type.Number()),
+  difficulty: Type.Optional(Type.String()),
+});
+
+const ClassifyMathErrorParams = Type.Object({
+  student_id: Type.String(),
+  knowledge_point: Type.String(),
+  question: Type.String(),
+  correct_answer: Type.String(),
+  student_answer: Type.String(),
+});
+
+// v2: student_profile_v2_get
+const StudentProfileV2GetParams = Type.Object({
+  student_id: Type.String(),
+});
+
+// v2: student_profile_v2_update (one-shot parent setup; optional fields, caller can skip)
+const StudentProfileV2UpdateParams = Type.Object({
+  student_id: Type.String(),
+  school_curriculum: Type.Optional(
+    Type.String({ enum: ["taiwan-12-year-curriculum", "taiwan-108-curriculum", "other"] })
+  ),
+  textbook_version: Type.Optional(
+    Type.Object({
+      math: Type.Optional(Type.Object({
+        publisher: Type.String(),
+        edition: Type.Optional(Type.String()),
+        volume: Type.Optional(Type.String()),
+        curriculum_alignment: Type.Optional(Type.String({ enum: ["confirmed", "inferred"] })),
+        notes: Type.Optional(Type.String()),
+      })),
+      chinese: Type.Optional(Type.Object({
+        publisher: Type.String(),
+        edition: Type.Optional(Type.String()),
+        volume: Type.Optional(Type.String()),
+        curriculum_alignment: Type.Optional(Type.String({ enum: ["confirmed", "inferred"] })),
+        notes: Type.Optional(Type.String()),
+      })),
+      english: Type.Optional(Type.Object({
+        publisher: Type.String(),
+        edition: Type.Optional(Type.String()),
+        volume: Type.Optional(Type.String()),
+        curriculum_alignment: Type.Optional(Type.String({ enum: ["confirmed", "inferred"] })),
+        notes: Type.Optional(Type.String()),
+      })),
+      science: Type.Optional(Type.Object({
+        publisher: Type.String(),
+        edition: Type.Optional(Type.String()),
+        volume: Type.Optional(Type.String()),
+        curriculum_alignment: Type.Optional(Type.String({ enum: ["confirmed", "inferred"] })),
+        notes: Type.Optional(Type.String()),
+      })),
+      social_studies: Type.Optional(Type.Object({
+        publisher: Type.String(),
+        edition: Type.Optional(Type.String()),
+        volume: Type.Optional(Type.String()),
+        curriculum_alignment: Type.Optional(Type.String({ enum: ["confirmed", "inferred"] })),
+        notes: Type.Optional(Type.String()),
+      })),
+    })
+  ),
+  learning_goals: Type.Optional(Type.Array(Type.Object({
+    goal_id: Type.String(),
+    subject: Type.String(),
+    knowledge_point: Type.Optional(Type.String()),
+    description: Type.String(),
+    target_date: Type.Optional(Type.String()),
+    status: Type.Optional(Type.String({ enum: ["active", "achieved", "paused", "dropped"] })),
+    created_by: Type.Optional(Type.String({ enum: ["parent", "student"] })),
+  }))),
+  parent_concerns: Type.Optional(Type.Array(Type.Object({
+    concern_id: Type.String(),
+    subject: Type.String(),
+    description: Type.String(),
+    severity: Type.Optional(Type.String({ enum: ["low", "medium", "high"] })),
+  }))),
+  school_progress: Type.Optional(Type.Object({})),
+  school_name: Type.Optional(Type.String()),  // optional; never requested by default
+  class_name: Type.Optional(Type.String()),    // optional; never requested by default
+  display_name: Type.Optional(Type.String()),
+  grade: Type.Optional(Type.Number()),
+  learning_preferences: Type.Optional(Type.Object({})),
+});
+
+// deterministic_math_validator
+const MathValidateParams = Type.Object({
+  expected_answer: Type.Union([Type.String(), Type.Number()]),
+  student_answer: Type.Union([Type.String(), Type.Number()]),
+  question_type: Type.Optional(Type.String({
+    enum: [
+      "fraction_equivalent",
+      "fraction_compare",
+      "fraction_arithmetic",
+      "integer_arithmetic",
+      "decimal_arithmetic",
+      "percent",
+      "arithmetic",
+      "mixed_number",
+      "general",
+    ],
+  })),
+  numeric_tolerance: Type.Optional(Type.Number()),
+  allow_string_match: Type.Optional(Type.Boolean()),
+});
+
+// hint_ladder_next
+const HintLadderParams = Type.Object({
+  result: Type.String(),
+  error_type: Type.Optional(Type.String()),
+  attempts: Type.Optional(Type.Number()),
+  hints_already: Type.Optional(Type.Number()),
+  representation_used: Type.Optional(Type.String()),
+  knowledge_point: Type.Optional(Type.String()),
+  student_id: Type.Optional(Type.String()),
+});
+
+// learning_event_reader
+const LearningEventReaderParams = Type.Object({
+  student_id: Type.String(),
+  since: Type.Optional(Type.String()),
+  until: Type.Optional(Type.String()),
+  subject: Type.Optional(Type.String()),
+  summary: Type.Optional(Type.Boolean()),
+});
+
+// mastery_store_get
+const MasteryGetParams = Type.Object({
+  student_id: Type.String(),
+  subject: Type.Optional(Type.String()),
+  knowledge_point: Type.Optional(Type.String()),
+  subskill: Type.Optional(Type.String()),
+});
+
+// mastery_store_update
+const MasteryUpdateParams = Type.Object({
+  student_id: Type.String(),
+  subject: Type.String(),
+  knowledge_point: Type.String(),
+  subskill: Type.Optional(Type.String()),
+  result: Type.String(),
+  error_type: Type.Optional(Type.String()),
+  timestamp: Type.Optional(Type.String()),
+});
+
+// curriculum_map_lookup
+const CurriculumLookupParams = Type.Object({
+  grade: Type.Number(),
+  subject: Type.String(),
+  knowledge_point: Type.String(),
+});
+
+const CurriculumListParams = Type.Object({
+  grade: Type.Number(),
+  subject: Type.String(),
+});
+
+const CurriculumSubjectsParams = Type.Object({});
+
+type CurriculumSubjectsParamsT = Static<typeof CurriculumSubjectsParams>;
+
+// ---------- Result helpers ----------
+
+function textResult<T>(text: string, details: T): AgentToolResult<T> {
+  return {
+    content: [{ type: "text", text }],
+    details,
+  };
+}
+
+function jsonText<T>(details: T, text?: string): AgentToolResult<T> {
+  return textResult(text ?? JSON.stringify(details), details);
+}
+
+// ---------- Plugin entry ----------
+
+export default definePluginEntry({
+  id: "mentornest-learning",
+  name: "MentorNest Learning",
+  description:
+    "Persistent student profiles and learning records for MentorNest (Phase 2: includes math validator, hint ladder, mastery store, curriculum lookup)",
+
+  register(api) {
+    // ──────────────────────────────────────────────────────────────────────
+    // Existing v1 tools (unchanged behavior)
+    // ──────────────────────────────────────────────────────────────────────
+
+    const getProfileTool: AnyAgentTool = {
+      name: "student_profile_get",
+      label: "Get student profile",
+      description:
+        "Read the persistent MentorNest profile for a known student. Use this before claiming to know the student's stored grade, curriculum, or learning profile.",
+      parameters: StudentIdParam,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        await ensureDirs();
+        const { student_id } = params as StudentIdParams;
+        try {
+          const profile = await readStudent(student_id);
+          return textResult(JSON.stringify(profile), {
+            found: true,
+            student_id,
+            profile,
+          });
+        } catch {
+          return textResult(`Student profile not found: ${student_id}`, {
+            found: false,
+            student_id,
+          });
+        }
+      },
+    };
+    api.registerTool(getProfileTool);
+
+    const updateProfileTool: AnyAgentTool = {
+      name: "student_profile_update",
+      label: "Update student profile",
+      description:
+        "Persistently update MentorNest student profile fields such as display name, grade, curriculum or learning preferences. Use only after the student's identity is known.",
+      parameters: StudentProfileUpdateParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        await ensureDirs();
+        const p = params as StudentProfileUpdateInput;
+        let profile;
+        try {
+          profile = await readStudent(p.student_id);
+        } catch {
+          profile = {
+            student_id: p.student_id,
+            display_name: "",
+            grade: null,
+            school_year: "2026",
+            curriculum: {},
+            learning_preferences: {},
+          };
+        }
+        if (p.display_name !== undefined) profile.display_name = p.display_name;
+        if (p.grade !== undefined) profile.grade = p.grade;
+        if (p.subject) {
+          if (!profile.curriculum[p.subject]) {
+            profile.curriculum[p.subject] = { publisher: "", current_unit: "" };
+          }
+          if (p.publisher !== undefined) profile.curriculum[p.subject].publisher = p.publisher;
+          if (p.current_unit !== undefined) profile.curriculum[p.subject].current_unit = p.current_unit;
+        }
+        profile.updated_at = new Date().toISOString();
+        await writeStudent(p.student_id, profile);
+        return textResult(`Student profile updated: ${p.student_id}`, profile);
+      },
+    };
+    api.registerTool(updateProfileTool);
+
+    const appendRecordTool: AnyAgentTool = {
+      name: "learning_record_append",
+      label: "Append learning record",
+      description:
+        "Append one meaningful academic learning event to a student's persistent MentorNest learning history. Do not use for casual conversation.",
+      parameters: LearningRecordAppendParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        await ensureDirs();
+        const p = params as LearningRecordAppendInput;
+        const studentId = safeStudentId(p.student_id);
+        const file = path.join(RECORDS_DIR, `${studentId}.jsonl`);
+        const record = {
+          timestamp: new Date().toISOString(),
+          ...p,
+        };
+        await fs.appendFile(file, JSON.stringify(record) + "\n", "utf8");
+        return textResult(`Learning record saved for ${studentId}`, record);
+      },
+    };
+    api.registerTool(appendRecordTool);
+
+    const generatePracticeSetTool: AnyAgentTool = {
+      name: "generate_practice_set",
+      label: "Generate practice set",
+      description:
+        "Generate a structured practice set for a known student, subject, and knowledge point using the MentorNest agent.",
+      parameters: GeneratePracticeSetParams,
+      async execute(_toolCallId, _params): Promise<AgentToolResult<unknown>> {
+        // Delegated to the agent runtime's existing LLM-backed practice generator.
+        // Kept for backward compat; the plugin tool itself just signals
+        // availability — actual generation happens through the agent.
+        return textResult("generate_practice_set: dispatched to agent runtime", {
+          status: "delegated",
+        });
+      },
+    };
+    api.registerTool(generatePracticeSetTool);
+
+    const classifyMathErrorTool: AnyAgentTool = {
+      name: "classify_math_error",
+      label: "Classify math error",
+      description:
+        "Classify a student's wrong math answer into a useful learning error type.",
+      parameters: ClassifyMathErrorParams,
+      async execute(_toolCallId, _params): Promise<AgentToolResult<unknown>> {
+        return textResult("classify_math_error: dispatched to agent runtime", {
+          status: "delegated",
+        });
+      },
+    };
+    api.registerTool(classifyMathErrorTool);
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Phase 2 — new tools
+    // ──────────────────────────────────────────────────────────────────────
+
+    // student_profile_v2_get
+    const profileV2GetTool: AnyAgentTool = {
+      name: "student_profile_v2_get",
+      label: "Get student profile v2",
+      description:
+        "Read a student's Profile v2 view (additive over v1). Returns v1 fields plus school_curriculum, textbook_version, learning_goals, parent_concerns, school_progress. Backward compatible with v1 profiles.",
+      parameters: StudentProfileV2GetParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const { student_id } = params as StudentIdParams;
+        const r = await readProfileV2(student_id);
+        return jsonText(r, r.found ? `Profile v2 loaded for ${student_id}` : `Profile not found: ${student_id}`);
+      },
+    };
+    api.registerTool(profileV2GetTool);
+
+    // student_profile_v2_update
+    const profileV2UpdateTool: AnyAgentTool = {
+      name: "student_profile_v2_update",
+      label: "Update student profile v2",
+      description:
+        "One-shot parent setup for Profile v2. Optional fields (school_name, class_name) are NEVER requested by default. Existing v1 fields are preserved.",
+      parameters: StudentProfileV2UpdateParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof StudentProfileV2UpdateParams>;
+        const updated = await updateProfileV2(p.student_id, p);
+        return jsonText({
+          updated: true,
+          student_id: p.student_id,
+          profile: updated,
+        }, `Profile v2 updated for ${p.student_id}`);
+      },
+    };
+    api.registerTool(profileV2UpdateTool);
+
+    // deterministic_math_validator
+    const mathValidatorTool: AnyAgentTool = {
+      name: "deterministic_math_validator",
+      label: "Deterministic math validator",
+      description:
+        "Validate a math answer deterministically. NEVER calls an LLM. Returns verdict (correct | incorrect | unverifiable) with a comparison trace. Supports fraction / decimal / percent / mixed-number / integer / expression equivalence.",
+      parameters: MathValidateParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof MathValidateParams>;
+        const v = validateMathAnswer({
+          expected_answer: p.expected_answer as string | number,
+          student_answer: p.student_answer as string | number,
+          opts: {
+            numeric_tolerance: p.numeric_tolerance ?? 0,
+            allow_string_match: p.allow_string_match ?? true,
+          },
+        });
+        return jsonText({
+          verdict: v.verdict,
+          reason: v.reason,
+          expected_parsed: v.expected_parsed,
+          student_parsed: v.student_parsed,
+          compare_steps: v.compare_steps,
+          question_type: p.question_type || null,
+        });
+      },
+    };
+    api.registerTool(mathValidatorTool);
+
+    // hint_ladder_next
+    const hintLadderTool: AnyAgentTool = {
+      name: "hint_ladder_next",
+      label: "Hint ladder next level",
+      description:
+        "Compute the next hint level (deterministic). Math v1 rules. Returns level 0..4 and a representation-recommendation change if applicable. The hint TEXT is generated elsewhere; this tool only decides the level.",
+      parameters: HintLadderParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof HintLadderParams>;
+        const r = nextHintLevel({
+          result: p.result,
+          error_type: p.error_type,
+          attempts: p.attempts ?? 1,
+          hints_already: p.hints_already ?? 0,
+          representation_used: p.representation_used,
+        });
+        return jsonText({
+          ...r,
+          all_levels: HINT_LEVELS,
+        });
+      },
+    };
+    api.registerTool(hintLadderTool);
+
+    // learning_event_reader
+    const learningReaderTool: AnyAgentTool = {
+      name: "learning_event_reader",
+      label: "Read learning events",
+      description:
+        "Read learning events for ONE student (cross-student reads are forbidden). Optional time window and subject filter. summary=true returns aggregated buckets.",
+      parameters: LearningEventReaderParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof LearningEventReaderParams>;
+        const opts: { since?: string; until?: string; subject?: string; summary?: boolean } = {};
+        if (p.since) opts.since = p.since;
+        if (p.until) opts.until = p.until;
+        if (p.subject) opts.subject = p.subject;
+        const wantSummary = p.summary === true;
+
+        if (wantSummary) {
+          const summary = await summarizeLearningEvents(p.student_id, opts);
+          return jsonText(summary, `Learning event summary for ${p.student_id}`);
+        }
+        const events = await readLearningEvents(p.student_id, opts);
+        return jsonText({
+          student_id: p.student_id,
+          event_count: events.length,
+          events,
+        }, `Learning events for ${p.student_id}`);
+      },
+    };
+    api.registerTool(learningReaderTool);
+
+    // mastery_store_get
+    const masteryGetTool: AnyAgentTool = {
+      name: "mastery_store_get",
+      label: "Get mastery record",
+      description:
+        "Read mastery record(s) for one student. Returns null if no record exists for the given key. subject+knowledge_point filters narrow the read.",
+      parameters: MasteryGetParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof MasteryGetParams>;
+        if (p.subject && p.knowledge_point) {
+          const rec = await getMastery(p.student_id, p.subject, p.knowledge_point, p.subskill || "");
+          return jsonText({ student_id: p.student_id, record: rec });
+        }
+        const all = await listMastery(p.student_id, { subject: p.subject });
+        return jsonText({ student_id: p.student_id, record_count: all.length, records: all });
+      },
+    };
+    api.registerTool(masteryGetTool);
+
+    // mastery_store_update
+    const masteryUpdateTool: AnyAgentTool = {
+      name: "mastery_store_update",
+      label: "Update mastery from learning event",
+      description:
+        "Update a student's mastery record from a single learning event. Computes mastery delta from result, schedules review_due, accumulates error_patterns. Per-student isolation enforced.",
+      parameters: MasteryUpdateParams,
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof MasteryUpdateParams>;
+        const rec = await updateMasteryFromEvent({
+          student_id: p.student_id,
+          subject: p.subject,
+          knowledge_point: p.knowledge_point,
+          subskill: p.subskill,
+          result: p.result,
+          error_type: p.error_type,
+          timestamp: p.timestamp,
+        });
+        return jsonText({ updated: true, record: rec });
+      },
+    };
+    api.registerTool(masteryUpdateTool);
+
+    // curriculum_map_lookup (also handles list / subjects variants)
+    const curriculumLookupTool: AnyAgentTool = {
+      name: "curriculum_map_lookup",
+      label: "Curriculum map lookup",
+      description:
+        "Look up curriculum knowledge points for Taiwan 12-year curriculum (V1: G1–G6 only). With knowledge_point given, returns the metadata + sibling points. Without it, returns all knowledge_points for that (grade, subject).",
+      parameters: Type.Union([CurriculumLookupParams, CurriculumListParams]),
+      async execute(_toolCallId, params): Promise<AgentToolResult<unknown>> {
+        const p = params as Static<typeof CurriculumLookupParams | typeof CurriculumListParams>;
+        if ("knowledge_point" in p && p.knowledge_point) {
+          const r = await lookupKnowledgePoint({
+            grade: p.grade,
+            subject: p.subject,
+            knowledge_point: p.knowledge_point,
+          });
+          return jsonText(r);
+        }
+        const list = await listKnowledgePoints({ grade: p.grade, subject: p.subject });
+        return jsonText(list);
+      },
+    };
+    api.registerTool(curriculumLookupTool);
+
+    // curriculum_meta
+    const curriculumMetaTool: AnyAgentTool = {
+      name: "curriculum_meta",
+      label: "Curriculum metadata",
+      description:
+        "Return V1 curriculum map metadata: version, scope, code, source documents.",
+      parameters: CurriculumSubjectsParams,
+      async execute(_toolCallId, _params): Promise<AgentToolResult<unknown>> {
+        const meta = await curriculumMeta();
+        const subjects = await listCurriculumSubjects();
+        return jsonText({ ...meta, subjects });
+      },
+    };
+    api.registerTool(curriculumMetaTool);
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Phase 2 second-batch: Question Bank + Parent Setup
+    // ────────────────────────────────────────────────────────────────────────
+
+    // 1) question_bank_curator.curate_question
+    const curateQuestionTool: AnyAgentTool = {
+      name: "question_bank_curator_curate",
+      label: "Curate a raw question (Phase 2)",
+      description:
+        "Curator pass: validate structure, curriculum alignment, and provenance. Writes to data/questions/curated/ + data/questions/raw/. Does NOT verify answer correctness or detect duplicates (those are Quality Agent's job).",
+      parameters: Type.Object({
+        question: Type.Object({
+          id: Type.String(),
+          type: Type.Union(["short_answer", "multiple_choice", "true_false"].map((s) => Type.Literal(s))),
+          subject: Type.String(),
+          grade: Type.Integer({ minimum: 1, maximum: 12 }),
+          knowledge_point: Type.String(),
+          difficulty: Type.Union(["easy", "medium", "hard"].map((s) => Type.Literal(s))),
+          stem: Type.String(),
+          answer: Type.Union([Type.String(), Type.Number(), Type.Boolean()]),
+          choices: Type.Optional(Type.Array(Type.Union([Type.String(), Type.Number()]))),
+          alt_answers: Type.Optional(Type.Array(Type.String())),
+          explanation: Type.Optional(Type.String()),
+          provenance: Type.Any(),
+        }),
+      }),
+      async execute(_ctx, params: any) {
+        const idx = await buildMergedIndex();
+        const out = await curateQuestion(params.question, { curriculum_index: idx, root: DATA_ROOT });
+        if (!out.ok) {
+          return jsonText({ ok: false, reason: out.reason, stage: out.stage });
+        }
+        return jsonText({ ok: true, id: out.curated.id, path: out.path });
+      },
+    };
+    api.registerTool(curateQuestionTool);
+
+    // 2) question_quality_agent.verify_question  (the gate)
+    const verifyQuestionTool: AnyAgentTool = {
+      name: "question_quality_agent_verify",
+      label: "Verify a question (Quality Gate, Phase 2)",
+      description:
+        "Runs ALL 5 mandatory checks: structure / provenance / answer self-verification / dedupe / parent reachability. Pass writes to verified/ + index. Fail writes to rejected/. This is the ONLY path into Verified Question Bank.",
+      parameters: Type.Object({
+        question: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        const idx = await buildMergedIndex();
+        const out = await verifyQuestion(params.question, { curriculum_index: idx, root: DATA_ROOT });
+        if (!out.ok) {
+          // Always write to rejected/ for traceability
+          await rejectQuestion(params.question, { root: DATA_ROOT }, out.reason).catch(() => {});
+          return jsonText({ ok: false, reason: out.reason, stage: out.stage, dup: out.dup });
+        }
+        return jsonText({ ok: true, id: out.verified.id, path: out.path, stages_passed: out.verified.quality.stages_passed });
+      },
+    };
+    api.registerTool(verifyQuestionTool);
+
+    // 3) question_quality_agent.duplicate_check  (lightweight pre-flight)
+    const dedupeTool: AnyAgentTool = {
+      name: "question_quality_agent_dedupe_check",
+      label: "Check for duplicates in verified bank (Phase 2)",
+      description:
+        "Returns candidate duplicate matches in the verified bank with similarity scores. No writes. Use this BEFORE authoring a batch to avoid wasted token spend.",
+      parameters: Type.Object({
+        stem: Type.String(),
+        knowledge_point: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const all = await listAllVerified(DATA_ROOT);
+        const cand = { stem: params.stem, knowledge_point: params.knowledge_point };
+        const dups = findDuplicates(cand, all);
+        return jsonText({ ok: true, match_count: dups.length, matches: dups });
+      },
+    };
+    api.registerTool(dedupeTool);
+
+    // 4) verified_bank_lookup  (consumed by generate_practice_set + future assessment)
+    const verifiedLookupTool: AnyAgentTool = {
+      name: "verified_bank_lookup",
+      label: "Look up verified questions (Phase 2)",
+      description:
+        "Retrieves verified questions matching (subject, grade, knowledge_point, difficulty, type). Only reads from verified/; never curated/ or raw/.",
+      parameters: Type.Object({
+        subject: Type.Optional(Type.String()),
+        grade: Type.Optional(Type.Integer()),
+        knowledge_point: Type.Optional(Type.String()),
+        difficulty: Type.Optional(Type.Union(["easy", "medium", "hard"].map((s) => Type.Literal(s)))),
+        type: Type.Optional(Type.Union(["short_answer", "multiple_choice", "true_false"].map((s) => Type.Literal(s)))),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+      }),
+      async execute(_ctx, params: any) {
+        const results = await lookupVerified({
+          subject: params.subject,
+          grade: params.grade,
+          knowledge_point: params.knowledge_point,
+          difficulty: params.difficulty,
+          type: params.type,
+          limit: params.limit ?? 20,
+          root: DATA_ROOT,
+        });
+        return jsonText({ ok: true, count: results.length, questions: results });
+      },
+    };
+    api.registerTool(verifiedLookupTool);
+
+    // 5) verified_bank_count
+    const verifiedCountTool: AnyAgentTool = {
+      name: "verified_bank_count",
+      label: "Count verified questions (Phase 2)",
+      description: "Counts verified questions matching filters; cheaper than listing.",
+      parameters: Type.Object({
+        subject: Type.Optional(Type.String()),
+        grade: Type.Optional(Type.Integer()),
+        knowledge_point: Type.Optional(Type.String()),
+        difficulty: Type.Optional(Type.Union(["easy", "medium", "hard"].map((s) => Type.Literal(s)))),
+      }),
+      async execute(_ctx, params: any) {
+        const count = await countVerified({
+          subject: params.subject,
+          grade: params.grade,
+          knowledge_point: params.knowledge_point,
+          difficulty: params.difficulty,
+          root: DATA_ROOT,
+        });
+        return jsonText({ ok: true, count });
+      },
+    };
+    api.registerTool(verifiedCountTool);
+
+    // 6) generate_practice_set — replace Phase 1 delegation stub with verified-bank-backed composer
+    //    (Phase 2 second batch; math only.)
+    const generatePracticeV2Tool: AnyAgentTool = {
+      name: "generate_practice_set_v2",
+      label: "Generate practice set from verified bank (Phase 2)",
+      description:
+        "Phase 2 math practice composer. Pulls questions from Verified Question Bank first; falls back to LLM-composed question only when bank has zero matches (V1 fallback; logged for human curation).",
+      parameters: Type.Object({
+        student_id: Type.String(),
+        subject: Type.String(),
+        knowledge_point: Type.String(),
+        grade: Type.Optional(Type.Integer()),
+        difficulty: Type.Optional(Type.Union(["easy", "medium", "hard"].map((s) => Type.Literal(s)))),
+        count: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const limit = params.count ?? 5;
+        // Resolve grade from profile if not provided
+        let grade = params.grade;
+        if (grade === undefined) {
+          try {
+            const profile = await readProfileV2(params.student_id);
+            if (profile.found && profile.profile && typeof profile.profile.grade === "number") {
+              grade = profile.profile.grade;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+        const fromBank = await lookupVerified({
+          subject: params.subject,
+          grade,
+          knowledge_point: params.knowledge_point,
+          difficulty: params.difficulty,
+          limit,
+          root: DATA_ROOT,
+        });
+        if (fromBank.length > 0) {
+          return jsonText({
+            ok: true,
+            source: "verified_bank",
+            count: fromBank.length,
+            questions: fromBank.map((q) => ({
+              id: q.id,
+              type: q.type,
+              stem: q.stem,
+              choices: q.choices,
+              knowledge_point: q.knowledge_point,
+              difficulty: q.difficulty,
+            })),
+            fallback_used: false,
+          });
+        }
+        // Fallback path: log + signal that LLM authoring is needed (no LLM call here)
+        return jsonText({
+          ok: true,
+          source: "fallback_llm_author_required",
+          count: 0,
+          questions: [],
+          fallback_used: true,
+          note: `verified bank empty for ${params.subject}/G${grade}/${params.knowledge_point}/${params.difficulty ?? "any"}; need mentor authoring pipeline to run question_bank_curator + question_quality_agent first`,
+        });
+      },
+    };
+    api.registerTool(generatePracticeV2Tool);
+
+    // 7) classify_math_error — keep v1 delegation semantics but expose the new V2 verifier path
+    //    (Phase 2 second batch keeps the v1 surface; new verifier is wired through deterministic_math_validator.)
+    //    No tool surface change here.
+
+    // 8) parent_setup_schema_validate  (Phase 2 first-batch profile v2 payload validation)
+    const parentSetupValidateTool: AnyAgentTool = {
+      name: "parent_setup_schema_validate",
+      label: "Validate parent setup payload (Phase 2)",
+      description:
+        "Validates a one-shot parent setup payload against the v2 schema. Rejects fields that are not parent-editable (school_progress is curriculum-agent's job). Optional fields (school_name / class_name) are accepted but only if explicit.",
+      parameters: Type.Object({
+        payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        const out = validateParentSetupPayload(params.payload);
+        if (!out.ok) {
+          return jsonText({ ok: false, reason: out.reason });
+        }
+        return jsonText({ ok: true, normalized: out.normalized, schema_version: PARENT_SETUP_SCHEMA_VERSION });
+      },
+    };
+    api.registerTool(parentSetupValidateTool);
+
+    // 9) parent_setup_schema_copy  (Phase 2 first-batch zh-TW strings for Web v2)
+    const parentSetupCopyTool: AnyAgentTool = {
+      name: "parent_setup_schema_copy",
+      label: "Return parent setup zh-TW copy (Phase 2)",
+      description:
+        "Returns the exact 繁體中文 strings for the one-shot parent setup flow. Web v2 will use these verbatim. advanced_only fields (school_name / class_name) are flagged so the UI knows to hide them by default.",
+      parameters: Type.Object({
+        locale: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const result = getParentSetupCopy({ locale: params.locale ?? "zh-TW" });
+        if (!result.ok) return jsonText(result);
+        return jsonText({
+          ok: true,
+          locale: result.locale,
+          schema_version: PARENT_SETUP_SCHEMA_VERSION,
+          field_taxonomy: {
+            required: FIELD_REQUIRED,
+            recommended: FIELD_RECOMMENDED,
+            optional: FIELD_OPTIONAL,
+            forbidden_in_parent_payload: FIELD_FORBIDDEN_IN_PARENT_PAYLOAD,
+          },
+          copy: result.copy,
+          invariants: result.invariants,
+        });
+      },
+    };
+    api.registerTool(parentSetupCopyTool);
+
+    // 10) math_specialist_independent_verify (Phase 2 third-batch)
+    const mathSpecialistVerifyTool: AnyAgentTool = {
+      name: "math_specialist_independent_verify",
+      label: "Independent answer verification for math questions (Phase 2 third-batch)",
+      description:
+        "Math Specialist calls this BEFORE submitting to question_quality_agent_verify. " +
+        "Re-runs the deterministic math kernel as a third-party witness; returns a " +
+        "structured receipt (parse / equivalence / warnings). " +
+        "V1 is parseability + self-consistency only; truthfulness against the stem is the " +
+        "caller's responsibility.",
+      parameters: Type.Object({
+        stem: Type.Optional(Type.String()),
+        answer: Type.Union([Type.String(), Type.Number()]),
+        alt_answers: Type.Optional(Type.Array(Type.Union([Type.String(), Type.Number()]))),
+        grade: Type.Optional(Type.Integer({ minimum: 1, maximum: 12 })),
+      }),
+      async execute(_ctx, params: any) {
+        const receipt = verifyMathQuestion({
+          stem: params.stem,
+          answer: params.answer,
+          alt_answers: params.alt_answers,
+          grade: params.grade,
+        });
+        return jsonText(receipt);
+      },
+    };
+    api.registerTool(mathSpecialistVerifyTool);
+
+    // 11) question_bank_coverage_report (Phase 2 third-batch)
+    const coverageReportTool: AnyAgentTool = {
+      name: "question_bank_coverage_report",
+      label: "Coverage report for verified question bank (Phase 2 third-batch)",
+      description:
+        "Computes per-(KP, type, difficulty) cell counts vs. minimum targets. Returns the " +
+        "gap list ordered by missing-count desc. Used by dashboards and the AI authoring " +
+        "orchestrator to decide what to author next.",
+      parameters: Type.Object({
+        subject: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        kps: Type.Optional(
+          Type.Array(
+            Type.Object({
+              kp: Type.String(),
+              subskills: Type.Optional(Type.Array(Type.String())),
+            }),
+          ),
+        ),
+        topN: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })),
+      }),
+      async execute(_ctx, params: any) {
+        const report = await buildCoverageReport({
+          workspace: WORKSPACE,
+          subject: params.subject,
+          grade: params.grade,
+          kps: params.kps,
+        });
+        if (params.topN) {
+          return jsonText({
+            ...report,
+            top_gaps: await topGaps({
+              workspace: WORKSPACE,
+              subject: params.subject,
+              grade: params.grade,
+              topN: params.topN,
+              kps: params.kps,
+            }),
+          });
+        }
+        return jsonText(report);
+      },
+    };
+    api.registerTool(coverageReportTool);
+
+    // 12) ai_question_authoring_orchestrator_run (Phase 2 third-batch)
+    const aiAuthoringTool: AnyAgentTool = {
+      name: "ai_question_authoring_orchestrator_run",
+      label: "Coverage-driven AI authoring cycle (Phase 2 third-batch)",
+      description:
+        "Runs one coverage-driven authoring cycle. Authoring is coverage-driven, NOT " +
+        "cadence-driven: every cycle computes the top-N (KP, type, difficulty) gaps and " +
+        "attempts to author them. The caller supplies authorFn; we never call an LLM " +
+        "from this tool. Each authored question passes math-specialist independent " +
+        "verification (math only), curator, and the full Quality Gate.",
+      parameters: Type.Object({
+        subject: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        kps: Type.Optional(
+          Type.Array(
+            Type.Object({
+              kp: Type.String(),
+              subskills: Type.Optional(Type.Array(Type.String())),
+            }),
+          ),
+        ),
+        batch_size: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+        // Phase 2 fourth-batch (production):
+        //   use_stub_author=true (default for tests/offline)
+        //   use_stub_author=false + production_author=true => use OpenClaw
+        //                                       gateway + MiniMax-M3.
+        // privacy filter is enforced inside production_ai_author.mjs.
+        use_stub_author: Type.Optional(Type.Boolean()),
+        production_author: Type.Optional(Type.Boolean()),
+        gateway_url: Type.Optional(Type.String()),
+        author_timeout_ms: Type.Optional(Type.Integer({ minimum: 1_000, maximum: 120_000 })),
+        prompt_hash_prefix: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        // authorFn can be sync (test stub) or async (production LLM); we keep
+        // its signature loose and let runAuthoringCycle await as needed.
+        let authorFn: any = defaultStubAuthor;
+        if (params.use_stub_author === false && params.production_author === true) {
+          const productionAuthor = createProductionAuthorFn({
+            gatewayUrl: params.gateway_url,
+            timeoutMs: params.author_timeout_ms,
+          });
+          // Wrap so the orchestrator's loose target-shape is accepted:
+          authorFn = async (target: any) => {
+            return await productionAuthor({
+              subject: target.subject,
+              grade: target.grade,
+              kp: target.kp,
+              type: target.type,
+              difficulty: target.difficulty,
+            });
+          };
+        }
+        const result = await runAuthoringCycle({
+          workspace: WORKSPACE,
+          subject: params.subject,
+          grade: params.grade,
+          kps: params.kps,
+          batch_size: params.batch_size ?? 5,
+          authorFn,
+          prompt_hash_prefix: params.prompt_hash_prefix ?? "orchestrator",
+        });
+        return jsonText(result);
+      },
+    };
+    api.registerTool(aiAuthoringTool);
+
+    // 13) ai_question_authoring_plan (Phase 2 third-batch — read-only preview)
+    const aiAuthoringPlanTool: AnyAgentTool = {
+      name: "ai_question_authoring_plan",
+      label: "Preview next authoring batch (Phase 2 third-batch)",
+      description:
+        "Read-only preview of what the orchestrator would attempt next, without running " +
+        "the loop. Useful for dashboards / 'budget remaining' UX.",
+      parameters: Type.Object({
+        subject: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        kps: Type.Optional(
+          Type.Array(
+            Type.Object({
+              kp: Type.String(),
+              subskills: Type.Optional(Type.Array(Type.String())),
+            }),
+          ),
+        ),
+        batch_size: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })),
+      }),
+      async execute(_ctx, params: any) {
+        const plan = planAuthoringCycle({
+          workspace: WORKSPACE,
+          subject: params.subject,
+          grade: params.grade,
+          kps: params.kps,
+          batch_size: params.batch_size ?? 5,
+        });
+        return jsonText(plan);
+      },
+    };
+    api.registerTool(aiAuthoringPlanTool);
+
+    // 14) learning_director_cross_subject_weakness_aggregator
+    const learningDirectorWeaknessTool: AnyAgentTool = {
+      name: "learning_director_cross_subject_weakness_aggregator",
+      label: "Learning Director: cross-subject weakness aggregator",
+      description:
+        "Returns a per-student ranked list of weak (subject, KP, subskill) cells. " +
+        "Cross-subject view; flags subjects with >=2 weak cells. Pure read of mastery store.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        topN: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const result = await crossSubjectWeaknessAggregator({
+          student_id: params.student_id,
+          workspace: WORKSPACE,
+          topN: params.topN ?? 10,
+        });
+        return jsonText({ ok: true, ...result });
+      },
+    };
+    api.registerTool(learningDirectorWeaknessTool);
+
+    // 15) learning_director_prerequisite_gap_detector
+    const learningDirectorPrereqTool: AnyAgentTool = {
+      name: "learning_director_prerequisite_gap_detector",
+      label: "Learning Director: prerequisite gap detector",
+      description:
+        "Walks the curriculum_map prerequisite chain for a target KP and surfaces any " +
+        "blocking gaps (prerequisites with low mastery). Returns a recommendation string.",
+      parameters: Type.Object({
+        subject: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        knowledge_point: Type.String(),
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const result = await prerequisiteGapDetector({
+          subject: params.subject,
+          grade: params.grade,
+          knowledge_point: params.knowledge_point,
+          student_id: params.student_id,
+          workspace: WORKSPACE,
+        });
+        return jsonText({ ok: true, ...result });
+      },
+    };
+    api.registerTool(learningDirectorPrereqTool);
+
+    // 16) learning_director_weekly_strategy_emitter
+    const learningDirectorWeeklyTool: AnyAgentTool = {
+      name: "learning_director_weekly_strategy_emitter",
+      label: "Learning Director: weekly strategy emitter",
+      description:
+        "Emits a per-student WeeklyPlan: focus areas (low mastery), review-due cells, " +
+        "suggested practice set, and a parent_summary_for_week (zh-TW with privacy copy).",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        week_of: Type.Optional(Type.String()),
+        max_focus: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })),
+        max_review: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })),
+        max_practice: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const result = await weeklyStrategyEmitter({
+          student_id: params.student_id,
+          workspace: WORKSPACE,
+          week_of: params.week_of,
+          max_focus: params.max_focus,
+          max_review: params.max_review,
+          max_practice: params.max_practice,
+        });
+        return jsonText({ ok: true, ...result });
+      },
+    };
+    api.registerTool(learningDirectorWeeklyTool);
+
+    // ───────── Phase 2 fourth-batch: Curriculum Agent v1 ─────────
+    //
+    // Six tools covering the curriculum-agent contract:
+    //   - school_progress_get
+    //   - school_progress_update_confirmed
+    //   - school_progress_infer
+    //   - school_progress_promote_to_confirmed
+    //   - school_alignment
+    //   - confirmed_vs_inferred_progress_tracker
+
+    const schoolProgressGetTool: AnyAgentTool = {
+      name: "school_progress_get",
+      label: "Curriculum Agent: read school progress (append-only)",
+      description:
+        "Reads all school progress records for a student from the append-only JSONL. " +
+        "Cross-student reads forbidden. Also returns latest_by_subject view.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        include_records: Type.Optional(Type.Boolean()),
+      }),
+      async execute(_ctx, params: any) {
+        const got = await readProgress(WORKSPACE, params.student_id);
+        return jsonText({
+          ok: true,
+          student_id: params.student_id,
+          event_count: got.count,
+          path: got.path,
+          latest_by_subject: Object.fromEntries(
+            Object.entries(got.latest_by_subject).map(([k, v]) => [
+              k,
+              {
+                curriculum_unit: v.curriculum_unit,
+                status: v.status,
+                source_type: v.source_type,
+                knowledge_points: v.knowledge_points,
+                confidence: v.confidence,
+                recorded_at: v.confirmed_at ?? v.inferred_at,
+              },
+            ])
+          ),
+          records: params.include_records === true ? got.records : undefined,
+        });
+      },
+    };
+    api.registerTool(schoolProgressGetTool);
+
+    const schoolProgressUpdateConfirmedTool: AnyAgentTool = {
+      name: "school_progress_update_confirmed",
+      label: "Curriculum Agent: append a confirmed school-progress record",
+      description:
+        "Appends a NEW confirmed school-progress record. Append-only: never rewrites, " +
+        "truncates, or deletes existing records. source_type must be one of " +
+        "official_curriculum | parent_confirmed | teacher_material_confirmed | " +
+        "textbook_mapping.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.Union(["math", "chinese", "english", "science", "social_studies"].map((s) => Type.Literal(s))),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        curriculum_unit: Type.String({ minLength: 1, maxLength: 100 }),
+        knowledge_points: Type.Array(Type.String({ minLength: 3 })),
+        status: Type.Union(["not_started", "in_progress", "completed"].map((s) => Type.Literal(s))),
+        source_type: Type.Union([
+          "official_curriculum",
+          "parent_confirmed",
+          "teacher_material_confirmed",
+          "textbook_mapping",
+        ].map((s) => Type.Literal(s))),
+        source_reference: Type.String({ minLength: 1, maxLength: 500 }),
+        confidence: Type.Optional(Type.Number({ minimum: 0.5, maximum: 1 })),
+        replaces_record_id: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const rec = buildConfirmedRecord({
+          student_id: params.student_id,
+          subject: params.subject,
+          grade: params.grade,
+          curriculum_unit: params.curriculum_unit,
+          knowledge_points: params.knowledge_points,
+          status: params.status,
+          source_type: params.source_type,
+          source_reference: params.source_reference,
+          confidence: params.confidence ?? 1.0,
+          replaces_record_id: params.replaces_record_id,
+        });
+        const out = await appendProgressRecord(WORKSPACE, rec);
+        const { ok: _o, ...rest } = out;
+        return jsonText({ ok: true, ...rest, record: rec });
+      },
+    };
+    api.registerTool(schoolProgressUpdateConfirmedTool);
+
+    const schoolProgressInferTool: AnyAgentTool = {
+      name: "school_progress_infer",
+      label: "Curriculum Agent: append an inferred school-progress record",
+      description:
+        "Runs an inference using structured evidence (mastery signals, KPs mastered " +
+        "recently) and appends the resulting inferred record. NEVER sets confirmed_at. " +
+        "Privacy: the evidence payload is validated to reject display_name, " +
+        "school_name, parent_concerns, or any raw event data.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.Union(["math", "chinese", "english", "science", "social_studies"].map((s) => Type.Literal(s))),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        unit_label: Type.String({ minLength: 1, maxLength: 100 }),
+        unit_knowledge_points: Type.Array(Type.String({ minLength: 3 })),
+        evidence: Type.Object({
+          mastery_recent: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
+          kps_mastered_recent: Type.Optional(Type.Array(Type.String())),
+          last_event_at: Type.Optional(Type.String()),
+          knowledge_point: Type.Optional(Type.String()),
+        }),
+      }),
+      async execute(_ctx, params: any) {
+        const inference = inferProgressFromEvidence({
+          student_id: params.student_id,
+          subject: params.subject,
+          grade: params.grade,
+          unit_label: params.unit_label,
+          evidence: params.evidence,
+          unit_knowledge_points: params.unit_knowledge_points,
+        });
+        const out = await appendProgressRecord(WORKSPACE, inference.candidate);
+        const { ok: _o3, ...rest3 } = out;
+        return jsonText({
+          ok: true,
+          ...rest3,
+          reason: inference.reason,
+          confidence: inference.confidence,
+          status: inference.status,
+          record: inference.candidate,
+        });
+      },
+    };
+    api.registerTool(schoolProgressInferTool);
+
+    const schoolProgressPromoteTool: AnyAgentTool = {
+      name: "school_progress_promote_to_confirmed",
+      label: "Curriculum Agent: promote an inferred record to confirmed (supersedes)",
+      description:
+        "Builds a NEW confirmed record that supersedes a prior inferred record. " +
+        "The old record stays in the JSONL (append-only); the new record carries " +
+        "replaces_record_id. Confidence is monotonic non-decreasing.",
+      parameters: Type.Object({
+        previous_record_id: Type.String(),
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        promotion_source_type: Type.Union([
+          "official_curriculum",
+          "parent_confirmed",
+          "teacher_material_confirmed",
+          "textbook_mapping",
+        ].map((s) => Type.Literal(s))),
+        promotion_source_reference: Type.String({ minLength: 1, maxLength: 500 }),
+        new_status: Type.Optional(Type.Union(["not_started", "in_progress", "completed"].map((s) => Type.Literal(s)))),
+        new_curriculum_unit: Type.Optional(Type.String()),
+        new_knowledge_points: Type.Optional(Type.Array(Type.String())),
+        new_confidence: Type.Optional(Type.Number({ minimum: 0.5, maximum: 1 })),
+      }),
+      async execute(_ctx, params: any) {
+        const got = await readProgress(WORKSPACE, params.student_id);
+        const prev = got.records.find((r) => r.record_id === params.previous_record_id);
+        if (!prev) return jsonText({ ok: false, reason: "previous_record_id_not_found" });
+        const promoted = buildPromotionToConfirmed(prev, {
+          new_status: params.new_status,
+          new_curriculum_unit: params.new_curriculum_unit,
+          new_knowledge_points: params.new_knowledge_points,
+          new_source_type: params.promotion_source_type,
+          new_source_reference: params.promotion_source_reference,
+          new_confidence: params.new_confidence ?? 1.0,
+        });
+        const out = await appendProgressRecord(WORKSPACE, promoted);
+        const { ok: _o2, ...rest2 } = out;
+        return jsonText({ ok: true, ...rest2, record: promoted, superseded_id: prev.record_id });
+      },
+    };
+    api.registerTool(schoolProgressPromoteTool);
+
+    const schoolAlignmentTool: AnyAgentTool = {
+      name: "school_alignment",
+      label: "Curriculum Agent: align mastery with school progress (read-only)",
+      description:
+        "Cross-matches a student's mastery records against confirmed school progress " +
+        "records. Returns zh-TW recommendations; READ-ONLY (no writes).",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+      }),
+      async execute(_ctx, params: any) {
+        const prog = await readProgress(WORKSPACE, params.student_id);
+        const { listMastery } = await import("./lib/mastery_store.mjs");
+        const mastery = await listMastery(params.student_id);
+        const result = computeSchoolAlignment({
+          mastery: mastery.map((m) => ({
+            subject: m.subject,
+            knowledge_point: m.knowledge_point,
+            mastery: m.mastery,
+          })),
+          progress_records: prog.records,
+        });
+        return jsonText({ ok: true, items: result.items, count: result.count, student_id: params.student_id });
+      },
+    };
+    api.registerTool(schoolAlignmentTool);
+
+    const confirmedVsInferredTrackerTool: AnyAgentTool = {
+      name: "confirmed_vs_inferred_progress_tracker",
+      label: "Curriculum Agent: confirmed vs inferred progress tracker (read-only)",
+      description:
+        "Returns confirmed (teacher/parent/official) and inferred (mastery-derived) " +
+        "progress separately; flags conflicts where both kinds claim the same " +
+        "(subject, grade).",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+      }),
+      async execute(_ctx, params: any) {
+        const prog = await readProgress(WORKSPACE, params.student_id);
+        const out = trackConfirmedVsInferred(prog.records, { student_id: params.student_id });
+        return jsonText({
+          ok: true,
+          confirmed: out.confirmed,
+          inferred: out.inferred,
+          conflicts: out.conflicts,
+          event_count: prog.count,
+        });
+      },
+    };
+    api.registerTool(confirmedVsInferredTrackerTool);
+
+    const textbookMappingTool: AnyAgentTool = {
+      name: "textbook_mapping_engine",
+      label: "Curriculum Agent: textbook mapping engine skeleton",
+      description:
+        "Builds a textbook→curriculum-unit mapping for parent/teacher-supplied " +
+        "publisher maps. We do NOT copy publisher content; only KP IDs are emitted. " +
+        "Returns stats + a per-publisher map.",
+      parameters: Type.Object({
+        publisher_map: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        // The publisher_map may be deeply nested; normalize the structure.
+        // Caller passes { publisher: { edition: { volume: { units: [...] } } } }
+        // OR { publisher: { volume: { units: [...] } } } (legacy).
+        const rawMap: any = params.publisher_map ?? {};
+        const normalized: any = {};
+        for (const publisher of Object.keys(rawMap)) {
+          normalized[publisher] = {};
+          const pubEntry: any = rawMap[publisher] ?? {};
+          for (const editionOrVolume of Object.keys(pubEntry)) {
+            const node: any = pubEntry[editionOrVolume];
+            // Heuristic: if node has "units", treat as volume.
+            if (node && Array.isArray(node.units)) {
+              normalized[publisher][editionOrVolume] = { units: node.units };
+            } else if (node && typeof node === "object") {
+              for (const volume of Object.keys(node)) {
+                const v: any = node[volume];
+                if (v && Array.isArray(v.units)) {
+                  if (!normalized[publisher][editionOrVolume]) normalized[publisher][editionOrVolume] = {};
+                  normalized[publisher][editionOrVolume][volume] = { units: v.units };
+                }
+              }
+            }
+          }
+        }
+        const ci = await buildMergedIndex();
+        const out = buildTextbookMapping({ curriculum_index: ci, publisher_map: normalized });
+        return jsonText({ ok: true, mappings: out.mappings, stats: out.stats });
+      },
+    };
+    api.registerTool(textbookMappingTool);
+
+    // ───────── Phase 2 fourth-batch: Mastery Engine v2 (server-side) ─────────
+    //
+    // Mastery v2 INVARIANTS:
+    //   - Mastery is computed ONLY from objective evidence (events + assessments).
+    //   - LLM agents cannot set mastery directly. `set_mastery` is rejected.
+    //   - Persistence is server-side: data/mastery/<id>.json (mutable) +
+    //     data/mastery-evidence/<id>.jsonl (append-only ledger).
+    //   - Browser localStorage is NEVER source-of-truth.
+
+    const masteryV2UpdateTool: AnyAgentTool = {
+      name: "mastery_engine_v2_update_from_evidence",
+      label: "Mastery v2: update from objective evidence (FORBIDDEN to set mastery directly)",
+      description:
+        "Updates a mastery record from a single objective evidence event. " +
+        "Rejects any `set_mastery` or direct `mastery` value. Computes delta " +
+        "from quality rating + FSRS-lite. Appends to append-only evidence ledger.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.String(),
+        knowledge_point: Type.String(),
+        subskill: Type.Optional(Type.String({ maxLength: 100 })),
+        result: Type.Union(["correct", "incorrect", "partially_correct", "improved", "mastered"].map((s) => Type.Literal(s))),
+        error_type: Type.Optional(Type.String()),
+        hints: Type.Optional(Type.Integer({ minimum: 0, maximum: 5 })),
+        first_attempt: Type.Optional(Type.Boolean()),
+        source: Type.Optional(Type.String()),
+        source_event_id: Type.Optional(Type.String()),
+        evidence_kind: Type.Optional(Type.Union(["response", "rubric", "manual_flag"].map((s) => Type.Literal(s)))),
+      }),
+      async execute(_ctx, params: any) {
+        assertNotDirectMasteryAssignment({ tool: "mastery_engine_v2_update_from_evidence", params });
+        const out = await updateMasteryV2FromEvidence({
+          student_id: params.student_id,
+          subject: params.subject,
+          knowledge_point: params.knowledge_point,
+          subskill: params.subskill,
+          result: params.result,
+          error_type: params.error_type,
+          hints: params.hints,
+          first_attempt: params.first_attempt,
+          source: params.source,
+          source_event_id: params.source_event_id,
+          evidence_kind: params.evidence_kind,
+        });
+        return jsonText({ ok: true, record: out.record, evidence_event_id: out.evidence_event_id });
+      },
+    };
+    api.registerTool(masteryV2UpdateTool);
+
+    const masteryV2AnnotateAlignmentTool: AnyAgentTool = {
+      name: "mastery_engine_v2_annotate_school_alignment",
+      label: "Mastery v2: annotate school alignment (curriculum-agent only)",
+      description:
+        "Records a school-alignment signal on an existing mastery record. " +
+        "Curriculum-agent writes only — never affects mastery. Safe with no " +
+        "existing record (writes a stub); mastery grows from evidence only.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.String(),
+        knowledge_point: Type.String(),
+        school_alignment: Type.Union(["aligned", "lagging", "ahead", "completed_in_class"].map((s) => Type.Literal(s))),
+      }),
+      async execute(_ctx, params: any) {
+        const out = await annotateMasteryWithSchoolAlignment({
+          student_id: params.student_id,
+          subject: params.subject,
+          knowledge_point: params.knowledge_point,
+          school_alignment: params.school_alignment,
+        });
+        return jsonText({ ok: true, record: out });
+      },
+    };
+    api.registerTool(masteryV2AnnotateAlignmentTool);
+
+    const masteryV2ErrorPatternsTool: AnyAgentTool = {
+      name: "mastery_engine_v2_error_pattern_aggregation",
+      label: "Mastery v2: aggregate error patterns across KPs",
+      description:
+        "Aggregates error_patterns across all mastery records for a student. " +
+        "Returns { type: count }. Read-only.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const out = await aggregateErrorPatterns(params.student_id, { subject: params.subject });
+        return jsonText({ ok: true, by_type: out.by_type, student_id: params.student_id });
+      },
+    };
+    api.registerTool(masteryV2ErrorPatternsTool);
+
+    const masteryV2RetentionTool: AnyAgentTool = {
+      name: "mastery_engine_v2_retention_signal",
+      label: "Mastery v2: retention signal (stale_count + avg retention)",
+      description:
+        "Reports the average retention R(t) across all mastery records plus a " +
+        "count of 'stale' records (R < 0.5). Read-only.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+      }),
+      async execute(_ctx, params: any) {
+        const out = await getRetentionSignal(params.student_id);
+        const { ok: _o, ...rest } = out;
+        return jsonText({ ok: true, ...rest });
+      },
+    };
+    api.registerTool(masteryV2RetentionTool);
+
+    const masteryV2EvidenceListTool: AnyAgentTool = {
+      name: "mastery_engine_v2_list_evidence",
+      label: "Mastery v2: list append-only evidence ledger",
+      description:
+        "Lists evidence rows from the append-only ledger. Supports filtering. Read-only.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.Optional(Type.String()),
+        knowledge_point: Type.Optional(Type.String()),
+        since: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const out = await listEvidence(params.student_id, {
+          subject: params.subject,
+          knowledge_point: params.knowledge_point,
+          since: params.since,
+        });
+        return jsonText({ ok: true, count: out.count, events: out.events });
+      },
+    };
+    api.registerTool(masteryV2EvidenceListTool);
+
+    const masteryV2GetTool: AnyAgentTool = {
+      name: "mastery_engine_v2_get",
+      label: "Mastery v2: read a single record (with retention signal)",
+      description:
+        "Reads a single mastery v2 record (with retention signal derived from last_seen). Read-only.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        subject: Type.String(),
+        knowledge_point: Type.String(),
+        subskill: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const rec = await getMasteryV2(params.student_id, params.subject, params.knowledge_point, params.subskill || "");
+        const now = new Date().toISOString();
+        const retention = rec && rec.last_seen ? retentionScore(rec.last_seen, now) : null;
+        return jsonText({ ok: true, record: rec, retention_at_now: retention });
+      },
+    };
+    api.registerTool(masteryV2GetTool);
+
+    // ───────── Phase 2 fourth-batch: Production Question Author (top-level) ─────────
+
+    const mentornestAuthorProductionTool: AnyAgentTool = {
+      name: "mentornest_question_author_production",
+      label: "MentorNest AI Question Author (production)",
+      description:
+        "Calls the local OpenClaw gateway + MiniMax-M3 to author one practice " +
+        "question. PRIVACY: payload is filtered against forbidden fields at " +
+        "input AND output layers.",
+      parameters: Type.Object({
+        subject: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        question_type: Type.Union(["short_answer", "multiple_choice", "true_false"].map((s) => Type.Literal(s))),
+        difficulty: Type.Union(["easy", "medium", "hard"].map((s) => Type.Literal(s))),
+        authoring_constraints: Type.Optional(Type.Record(Type.String(), Type.Any())),
+        gateway_url: Type.Optional(Type.String()),
+        author_timeout_ms: Type.Optional(Type.Integer({ minimum: 1000, maximum: 120000 })),
+        locale: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const fn = createProductionAuthorFn({
+          gatewayUrl: params.gateway_url,
+          timeoutMs: params.author_timeout_ms,
+          locale: params.locale,
+        });
+        const out = await fn({
+          subject: params.subject,
+          grade: params.grade,
+          kp: params.knowledge_point,
+          type: params.question_type,
+          difficulty: params.difficulty,
+        });
+        if (!out) return jsonText({ ok: false, reason: "author_fn returned null (low confidence or error)" });
+        return jsonText({ ok: true, output: out });
+      },
+    };
+    api.registerTool(mentornestAuthorProductionTool);
+
+    // (We intentionally do NOT export the old "delegated" stubs for practice/error tools here;
+    // those entries remain in openclaw.plugin.json for runtime discovery during Phase 1.)
+    // (Phase 2: we keep them as no-ops that signal delegation, to preserve tool surface.)
+
+    // ───────── Phase 3 sub-session B: Chinese Specialist v1 ─────────
+    //
+    // 11 new tools. Each is a thin wrapper around a pure function in
+    // ./lib/chinese_*.mjs. Chinese Specialist NEVER directly modifies
+    // mastery — the only writes go through the append-only evidence ledger
+    // via mastery_engine_v2.appendEvidence (re-exposed below as
+    // chinese_specialist_emit_evidence).
+
+    // 1) chinese_error_taxonomy_lookup
+    const chineseErrorTaxonomyLookupTool: AnyAgentTool = {
+      name: "chinese_error_taxonomy_lookup",
+      label: "Chinese error taxonomy lookup (Phase 3-B)",
+      description:
+        "Look up Chinese-specific error codes by category or list the full " +
+        "taxonomy. Chinese codes do NOT overlap with math codes.",
+      parameters: Type.Object({
+        code: Type.Optional(Type.String()),
+        category: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        if (params.code) {
+          const entry = lookupErrorCode(params.code);
+          return jsonText({ ok: !!entry, entry });
+        }
+        if (params.category) {
+          const entries = listChineseErrorsByCategory(params.category);
+          return jsonText({ ok: true, count: entries.length, entries });
+        }
+        const validation = validateChineseErrorTaxonomy();
+        return jsonText({
+          ok: true,
+          size: chineseErrorTaxonomySize(),
+          categories: listChineseErrorCategories(),
+          sample: CHINESE_ERROR_TAXONOMY.slice(0, 5),
+          validation,
+        });
+      },
+    };
+    api.registerTool(chineseErrorTaxonomyLookupTool);
+
+    // 2) chinese_specialist_diagnose
+    const chineseSpecialistDiagnoseTool: AnyAgentTool = {
+      name: "chinese_specialist_diagnose",
+      label: "Chinese specialist diagnose a response (Phase 3-B)",
+      description:
+        "Diagnose a student's Chinese response. Returns structured error " +
+        "code, hint level, hint text (zh-TW), and evidence/diagnosis payloads. " +
+        "Does NOT modify mastery directly.",
+      parameters: Type.Object({
+        stem: Type.String(),
+        student_answer: Type.String(),
+        expected_answer: Type.String(),
+        knowledge_point: Type.String(),
+        error_taxonomy_code: Type.Optional(Type.String()),
+        grade: Type.Optional(Type.Integer({ minimum: 1, maximum: 12 })),
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+      }),
+      async execute(_ctx, params: any) {
+        const r = diagnoseChineseResponse({
+          stem: params.stem,
+          student_answer: params.student_answer,
+          expected_answer: params.expected_answer,
+          knowledge_point: params.knowledge_point,
+          error_taxonomy_code: params.error_taxonomy_code,
+          grade: params.grade,
+          student_id: params.student_id,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(chineseSpecialistDiagnoseTool);
+
+    // 3) chinese_specialist_analyze_reading
+    const chineseSpecialistAnalyzeReadingTool: AnyAgentTool = {
+      name: "chinese_specialist_analyze_reading",
+      label: "Chinese specialist analyze reading comprehension (Phase 3-B)",
+      description:
+        "Analyze a reading-comprehension response (kind = explicit | " +
+        "inference | main_idea | structure). Deterministic keyword + span " +
+        "matching via known phrase banks. NO LLM. Returns rationales, " +
+        "error_code (in ZH-RD-* or ZH-STR-* family), and a hint.",
+      parameters: Type.Object({
+        stem: Type.String(),
+        choices: Type.Optional(Type.Array(Type.String())),
+        student_answer: Type.String(),
+        expected_answer: Type.String(),
+        kind: Type.Union(["explicit", "inference", "main_idea", "structure"].map((s) => Type.Literal(s))),
+      }),
+      async execute(_ctx, params: any) {
+        const r = analyzeReadingComprehension({
+          stem: params.stem,
+          choices: params.choices,
+          student_answer: params.student_answer,
+          expected_answer: params.expected_answer,
+          kind: params.kind,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(chineseSpecialistAnalyzeReadingTool);
+
+    // 4) chinese_specialist_evaluate_composition
+    const chineseSpecialistEvaluateCompositionTool: AnyAgentTool = {
+      name: "chinese_specialist_evaluate_composition",
+      label: "Chinese specialist evaluate composition scaffolding (Phase 3-B)",
+      description:
+        "Heuristic composition scaffolding for Chinese writing. Returns " +
+        "structure/vocabulary/content/organization scores and a feedback " +
+        "list (zh-TW). Deterministic: sentence / paragraph / connecting-word / " +
+        "topic-sentence / TTR-based. NO LLM.",
+      parameters: Type.Object({
+        prompt: Type.String(),
+        student_text: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        target_word_count: Type.Optional(Type.Integer({ minimum: 10, maximum: 5000 })),
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+      }),
+      async execute(_ctx, params: any) {
+        const r = evaluateCompositionScaffolding({
+          prompt: params.prompt,
+          student_text: params.student_text,
+          grade: params.grade,
+          target_word_count: params.target_word_count,
+          student_id: params.student_id,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(chineseSpecialistEvaluateCompositionTool);
+
+    // 5) chinese_specialist_build_writing_feedback
+    const chineseSpecialistBuildWritingFeedbackTool: AnyAgentTool = {
+      name: "chinese_specialist_build_writing_feedback",
+      label: "Chinese specialist build writing feedback (Phase 3-B)",
+      description:
+        "Build per-feature writing feedback for a list of target features " +
+        "(paragraph / thesis / evidence / transition / conclusion). Returns " +
+        "a feature_pass map and a prioritized feedback list (zh-TW). NO LLM.",
+      parameters: Type.Object({
+        student_text: Type.String(),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        target_features: Type.Array(
+          Type.Union(["paragraph", "thesis", "evidence", "transition", "conclusion"].map((s) => Type.Literal(s))),
+          { minItems: 1, maxItems: 5 },
+        ),
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+      }),
+      async execute(_ctx, params: any) {
+        const r = buildWritingFeedback({
+          student_text: params.student_text,
+          grade: params.grade,
+          target_features: params.target_features,
+          student_id: params.student_id,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(chineseSpecialistBuildWritingFeedbackTool);
+
+    // 6) chinese_specialist_decide
+    const chineseSpecialistDecideTool: AnyAgentTool = {
+      name: "chinese_specialist_decide",
+      label: "Chinese specialist decide next action (Phase 3-B)",
+      description:
+        "Decide the next specialist action (text_prompt | vocabulary_drill | " +
+        "reading_scaffold | writing_scaffold | mastery_check | " +
+        "backtrack_prerequisite) based on student state, mastery, error " +
+        "code, and representation_history. Pure function.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        attempts: Type.Integer({ minimum: 1, maximum: 100 }),
+        mastery: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
+        error_code: Type.Optional(Type.String()),
+        representation_history: Type.Optional(Type.Array(Type.String())),
+      }),
+      async execute(_ctx, params: any) {
+        const r = chineseSpecialistDecide({
+          student_id: params.student_id,
+          knowledge_point: params.knowledge_point,
+          attempts: params.attempts,
+          mastery: params.mastery,
+          error_code: params.error_code,
+          representation_history: params.representation_history,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(chineseSpecialistDecideTool);
+
+    // 7) chinese_specialist_emit_evidence
+    //   Writes the evidence payload to the append-only ledger at
+    //   data/mastery-evidence/<student_id>.jsonl via
+    //   mastery_engine_v2.appendEvidence. Does NOT modify mastery.
+    const chineseSpecialistEmitEvidenceTool: AnyAgentTool = {
+      name: "chinese_specialist_emit_evidence",
+      label: "Chinese specialist emit evidence (Phase 3-B)",
+      description:
+        "Append a Chinese-specialist evidence payload to the append-only " +
+        "ledger. Does NOT modify mastery directly. The mastery engine will " +
+        "summarize from this ledger on its own schedule.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        evidence_payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const payload = emitChineseEvidence({
+          student_id: params.student_id,
+          subject: "chinese",
+          knowledge_point: params.knowledge_point,
+          ...(params.evidence_payload ?? {}),
+        });
+        // Use the mastery engine's appendEvidence directly; this bypasses
+        // mastery computation (we only need the ledger write).
+        const out = await appendEvidenceStudent(params.student_id, {
+          subject: payload.subject,
+          knowledge_point: payload.knowledge_point,
+          subskill: payload.subskill,
+          source: "chinese_specialist_emit_evidence",
+          result: payload.result ?? null,
+          error_type: payload.error_code,
+          quality_rating: null,
+          evidence_kind: "response",
+        });
+        return jsonText({
+          ok: true,
+          evidence_event_id: out.event_id,
+          evidence_payload: payload,
+        });
+      },
+    };
+    api.registerTool(chineseSpecialistEmitEvidenceTool);
+
+    // 8) chinese_hint_ladder_next
+    const chineseHintLadderNextTool: AnyAgentTool = {
+      name: "chinese_hint_ladder_next",
+      label: "Chinese hint ladder next (Phase 3-B)",
+      description:
+        "Compute the next Chinese-domain hint level (0..4) and a zh-TW " +
+        "hint string. Deterministic. Decision rules: explicit-info → " +
+        "找原文關鍵詞; inference → 為什麼; main-idea → 主題句; writing → " +
+        "段落鷹架; 字詞 → 字形部件提示.",
+      parameters: Type.Object({
+        knowledge_point: Type.Optional(Type.String()),
+        attempts: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+        error_code: Type.Optional(Type.String()),
+        student_partial: Type.Optional(Type.String()),
+        hint_history: Type.Optional(Type.Array(
+          Type.Object({ level: Type.Integer(), text: Type.String() })
+        )),
+      }),
+      async execute(_ctx, params: any) {
+        const r = nextChineseHint({
+          knowledge_point: params.knowledge_point,
+          attempts: params.attempts ?? 1,
+          error_code: params.error_code,
+          student_partial: params.student_partial,
+          hint_history: params.hint_history,
+        });
+        return jsonText({ ...r, all_levels: CHINESE_HINT_LEVELS });
+      },
+    };
+    api.registerTool(chineseHintLadderNextTool);
+
+    // 9) chinese_curriculum_lookup_kp
+    const chineseCurriculumLookupKPTool: AnyAgentTool = {
+      name: "chinese_curriculum_lookup_kp",
+      label: "Chinese curriculum lookup KP (Phase 3-B)",
+      description:
+        "Look up a Chinese knowledge point by id (e.g. " +
+        "chinese.G5.READ.main-idea-multi). Returns grade, topic, subtopic, " +
+        "a 3-word vocabulary sample, and example_texts.",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 3 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = await lookupChineseKP({ knowledge_point: params.knowledge_point });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(chineseCurriculumLookupKPTool);
+
+    // 10) chinese_curriculum_list_for_grade
+    const chineseCurriculumListForGradeTool: AnyAgentTool = {
+      name: "chinese_curriculum_list_for_grade",
+      label: "Chinese curriculum list for grade (Phase 3-B)",
+      description:
+        "List all Chinese knowledge points for a grade G1–G6, plus the " +
+        "vocabulary-ladder size (V1 ships ~30 words per grade).",
+      parameters: Type.Object({
+        grade: Type.Integer({ minimum: 1, maximum: 6 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = await listChineseKPForGrade({ grade: params.grade });
+        return jsonText({
+          ...r,
+          total_ladder_size: totalLadderSize(),
+          ladder_grades: listLadderGrades(),
+        });
+      },
+    };
+    api.registerTool(chineseCurriculumListForGradeTool);
+
+    // 11) chinese_subskill_classify
+    const chineseSubskillClassifyTool: AnyAgentTool = {
+      name: "chinese_subskill_classify",
+      label: "Chinese subskill classify (Phase 3-B)",
+      description:
+        "Classify a Chinese knowledge point into a primary subskill " +
+        "(字 / 詞 / 句 / 段 / 篇 / 修辭 / 文言 / 應用) plus secondary " +
+        "subskills. Pure function.",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = classifyChineseSubskill({ knowledge_point: params.knowledge_point });
+        return jsonText({ ok: true, all_subskills: listChineseSubskills(), ...r });
+      },
+    };
+    api.registerTool(chineseSubskillClassifyTool);
+
+    // ───────── Phase 3 sub-session C (RESPAWN): English Specialist v1 ─────────
+    //
+    // 16 new tools. Each is a thin wrapper around a pure function in
+    // ./lib/english_*.mjs. English Specialist NEVER directly modifies
+    // mastery — the only writes go through the append-only evidence ledger
+    // via mastery_engine_v2.appendEvidence (re-exposed below as
+    // english_specialist_emit_evidence).
+    //
+    // Local STT interface is included; cloud STT providers are FORBIDDEN.
+
+    // 1) english_error_taxonomy_lookup
+    const englishErrorTaxonomyLookupTool: AnyAgentTool = {
+      name: "english_error_taxonomy_lookup",
+      label: "English error taxonomy lookup (Phase 3-C)",
+      description:
+        "Look up English-specific error codes by category or list the full " +
+        "taxonomy. English codes do NOT overlap with math or Chinese codes.",
+      parameters: Type.Object({
+        code: Type.Optional(Type.String()),
+        category: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        if (params.code) {
+          const entry = lookupEnglishErrorCode(params.code);
+          return jsonText({ ok: !!entry, entry });
+        }
+        if (params.category) {
+          const entries = listEnglishErrorsByCategory(params.category);
+          return jsonText({ ok: true, count: entries.length, entries });
+        }
+        const validation = validateEnglishErrorTaxonomy();
+        return jsonText({
+          ok: true,
+          size: englishErrorTaxonomySize(),
+          categories: listEnglishErrorCategories(),
+          sample: ENGLISH_ERROR_TAXONOMY.slice(0, 5),
+          validation,
+        });
+      },
+    };
+    api.registerTool(englishErrorTaxonomyLookupTool);
+
+    // 2) english_specialist_diagnose
+    const englishSpecialistDiagnoseTool: AnyAgentTool = {
+      name: "english_specialist_diagnose",
+      label: "English specialist diagnose a response (Phase 3-C)",
+      description:
+        "Diagnose a student's English response. Returns structured error " +
+        "codes, hint level, hint text (zh-TW), and evidence/diagnosis " +
+        "payloads. Does NOT modify mastery directly.",
+      parameters: Type.Object({
+        stem: Type.String(),
+        student_answer: Type.String(),
+        expected_answer: Type.String(),
+        knowledge_point: Type.String(),
+        mode: Type.Optional(Type.Union(["written", "oral", "reading_aloud", "explain_thinking"].map((s) => Type.Literal(s)))),
+        transcript_metadata: Type.Optional(Type.Any()),
+        grade: Type.Optional(Type.Integer({ minimum: 1, maximum: 12 })),
+        error_code: Type.Optional(Type.String()),
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+      }),
+      async execute(_ctx, params: any) {
+        const r = diagnoseEnglishResponse({
+          stem: params.stem,
+          student_answer: params.student_answer,
+          expected_answer: params.expected_answer,
+          knowledge_point: params.knowledge_point,
+          mode: params.mode,
+          transcript_metadata: params.transcript_metadata,
+          grade: params.grade,
+          error_code: params.error_code,
+          student_id: params.student_id,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(englishSpecialistDiagnoseTool);
+
+    // 3) english_specialist_analyze_reading
+    const englishSpecialistAnalyzeReadingTool: AnyAgentTool = {
+      name: "english_specialist_analyze_reading",
+      label: "English specialist analyze reading comprehension (Phase 3-C)",
+      description:
+        "Analyze an English reading-comprehension response (kind = explicit | " +
+        "inference | main_idea | vocab_in_context | author_purpose). " +
+        "Deterministic keyword + token matching via known phrase banks. " +
+        "NO LLM.",
+      parameters: Type.Object({
+        stem: Type.String(),
+        choices: Type.Optional(Type.Array(Type.String())),
+        student_answer: Type.String(),
+        expected_answer: Type.String(),
+        kind: Type.Union(["explicit", "inference", "main_idea", "vocab_in_context", "author_purpose"].map((s) => Type.Literal(s))),
+      }),
+      async execute(_ctx, params: any) {
+        const r = analyzeReadingComprehensionEnglish({
+          stem: params.stem,
+          choices: params.choices,
+          student_answer: params.student_answer,
+          expected_answer: params.expected_answer,
+          kind: params.kind,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(englishSpecialistAnalyzeReadingTool);
+
+    // 4) english_specialist_transcribe_and_grade
+    //   Returns BOTH the structured STT request (interface only — does NOT
+    //   actually invoke STT) AND a post_transcription_grade descriptor.
+    //   The orchestrator hands the request to the local STT pipeline,
+    //   then calls the grader with the returned transcript.
+    const englishSpecialistTranscribeAndGradeTool: AnyAgentTool = {
+      name: "english_specialist_transcribe_and_grade",
+      label: "English specialist transcribe and grade oral response (Phase 3-C)",
+      description:
+        "Wrap a local STT interface call. Returns (1) a structured STT " +
+        "request for the local SenseVoice pipeline (auto_invoke=false, " +
+        "provider=sensevoice_local), and (2) a post_transcription_grade " +
+        "function descriptor. Does NOT actually invoke the STT binary. " +
+        "Cloud STT is FORBIDDEN — only local SenseVoice is allowed.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        audio_path: Type.Optional(Type.String()),
+        transcript: Type.Optional(Type.String()),
+        knowledge_point: Type.String({ minLength: 3 }),
+        stem: Type.String(),
+        expected_answer: Type.String(),
+        locale: Type.Optional(Type.Union(["en-US", "en-GB", "en-AU", "en-CA"].map((s) => Type.Literal(s)))),
+      }),
+      async execute(_ctx, params: any) {
+        const r = transcribeAndGradeOralResponse({
+          student_id: params.student_id,
+          audio_path: params.audio_path,
+          transcript: params.transcript,
+          knowledge_point: params.knowledge_point,
+          stem: params.stem,
+          expected_answer: params.expected_answer,
+          locale: params.locale ?? "en-US",
+        });
+        return jsonText({
+          ok: true,
+          stt_request: r.stt_request,
+          post_transcription_grade_descriptor: {
+            type: "function",
+            description: "Call this with {transcript, expected_answer?, knowledge_point?} after the local STT pipeline returns.",
+            expected_input_keys: ["transcript"],
+          },
+          note: "post_transcription_grade is a pure function bound at runtime; the orchestrator should call it directly from the loaded lib module, not via this descriptor.",
+        });
+      },
+    };
+    api.registerTool(englishSpecialistTranscribeAndGradeTool);
+
+    // 5) english_specialist_evaluate_conversation
+    const englishSpecialistEvaluateConversationTool: AnyAgentTool = {
+      name: "english_specialist_evaluate_conversation",
+      label: "English specialist evaluate conversation turn (Phase 3-C)",
+      description:
+        "Evaluate a single student turn in an English conversation. " +
+        "Checks target features (greeting / answer_question / ask_back / " +
+        "politeness / closing) via deterministic pattern matching. NO LLM.",
+      parameters: Type.Object({
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+        conversation_history: Type.Array(
+          Type.Object({
+            role: Type.Union(["assistant", "user"].map((s) => Type.Literal(s))),
+            text: Type.String(),
+          }),
+          { minItems: 0, maxItems: 50 },
+        ),
+        student_turn: Type.String({ minLength: 1 }),
+        target_features: Type.Array(
+          Type.Union(["greeting", "answer_question", "ask_back", "politeness", "closing"].map((s) => Type.Literal(s))),
+          { minItems: 1, maxItems: 5 },
+        ),
+      }),
+      async execute(_ctx, params: any) {
+        const r = evaluateConversationTurn({
+          student_id: params.student_id,
+          conversation_history: params.conversation_history,
+          student_turn: params.student_turn,
+          target_features: params.target_features,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(englishSpecialistEvaluateConversationTool);
+
+    // 6) english_specialist_decide
+    const englishSpecialistDecideTool: AnyAgentTool = {
+      name: "english_specialist_decide",
+      label: "English specialist decide next action (Phase 3-C)",
+      description:
+        "Decide the next English-specialist action (text_prompt | " +
+        "drill_phonics | vocab_drill | reading_scaffold | oral_practice | " +
+        "conversation_practice | mastery_check | backtrack_prerequisite) " +
+        "based on student state, mastery, error codes, mode, and " +
+        "representation_history. Pure function.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        attempts: Type.Integer({ minimum: 1, maximum: 100 }),
+        mastery: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
+        error_codes: Type.Optional(Type.Array(Type.String())),
+        error_code: Type.Optional(Type.String()),
+        representation_history: Type.Optional(Type.Array(Type.String())),
+        mode: Type.Optional(Type.Union(["written", "oral", "reading_aloud", "explain_thinking"].map((s) => Type.Literal(s)))),
+      }),
+      async execute(_ctx, params: any) {
+        const r = englishSpecialistDecide({
+          student_id: params.student_id,
+          knowledge_point: params.knowledge_point,
+          attempts: params.attempts,
+          mastery: params.mastery,
+          error_codes: params.error_codes,
+          error_code: params.error_code,
+          representation_history: params.representation_history,
+          mode: params.mode,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(englishSpecialistDecideTool);
+
+    // 7) english_specialist_emit_evidence
+    //   Writes the evidence payload to the append-only ledger at
+    //   data/mastery-evidence/<student_id>.jsonl via
+    //   mastery_engine_v2.appendEvidence. Does NOT modify mastery.
+    const englishSpecialistEmitEvidenceTool: AnyAgentTool = {
+      name: "english_specialist_emit_evidence",
+      label: "English specialist emit evidence (Phase 3-C)",
+      description:
+        "Append an English-specialist evidence payload to the append-only " +
+        "ledger. Does NOT modify mastery directly. The mastery engine will " +
+        "summarize from this ledger on its own schedule.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        evidence_payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const payload = emitEnglishEvidence({
+          student_id: params.student_id,
+          subject: "english",
+          knowledge_point: params.knowledge_point,
+          ...(params.evidence_payload ?? {}),
+        });
+        const ec = Array.isArray(payload.error_codes) ? payload.error_codes : (payload.error_codes ? [payload.error_codes] : []);
+        const out = await appendEvidenceStudent(params.student_id, {
+          subject: payload.subject,
+          knowledge_point: payload.knowledge_point,
+          subskill: payload.subskill,
+          source: "english_specialist_emit_evidence",
+          result: payload.result ?? null,
+          error_type: ec[0] || null,
+          quality_rating: null,
+          evidence_kind: "response",
+        });
+        return jsonText({
+          ok: true,
+          evidence_event_id: out.event_id,
+          evidence_payload: payload,
+        });
+      },
+    };
+    api.registerTool(englishSpecialistEmitEvidenceTool);
+
+    // 8) english_hint_ladder_next
+    const englishHintLadderNextTool: AnyAgentTool = {
+      name: "english_hint_ladder_next",
+      label: "English hint ladder next (Phase 3-C)",
+      description:
+        "Compute the next English-domain hint level (0..4), a zh-TW + " +
+        "English hint string, and a representation suggestion " +
+        "(text | phonics | oral | visual). Deterministic.",
+      parameters: Type.Object({
+        knowledge_point: Type.Optional(Type.String()),
+        attempts: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+        error_codes: Type.Optional(Type.Array(Type.String())),
+        error_code: Type.Optional(Type.String()),
+        student_partial: Type.Optional(Type.String()),
+        mode: Type.Optional(Type.String()),
+        hint_history: Type.Optional(Type.Array(
+          Type.Object({ level: Type.Integer(), text: Type.String() })
+        )),
+      }),
+      async execute(_ctx, params: any) {
+        const r = nextEnglishHint({
+          knowledge_point: params.knowledge_point,
+          attempts: params.attempts ?? 1,
+          error_codes: params.error_codes,
+          error_code: params.error_code,
+          student_partial: params.student_partial,
+          mode: params.mode,
+          hint_history: params.hint_history,
+        });
+        return jsonText({
+          ...r,
+          all_levels: ENGLISH_HINT_LEVELS,
+          all_representations: ENGLISH_REPRESENTATIONS,
+        });
+      },
+    };
+    api.registerTool(englishHintLadderNextTool);
+
+    // 9) english_curriculum_lookup_kp
+    const englishCurriculumLookupKPTool: AnyAgentTool = {
+      name: "english_curriculum_lookup_kp",
+      label: "English curriculum lookup KP (Phase 3-C)",
+      description:
+        "Look up an English knowledge point by id (e.g. " +
+        "english.G5.READ.passage-inference). Returns grade, topic, " +
+        "subtopic, a 3-word vocabulary sample, and example_texts.",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 3 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = await lookupEnglishKP({ knowledge_point: params.knowledge_point });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(englishCurriculumLookupKPTool);
+
+    // 10) english_curriculum_list_for_grade
+    const englishCurriculumListForGradeTool: AnyAgentTool = {
+      name: "english_curriculum_list_for_grade",
+      label: "English curriculum list for grade (Phase 3-C)",
+      description:
+        "List all English knowledge points for a grade G1–G6, plus the " +
+        "vocabulary-ladder size (V1 ships ~30 words per grade).",
+      parameters: Type.Object({
+        grade: Type.Integer({ minimum: 1, maximum: 6 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = await listEnglishKPForGrade({ grade: params.grade });
+        return jsonText({
+          ...r,
+          total_ladder_size: englishTotalLadderSize(),
+          ladder_grades: englishListLadderGrades(),
+        });
+      },
+    };
+    api.registerTool(englishCurriculumListForGradeTool);
+
+    // 11) english_subskill_classify
+    const englishSubskillClassifyTool: AnyAgentTool = {
+      name: "english_subskill_classify",
+      label: "English subskill classify (Phase 3-C)",
+      description:
+        "Classify an English knowledge point into a primary subskill " +
+        "(phonics / spelling / vocab / grammar / reading / listening / " +
+        "speaking / writing / conversation) plus secondary subskills. " +
+        "Pure function.",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = classifyEnglishSubskill({ knowledge_point: params.knowledge_point });
+        return jsonText({ ok: true, all_subskills: listEnglishSubskills(), ...r });
+      },
+    };
+    api.registerTool(englishSubskillClassifyTool);
+
+    // 12) english_stt_validate_audio_path
+    const englishSttValidateAudioPathTool: AnyAgentTool = {
+      name: "english_stt_validate_audio_path",
+      label: "English STT validate audio path (Phase 3-C)",
+      description:
+        "Validate that an audio_path is local and lives under data/audio/. " +
+        "Rejects URLs (http://, https://, s3://), absolute paths outside " +
+        "data/audio/, and unsupported file extensions. Pure function.",
+      parameters: Type.Object({
+        audio_path: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(validateAudioPath({ audio_path: params.audio_path }));
+      },
+    };
+    api.registerTool(englishSttValidateAudioPathTool);
+
+    // 13) english_stt_validate_transcript
+    const englishSttValidateTranscriptTool: AnyAgentTool = {
+      name: "english_stt_validate_transcript",
+      label: "English STT validate transcript payload (Phase 3-C)",
+      description:
+        "Validate that a transcript payload is sane and was produced by " +
+        "the local SenseVoice pipeline (source MUST be sensevoice_local). " +
+        "Cloud STT providers are FORBIDDEN.",
+      parameters: Type.Object({
+        transcript: Type.String({ minLength: 1 }),
+        locale: Type.String({ minLength: 1 }),
+        source: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(validateTranscriptPayload({
+          transcript: params.transcript,
+          locale: params.locale,
+          source: params.source,
+        }));
+      },
+    };
+    api.registerTool(englishSttValidateTranscriptTool);
+
+    // 14) english_stt_transcription_gate
+    const englishSttTranscriptionGateTool: AnyAgentTool = {
+      name: "english_stt_transcription_gate",
+      label: "English STT transcription gate (Phase 3-C)",
+      description:
+        "Decide whether a given mode may use voice input. Voice input is " +
+        "opt-in: caller MUST explicitly request oral_response / " +
+        "reading_aloud / explain_thinking. NEVER defaults to voice.",
+      parameters: Type.Object({
+        student_id: Type.String({ minLength: 1 }),
+        mode: Type.String({ minLength: 1 }),
+        audio_path: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(transcriptionGate({
+          student_id: params.student_id,
+          mode: params.mode,
+          audio_path: params.audio_path,
+        }));
+      },
+    };
+    api.registerTool(englishSttTranscriptionGateTool);
+
+    // 15) english_stt_capability_report
+    const englishSttCapabilityReportTool: AnyAgentTool = {
+      name: "english_stt_capability_report",
+      label: "English STT capability report (Phase 3-C)",
+      description:
+        "Declare current local STT capabilities + gaps. STT = " +
+        "ready_local_sensevoice. TTS and pronunciation_scoring are " +
+        "documented as missing local production implementations.",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText(englishSttCapabilityReport());
+      },
+    };
+    api.registerTool(englishSttCapabilityReportTool);
+
+    // 16) english_stt_request
+    const englishSttRequestTool: AnyAgentTool = {
+      name: "english_stt_request",
+      label: "English STT request factory (Phase 3-C)",
+      description:
+        "Build a structured STT request for the local SenseVoice pipeline. " +
+        "Pure function — does NOT actually invoke the STT binary. Returns " +
+        "{request_id, provider, audio_path, locale, expected_format, valid}.",
+      parameters: Type.Object({
+        audio_path: Type.String({ minLength: 1 }),
+        locale: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(requestSTT({
+          audio_path: params.audio_path,
+          locale: params.locale,
+        }));
+      },
+    };
+    api.registerTool(englishSttRequestTool);
+
+    // ───────── Phase 3 sub-session D (RESPAWN): Science Specialist v1 ─────────
+    const scienceErrorTaxonomyLookupTool: AnyAgentTool={name:"science_error_taxonomy_lookup",label:"Science error taxonomy lookup (Phase 3-D)",description:"Look up science error codes or categories.",parameters:Type.Object({code:Type.Optional(Type.String()),category:Type.Optional(Type.String())}),async execute(_c,p:any){if(p.code)return jsonText({ok:!!lookupScienceErrorCode(p.code),entry:lookupScienceErrorCode(p.code)});if(p.category)return jsonText({ok:true,count:listScienceErrorsByCategory(p.category).length,entries:listScienceErrorsByCategory(p.category)});return jsonText({ok:true,size:scienceErrorTaxonomySize(),categories:listScienceErrorCategories(),sample:SCIENCE_ERROR_TAXONOMY.slice(0,3),validation:validateScienceErrorTaxonomy()});}};api.registerTool(scienceErrorTaxonomyLookupTool);
+    const scienceSpecialistDiagnoseTool:AnyAgentTool={name:"science_specialist_diagnose",label:"Science specialist diagnose (Phase 3-D)",description:"Diagnose science response and emit evidence only; no mastery writes.",parameters:Type.Object({stem:Type.String(),student_answer:Type.String(),expected_answer:Type.String(),knowledge_point:Type.String(),mode:Type.Optional(Type.String()),grade:Type.Optional(Type.Integer()),student_id:Type.Optional(Type.String({pattern:"^student_[A-Za-z0-9_-]+$"}))}),async execute(_c,p:any){return jsonText(diagnoseScienceResponse(p));}};api.registerTool(scienceSpecialistDiagnoseTool);
+    const scienceSpecialistAnalyzeExperimentTool:AnyAgentTool={name:"science_specialist_analyze_experiment",label:"Science experiment analysis (Phase 3-D)",description:"Analyze experiment variables and design.",parameters:Type.Any(),async execute(_c,p:any){return jsonText(analyzeExperiment(p));}};api.registerTool(scienceSpecialistAnalyzeExperimentTool);
+    const scienceSpecialistInterpretChartTableTool:AnyAgentTool={name:"science_specialist_interpret_chart_table",label:"Science chart/table interpretation (Phase 3-D)",description:"Interpret chart/table response.",parameters:Type.Any(),async execute(_c,p:any){return jsonText(interpretChartTable(p));}};api.registerTool(scienceSpecialistInterpretChartTableTool);
+    const scienceSpecialistInterpretDiagramTool:AnyAgentTool={name:"science_specialist_interpret_diagram",label:"Science diagram interpretation (Phase 3-D)",description:"Interpret diagram elements.",parameters:Type.Any(),async execute(_c,p:any){return jsonText(interpretDiagram(p));}};api.registerTool(scienceSpecialistInterpretDiagramTool);
+    const scienceSpecialistDecideTool:AnyAgentTool={name:"science_specialist_decide",label:"Science specialist decide (Phase 3-D)",description:"Decide next science learning action.",parameters:Type.Any(),async execute(_c,p:any){return jsonText(scienceSpecialistDecide(p));}};api.registerTool(scienceSpecialistDecideTool);
+    const scienceSpecialistEmitEvidenceTool:AnyAgentTool={name:"science_specialist_emit_evidence",label:"Science evidence emit (Phase 3-D)",description:"Append science evidence to append-only ledger; never mastery.",parameters:Type.Object({student_id:Type.String({pattern:"^student_[A-Za-z0-9_-]+$"}),knowledge_point:Type.String({minLength:3}),evidence_payload:Type.Any()}),async execute(_c,p:any){const ep=emitScienceEvidence({student_id:p.student_id,subject:"science",knowledge_point:p.knowledge_point,...(p.evidence_payload||{})});const ec=Array.isArray(ep.error_codes)?ep.error_codes:[];const out=await appendEvidenceStudent(p.student_id,{subject:"science",knowledge_point:ep.knowledge_point,subskill:ep.subskill,source:"science_specialist_emit_evidence",result:ep.result,error_type:ec[0]||null,evidence_kind:"response"});return jsonText({ok:true,evidence_event_id:out.event_id,evidence_payload:ep});}};api.registerTool(scienceSpecialistEmitEvidenceTool);
+    const scienceHintLadderNextTool:AnyAgentTool={name:"science_hint_ladder_next",label:"Science hint ladder (Phase 3-D)",description:"Get next science hint level and representation.",parameters:Type.Any(),async execute(_c,p:any){return jsonText({...nextScienceHint(p),all_levels:SCIENCE_HINT_LEVELS});}};api.registerTool(scienceHintLadderNextTool);
+    const scienceCurriculumLookupKPTool:AnyAgentTool={name:"science_curriculum_lookup_kp",label:"Science curriculum lookup (Phase 3-D)",description:"Read-only science curriculum knowledge-point lookup.",parameters:Type.Object({knowledge_point:Type.String({minLength:3})}),async execute(_c,p:any){return jsonText(await lookupScienceKP(p));}};api.registerTool(scienceCurriculumLookupKPTool);
+    const scienceCurriculumListForGradeTool:AnyAgentTool={name:"science_curriculum_list_for_grade",label:"Science curriculum list (Phase 3-D)",description:"List science knowledge points for a grade.",parameters:Type.Object({grade:Type.Integer({minimum:1,maximum:6})}),async execute(_c,p:any){return jsonText(await listScienceKPForGrade(p));}};api.registerTool(scienceCurriculumListForGradeTool);
+    const scienceSubskillClassifyTool:AnyAgentTool={name:"science_subskill_classify",label:"Science subskill classify (Phase 3-D)",description:"Classify science subskill.",parameters:Type.Object({knowledge_point:Type.String({minLength:1})}),async execute(_c,p:any){return jsonText({ok:true,all_subskills:listScienceSubskills(),...classifyScienceSubskill(p)});}};api.registerTool(scienceSubskillClassifyTool);
+
+    // ───────── Phase 3 sub-session A: Math Specialist v2 + Math Visual Engine ─────────
+    //
+    // 11 thin wrappers. Math Specialist NEVER directly modifies the mastery
+    // file. The only write surface is the append-only evidence ledger at
+    // data/mastery-evidence/<student_id>.jsonl, reached via the existing
+    // `appendEvidenceStudent` helper (re-exported from mastery_engine_v2).
+
+    // 1) math_error_taxonomy_lookup
+    const mathErrorTaxonomyLookupTool: AnyAgentTool = {
+      name: "math_error_taxonomy_lookup",
+      label: "Math error taxonomy lookup (Phase 3-A)",
+      description:
+        "Look up MATH-* error codes by code or category. Returns label_zh, " +
+        "description, hint_template, representation_hint. Codes use the " +
+        "MATH-* prefix and do NOT overlap with ZH-*.",
+      parameters: Type.Object({
+        code: Type.Optional(Type.String()),
+        category: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        if (params.code) {
+          const entry = lookupMathErrorCode(params.code);
+          return jsonText({ ok: !!entry, entry });
+        }
+        if (params.category) {
+          const entries = listMathErrorsByCategoryFn(params.category);
+          return jsonText({ ok: true, count: entries.length, entries });
+        }
+        const validation = validateMathErrorTaxonomy();
+        return jsonText({
+          ok: true,
+          size: mathErrorTaxonomySize(),
+          categories: listMathErrorCategories(),
+          sample: MATH_ERR_TAXONOMY.slice(0, 3),
+          validation,
+        });
+      },
+    };
+    api.registerTool(mathErrorTaxonomyLookupTool);
+
+    // 2) math_visual_engine_render
+    const mathVisualEngineRenderTool: AnyAgentTool = {
+      name: "math_visual_engine_render",
+      label: "Math visual engine render (Phase 3-A)",
+      description:
+        "Build a PURE descriptor for a math visual primitive " +
+        "(fraction_bar | number_line | bar_model | percentage_grid | " +
+        "geometry_diagram | unit_conversion). Returns a JSON descriptor — " +
+        "no raw SVG / canvas strings. MentorNest Web renders this.",
+      parameters: Type.Object({
+        primitive: Type.Union(
+          [
+            "fraction_bar",
+            "number_line",
+            "bar_model",
+            "percentage_grid",
+            "geometry_diagram",
+            "unit_conversion",
+          ].map((s) => Type.Literal(s)),
+        ),
+        payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        const p = params.payload || {};
+        let out;
+        switch (params.primitive) {
+          case "fraction_bar":
+            out = renderFractionBar(p);
+            break;
+          case "number_line":
+            out = renderNumberLine(p);
+            break;
+          case "bar_model":
+            out = renderBarModel(p);
+            break;
+          case "percentage_grid":
+            out = renderPercentageGrid(p);
+            break;
+          case "geometry_diagram":
+            out = renderGeometryDiagram(p);
+            break;
+          case "unit_conversion":
+            out = renderUnitConversionDiagram(p);
+            break;
+          default:
+            return jsonText({ ok: false, reason: "unknown-primitive", known: VISUAL_PRIMITIVES });
+        }
+        const isPureDescriptor = out && typeof out === "object" && typeof out.primitive_id === "string" && typeof out.descriptor === "object";
+        const svgResult = (isPureDescriptor && out.descriptor) ? generateVisualSVG(params.primitive, out.descriptor) : { svg: null, validity: { valid: false, reason: "no-descriptor" } };
+        return jsonText({ ok: true, primitive: params.primitive, pure_descriptor: isPureDescriptor, result: out, svg: svgResult.svg, svg_valid: svgResult.validity.valid });
+      },
+    };
+    api.registerTool(mathVisualEngineRenderTool);
+
+    // 2b) math_visual_engine_render_text_only (companion — text descriptor only, no SVG)
+    const mathVisualEngineRenderTextOnlyTool: AnyAgentTool = {
+      name: "math_visual_engine_render_text_only",
+      label: "Math visual engine render text-only (accessibility companion)",
+      description:
+        "Build a PURE descriptor for a math visual primitive " +
+        "(fraction_bar | number_line | bar_model | percentage_grid | " +
+        "geometry_diagram | unit_conversion). Returns the JSON descriptor " +
+        "ONLY — no SVG output. For accessibility / no-image contexts.",
+      parameters: Type.Object({
+        primitive: Type.Union(
+          [
+            "fraction_bar",
+            "number_line",
+            "bar_model",
+            "percentage_grid",
+            "geometry_diagram",
+            "unit_conversion",
+          ].map((s) => Type.Literal(s)),
+        ),
+        payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        const p = params.payload || {};
+        let out;
+        switch (params.primitive) {
+          case "fraction_bar":
+            out = renderFractionBar(p);
+            break;
+          case "number_line":
+            out = renderNumberLine(p);
+            break;
+          case "bar_model":
+            out = renderBarModel(p);
+            break;
+          case "percentage_grid":
+            out = renderPercentageGrid(p);
+            break;
+          case "geometry_diagram":
+            out = renderGeometryDiagram(p);
+            break;
+          case "unit_conversion":
+            out = renderUnitConversionDiagram(p);
+            break;
+          default:
+            return jsonText({ ok: false, reason: "unknown-primitive", known: VISUAL_PRIMITIVES });
+        }
+        const isPureDescriptor = out && typeof out === "object" && typeof out.primitive_id === "string" && typeof out.descriptor === "object";
+        return jsonText({ ok: true, primitive: params.primitive, pure_descriptor: isPureDescriptor, result: out });
+      },
+    };
+    api.registerTool(mathVisualEngineRenderTextOnlyTool);
+
+    // 3) math_hint_ladder_v2_next
+    const mathHintLadderV2NextTool: AnyAgentTool = {
+      name: "math_hint_ladder_v2_next",
+      label: "Math hint ladder v2 next (Phase 3-A)",
+      description:
+        "Compute the next math-domain hint level (0..4) with a zh-TW hint " +
+        "string and routing flags (representation switch, mini-lesson, " +
+        "mastery-check). Pure function.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        attempts: Type.Integer({ minimum: 1, maximum: 100 }),
+        hints_given: Type.Integer({ minimum: 0, maximum: 100 }),
+        representation_used: Type.Union(["symbolic", "concrete", "visual"].map((s) => Type.Literal(s))),
+        error_type: Type.Optional(Type.String()),
+        mastery: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
+        school_progress: Type.Optional(Type.Any()),
+      }),
+      async execute(_ctx, params: any) {
+        const r = nextMathHint({
+          student_id: params.student_id,
+          subject: "math",
+          knowledge_point: params.knowledge_point,
+          attempts: params.attempts,
+          hints_given: params.hints_given,
+          representation_used: params.representation_used,
+          error_type: params.error_type ?? null,
+          mastery_context: typeof params.mastery === "number" ? { mastery: params.mastery } : null,
+          school_progress_context: params.school_progress ?? null,
+        });
+        return jsonText({ ...r, all_levels: MATH_HINT_LEVELS_V2 });
+      },
+    };
+    api.registerTool(mathHintLadderV2NextTool);
+
+    // 4) word_problem_decomposer_analyze
+    const wordProblemDecomposerAnalyzeTool: AnyAgentTool = {
+      name: "word_problem_decomposer_analyze",
+      label: "Word problem decomposer analyze (Phase 3-A)",
+      description:
+        "Decompose a Chinese-math word problem into quantities, unknowns, " +
+        "operation hints, vocabulary clues, and question_type. Chinese math " +
+        "vocab regex covers 比/多/少/共/剩下/增加/減少/倍/分數/整除.",
+      parameters: Type.Object({
+        stem: Type.String({ minLength: 1 }),
+        grade: Type.Optional(Type.Integer({ minimum: 1, maximum: 12 })),
+        knowledge_point: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const r = decomposeWordProblem({
+          stem: params.stem,
+          grade: params.grade,
+          knowledge_point: params.knowledge_point,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(wordProblemDecomposerAnalyzeTool);
+
+    // 5) word_problem_decomposer_match_template
+    const wordProblemDecomposerMatchTemplateTool: AnyAgentTool = {
+      name: "word_problem_decomposer_match_template",
+      label: "Word problem template match (Phase 3-A)",
+      description:
+        "Match a Chinese-math word problem against the built-in template " +
+        "library keyed by knowledge_point. Returns template_id, confidence " +
+        "(0..1), rationale.",
+      parameters: Type.Object({
+        stem: Type.String({ minLength: 1 }),
+        knowledge_point: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const r = matchWordProblemTemplate({
+          stem: params.stem,
+          knowledge_point: params.knowledge_point,
+        });
+        return jsonText({
+          ...r,
+          all_templates: listWordProblemTemplates().length,
+          template_kinds: listWordProblemTemplates().map((t) => t.template_id),
+        });
+      },
+    };
+    api.registerTool(wordProblemDecomposerMatchTemplateTool);
+
+    // 6) math_prerequisite_chain_get
+    const mathPrerequisiteChainGetTool: AnyAgentTool = {
+      name: "math_prerequisite_chain_get",
+      label: "Math prerequisite chain get (Phase 3-A)",
+      description:
+        "Return the ordered prerequisite chain for a math knowledge point " +
+        "(reads architecture/curriculum/math.yaml + in-memory chain).",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 3 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = getMathPrerequisites({ knowledge_point: params.knowledge_point });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(mathPrerequisiteChainGetTool);
+
+    // 7) math_prerequisite_weakest
+    const mathPrerequisiteWeakestTool: AnyAgentTool = {
+      name: "math_prerequisite_weakest",
+      label: "Math weakest prerequisite (Phase 3-A)",
+      description:
+        "Find the lowest-mastery non-mastered prerequisite for the given KP " +
+        "by querying lib/mastery_store.mjs. Returns recommendation_zh (zh-TW).",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = await weakestPrerequisite({
+          student_id: params.student_id,
+          knowledge_point: params.knowledge_point,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(mathPrerequisiteWeakestTool);
+
+    // 8) math_specialist_diagnose
+    const mathSpecialistDiagnoseTool: AnyAgentTool = {
+      name: "math_specialist_diagnose",
+      label: "Math specialist diagnose (Phase 3-A)",
+      description:
+        "Diagnose a math response. Uses lib/math_validator.mjs (deterministic) " +
+        "and produces error_code (MATH-* family), hint level, representation " +
+        "suggestion, evidence_payload, and diagnosis_payload. Pure function, " +
+        "no I/O. Does NOT modify mastery directly.",
+      parameters: Type.Object({
+        student_answer: Type.String(),
+        expected_answer: Type.Union([Type.String(), Type.Number()]),
+        stem: Type.String({ minLength: 1 }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        error_type: Type.Optional(Type.String()),
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+        hint_history: Type.Optional(Type.Array(Type.Object({
+          level: Type.Integer(),
+          text: Type.String(),
+        }))),
+        representation_history: Type.Optional(Type.Array(Type.Object({
+          representation: Type.Union(["symbolic", "concrete", "visual"].map((s) => Type.Literal(s))),
+          attempts: Type.Integer(),
+        }))),
+        mastery_context: Type.Optional(Type.Any()),
+        school_progress: Type.Optional(Type.Any()),
+      }),
+      async execute(_ctx, params: any) {
+        const r = diagnoseMathResponse({
+          student_id: params.student_id,
+          student_answer: params.student_answer,
+          expected_answer: params.expected_answer,
+          stem: params.stem,
+          knowledge_point: params.knowledge_point,
+          error_type: params.error_type,
+          hint_history: params.hint_history,
+          representation_history: params.representation_history,
+          mastery_context: params.mastery_context,
+          school_progress: params.school_progress,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(mathSpecialistDiagnoseTool);
+
+    // 9) math_specialist_build_teaching_plan
+    const mathSpecialistBuildTeachingPlanTool: AnyAgentTool = {
+      name: "math_specialist_build_teaching_plan",
+      label: "Math specialist build teaching plan (Phase 3-A)",
+      description:
+        "Build a 5-phase teaching plan (warmup → instruction → guided_practice " +
+        "→ mastery_check → review) for the given KP and student state. Pure " +
+        "function, no I/O.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        grade: Type.Integer({ minimum: 1, maximum: 12 }),
+        mastery_context: Type.Optional(Type.Any()),
+        school_progress: Type.Optional(Type.Any()),
+        error_history: Type.Optional(Type.Array(Type.Object({
+          error_code: Type.String(),
+          count: Type.Integer(),
+        }))),
+      }),
+      async execute(_ctx, params: any) {
+        const r = buildMathTeachingPlan({
+          student_id: params.student_id,
+          knowledge_point: params.knowledge_point,
+          grade: params.grade,
+          mastery_context: params.mastery_context,
+          school_progress: params.school_progress,
+          error_history: params.error_history,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(mathSpecialistBuildTeachingPlanTool);
+
+    // 10) math_specialist_decide
+    const mathSpecialistDecideTool: AnyAgentTool = {
+      name: "math_specialist_decide",
+      label: "Math specialist decide (Phase 3-A)",
+      description:
+        "Decide the next specialist action — ONE of text_prompt | " +
+        "visual_representation | mini_lesson | mastery_check | " +
+        "switch_representation | backtrack_prerequisite — based on student " +
+        "state, mastery, error code, and representation history. Pure function.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        attempts: Type.Integer({ minimum: 1, maximum: 100 }),
+        hints_given: Type.Integer({ minimum: 0, maximum: 100 }),
+        representation_used: Type.Union(["symbolic", "concrete", "visual"].map((s) => Type.Literal(s))),
+        error_type: Type.Optional(Type.String()),
+        mastery: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
+        school_progress: Type.Optional(Type.Any()),
+      }),
+      async execute(_ctx, params: any) {
+        const r = mathSpecialistDecide({
+          student_id: params.student_id,
+          knowledge_point: params.knowledge_point,
+          attempts: params.attempts,
+          hints_given: params.hints_given,
+          representation_used: params.representation_used,
+          error_type: params.error_type ?? null,
+          mastery: typeof params.mastery === "number" ? params.mastery : null,
+          school_progress: params.school_progress ?? null,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(mathSpecialistDecideTool);
+
+    // 11) math_specialist_emit_evidence
+    //   Appends the structured evidence_payload to the append-only ledger at
+    //   data/mastery-evidence/<student_id>.jsonl via mastery_engine_v2.appendEvidence.
+    //   Does NOT modify data/mastery/<id>.json directly.
+    const mathSpecialistEmitEvidenceTool: AnyAgentTool = {
+      name: "math_specialist_emit_evidence",
+      label: "Math specialist emit evidence (Phase 3-A)",
+      description:
+        "Append a structured Math Specialist evidence payload to the " +
+        "append-only ledger at data/mastery-evidence/<student_id>.jsonl. " +
+        "Does NOT modify data/mastery/<id>.json directly. Mastery changes " +
+        "come from the Mastery Engine's own schedule.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        evidence_payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        if (!STUDENT_ID_RE.test(params.student_id)) {
+          return jsonText({ ok: false, reason: "invalid student_id" });
+        }
+        const payload = buildMathEvidencePayload({
+          student_id: params.student_id,
+          subject: "math",
+          knowledge_point: params.knowledge_point,
+          ...(params.evidence_payload ?? {}),
+        });
+        const out = await appendEvidenceStudent(params.student_id, {
+          subject: payload.subject,
+          knowledge_point: payload.knowledge_point,
+          subskill: payload.subskill,
+          source: "math_specialist_emit_evidence",
+          result: payload.result ?? null,
+          error_type: payload.error_code,
+          quality_rating: null,
+          evidence_kind: "response",
+        });
+        return jsonText({
+          ok: true,
+          evidence_event_id: out.event_id,
+          evidence_payload: payload,
+        });
+      },
+    };
+    api.registerTool(mathSpecialistEmitEvidenceTool);
+
+    // ───────── Phase 3 sub-session E (RESPAWN): Social Studies Specialist v1 ─────────
+    //
+    // 13 thin wrappers. Social Studies Specialist NEVER directly modifies the
+    // mastery file. The only write surface is the append-only evidence ledger
+    // at data/mastery-evidence/<student_id>.jsonl, reached via the existing
+    // `appendEvidenceStudent` helper (re-exported from mastery_engine_v2).
+
+    // 1) social_studies_error_taxonomy_lookup
+    const socialStudiesErrorTaxonomyLookupTool: AnyAgentTool = {
+      name: "social_studies_error_taxonomy_lookup",
+      label: "Social Studies error taxonomy lookup (Phase 3-E)",
+      description:
+        "Look up SS-* error codes by code or category. Returns label_zh, " +
+        "description, hint_template, mini_lesson_hint. Codes use the SS-* " +
+        "prefix and do NOT overlap with MATH-*, ZH-*, EN-*, SCI-*.",
+      parameters: Type.Object({
+        code: Type.Optional(Type.String()),
+        category: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        if (params.code) {
+          const entry = lookupSocialStudiesErrorCode(params.code);
+          return jsonText({ ok: !!entry, entry });
+        }
+        if (params.category) {
+          const entries = listSocialStudiesErrorsByCategory(params.category);
+          return jsonText({ ok: true, count: entries.length, entries });
+        }
+        return jsonText({
+          ok: true,
+          size: socialStudiesErrorTaxonomySize(),
+          categories: listSocialStudiesErrorCategories(),
+          sample: SOCIAL_STUDIES_ERROR_TAXONOMY.slice(0, 3),
+          validation: validateSocialStudiesErrorTaxonomy(),
+        });
+      },
+    };
+    api.registerTool(socialStudiesErrorTaxonomyLookupTool);
+
+    // 2) social_studies_specialist_diagnose
+    const socialStudiesSpecialistDiagnoseTool: AnyAgentTool = {
+      name: "social_studies_specialist_diagnose",
+      label: "Social Studies specialist diagnose (Phase 3-E)",
+      description:
+        "Diagnose a social studies response (history / geography / civics / " +
+        "culture / data / source / timeline / map / causality) and emit " +
+        "evidence only; never writes mastery.",
+      parameters: Type.Object({
+        stem: Type.String(),
+        student_answer: Type.String(),
+        expected_answer: Type.String(),
+        knowledge_point: Type.String(),
+        mode: Type.Optional(Type.String()),
+        grade: Type.Optional(Type.Integer()),
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(diagnoseSocialStudiesResponse(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistDiagnoseTool);
+
+    // 3) social_studies_specialist_analyze_timeline
+    const socialStudiesSpecialistAnalyzeTimelineTool: AnyAgentTool = {
+      name: "social_studies_specialist_analyze_timeline",
+      label: "Social Studies timeline analyzer (Phase 3-E)",
+      description:
+        "Compare student_order to expected_order on a timeline and report " +
+        "matched/misplaced/missing/extras entries.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(analyzeTimeline(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistAnalyzeTimelineTool);
+
+    // 4) social_studies_specialist_analyze_map
+    const socialStudiesSpecialistAnalyzeMapTool: AnyAgentTool = {
+      name: "social_studies_specialist_analyze_map",
+      label: "Social Studies map analyzer (Phase 3-E)",
+      description:
+        "Compare student map regions/answers against expected ones and " +
+        "report matched/missed regions plus error_codes.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(analyzeMap(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistAnalyzeMapTool);
+
+    // 5) social_studies_specialist_analyze_causality
+    const socialStudiesSpecialistAnalyzeCausalityTool: AnyAgentTool = {
+      name: "social_studies_specialist_analyze_causality",
+      label: "Social Studies causality analyzer (Phase 3-E)",
+      description:
+        "Compare student's explained effects against expected effects for a " +
+        "short_term / long_term / multi_cause scenario.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(analyzeCausality(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistAnalyzeCausalityTool);
+
+    // 6) social_studies_specialist_compare_sources
+    const socialStudiesSpecialistCompareSourcesTool: AnyAgentTool = {
+      name: "social_studies_specialist_compare_sources",
+      label: "Social Studies source comparison (Phase 3-E)",
+      description:
+        "Compare a student's synthesis against expected perspectives across " +
+        "primary/secondary sources.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(compareSources(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistCompareSourcesTool);
+
+    // 7) social_studies_specialist_interpret_demographic_chart
+    const socialStudiesSpecialistInterpretDemographicChartTool: AnyAgentTool = {
+      name: "social_studies_specialist_interpret_demographic_chart",
+      label: "Social Studies demographic chart (Phase 3-E)",
+      description:
+        "Interpret a student answer against expected demographic data points.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(interpretDemographicChart(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistInterpretDemographicChartTool);
+
+    // 8) social_studies_specialist_decide
+    const socialStudiesSpecialistDecideTool: AnyAgentTool = {
+      name: "social_studies_specialist_decide",
+      label: "Social Studies specialist decide (Phase 3-E)",
+      description:
+        "Pick the next social studies learning action (text_prompt / " +
+        "timeline_walk / map_explanation / source_comparison / " +
+        "concept_clarification / chart_drilling / mastery_check / " +
+        "backtrack_prerequisite) based on subskill, attempts and mastery.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(socialStudiesSpecialistDecide(params));
+      },
+    };
+    api.registerTool(socialStudiesSpecialistDecideTool);
+
+    // 9) social_studies_specialist_emit_evidence — append-only ledger; never mastery.
+    const socialStudiesSpecialistEmitEvidenceTool: AnyAgentTool = {
+      name: "social_studies_specialist_emit_evidence",
+      label: "Social Studies evidence emit (Phase 3-E)",
+      description:
+        "Append social_studies evidence to the append-only ledger at " +
+        "data/mastery-evidence/<student_id>.jsonl. NEVER modifies " +
+        "data/mastery/<id>.json.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        evidence_payload: Type.Any(),
+      }),
+      async execute(_ctx, params: any) {
+        const ep = emitSocialStudiesEvidence({
+          student_id: params.student_id,
+          subject: "social_studies",
+          knowledge_point: params.knowledge_point,
+          ...(params.evidence_payload || {}),
+        });
+        const ec = Array.isArray(ep.error_codes) ? ep.error_codes : [];
+        const out = await appendEvidenceStudent(params.student_id, {
+          subject: "social_studies",
+          knowledge_point: ep.knowledge_point,
+          subskill: ep.subskill,
+          source: "social_studies_specialist_emit_evidence",
+          result: ep.result,
+          error_type: ec[0] || null,
+          evidence_kind: "response",
+        });
+        return jsonText({
+          ok: true,
+          evidence_event_id: out.event_id,
+          evidence_payload: ep,
+        });
+      },
+    };
+    api.registerTool(socialStudiesSpecialistEmitEvidenceTool);
+
+    // 10) social_studies_hint_ladder_next
+    const socialStudiesHintLadderNextTool: AnyAgentTool = {
+      name: "social_studies_hint_ladder_next",
+      label: "Social Studies hint ladder (Phase 3-E)",
+      description:
+        "Get the next social studies hint level and representation " +
+        "(text / timeline / map / source / chart).",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText({
+          ...nextSocialStudiesHint(params),
+          all_levels: SOCIAL_STUDIES_HINT_LEVELS,
+        });
+      },
+    };
+    api.registerTool(socialStudiesHintLadderNextTool);
+
+    // 11) social_studies_curriculum_lookup_kp
+    const socialStudiesCurriculumLookupKPTool: AnyAgentTool = {
+      name: "social_studies_curriculum_lookup_kp",
+      label: "Social Studies curriculum lookup (Phase 3-E)",
+      description:
+        "Read-only social studies curriculum knowledge-point lookup over " +
+        "architecture/curriculum/social_studies.yaml.",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 3 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(await lookupSocialStudiesKP(params));
+      },
+    };
+    api.registerTool(socialStudiesCurriculumLookupKPTool);
+
+    // 12) social_studies_curriculum_list_for_grade
+    const socialStudiesCurriculumListForGradeTool: AnyAgentTool = {
+      name: "social_studies_curriculum_list_for_grade",
+      label: "Social Studies curriculum list (Phase 3-E)",
+      description: "List social studies knowledge points for a grade.",
+      parameters: Type.Object({
+        grade: Type.Integer({ minimum: 1, maximum: 6 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(await listSocialStudiesKPForGrade(params));
+      },
+    };
+    api.registerTool(socialStudiesCurriculumListForGradeTool);
+
+    // 13) social_studies_subskill_classify
+    const socialStudiesSubskillClassifyTool: AnyAgentTool = {
+      name: "social_studies_subskill_classify",
+      label: "Social Studies subskill classify (Phase 3-E)",
+      description:
+        "Classify a social studies knowledge point into a primary " +
+        "subskill and up to 3 secondary ones.",
+      parameters: Type.Object({
+        knowledge_point: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText({
+          ok: true,
+          all_subskills: listSocialStudiesSubskills(),
+          ...classifySocialStudiesSubskill(params),
+        });
+      },
+    };
+    api.registerTool(socialStudiesSubskillClassifyTool);
+
+    // ───────── Phase 3 sub-session F: Unified Subject Contract + Cross-Subject Dispatcher ─────────
+
+    // F1) subject_v1_contract_version
+    const subjectV1ContractVersionTool: AnyAgentTool = {
+      name: "subject_v1_contract_version",
+      label: "Subject v1 contract version (Phase 3-F)",
+      description:
+        "Return the unified SubjectSpecialist contract version and a " +
+        "shape description (request/response field names).",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText(describeContractShape());
+      },
+    };
+    api.registerTool(subjectV1ContractVersionTool);
+
+    // F2) subject_v1_validate_request
+    const subjectV1ValidateRequestTool: AnyAgentTool = {
+      name: "subject_v1_validate_request",
+      label: "Subject v1 request validator (Phase 3-F)",
+      description:
+        "Pure validator for a unified SubjectSpecialistRequest. Returns " +
+        "{valid, errors[]}. No I/O, no specialist invocation.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(validateSubjectSpecialistRequest(params));
+      },
+    };
+    api.registerTool(subjectV1ValidateRequestTool);
+
+    // F3) subject_v1_validate_response
+    const subjectV1ValidateResponseTool: AnyAgentTool = {
+      name: "subject_v1_validate_response",
+      label: "Subject v1 response validator (Phase 3-F)",
+      description:
+        "Pure validator for a unified SubjectSpecialistResponse. Returns " +
+        "{valid, errors[]}. No I/O, no specialist invocation.",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(validateSubjectSpecialistResponse(params));
+      },
+    };
+    api.registerTool(subjectV1ValidateResponseTool);
+
+    // F4) subject_specialist_dispatch
+    const subjectSpecialistDispatchTool: AnyAgentTool = {
+      name: "subject_specialist_dispatch",
+      label: "Subject specialist dispatch (Phase 3-F)",
+      description:
+        "Dispatch a unified SubjectSpecialistRequest to the matching " +
+        "per-subject specialist and return a unified SubjectSpecialistResponse. " +
+        "Subject expertise is preserved verbatim (math_correct, error_codes, " +
+        "mode, subskill-routed actions).",
+      parameters: Type.Any(),
+      async execute(_ctx, params: any) {
+        return jsonText(dispatchSubjectSpecialist(params || {}));
+      },
+    };
+    api.registerTool(subjectSpecialistDispatchTool);
+
+    // F5) subject_specialist_capability_report
+    const subjectSpecialistCapabilityReportTool: AnyAgentTool = {
+      name: "subject_specialist_capability_report",
+      label: "Subject specialist capability report (Phase 3-F)",
+      description:
+        "Return per-subject capability gaps and contract support. " +
+        "If subject is omitted, returns all subjects.",
+      parameters: Type.Object({
+        subject: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(subjectCapabilityReport(params && params.subject));
+      },
+    };
+    api.registerTool(subjectSpecialistCapabilityReportTool);
+
+    // F6) cross_subject_merge_decisions
+    const crossSubjectMergeDecisionsTool: AnyAgentTool = {
+      name: "cross_subject_merge_decisions",
+      label: "Cross-subject merge decisions (Phase 3-F)",
+      description:
+        "Merge multiple subject decisions into one chosen action. Priority: " +
+        "mastery_check > backtrack_prerequisite > drill > text_prompt. " +
+        "Tie-break by lower mastery, then subject order.",
+      parameters: Type.Object({
+        decisions: Type.Array(Type.Any()),
+        student_id: Type.String({ minLength: 1 }),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(
+          mergeCrossSubjectDecisions({
+            decisions: params.decisions || [],
+            student_id: params.student_id,
+          })
+        );
+      },
+    };
+    api.registerTool(crossSubjectMergeDecisionsTool);
+
+    // F7) learning_director_v2_dispatch_next_step
+    const learningDirectorV2DispatchNextStepTool: AnyAgentTool = {
+      name: "learning_director_v2_dispatch_next_step",
+      label: "Learning director v2 dispatch next step (Phase 3-F)",
+      description:
+        "Choose subject (if not provided), dispatch via unified contract, " +
+        "and merge if multi-subject feedback exists. Pure function.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        student_input: Type.Any(),
+        current_subject: Type.Optional(Type.String()),
+        knowledge_point: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(
+          dispatchNextStep({
+            student_id: params.student_id,
+            student_input: params.student_input || {},
+            current_subject: params.current_subject,
+            knowledge_point: params.knowledge_point,
+          })
+        );
+      },
+    };
+    api.registerTool(learningDirectorV2DispatchNextStepTool);
+
+    // F8) learning_director_v2_capability_report
+    const learningDirectorV2CapabilityReportTool: AnyAgentTool = {
+      name: "learning_director_v2_capability_report",
+      label: "Learning director v2 capability report (Phase 3-F)",
+      description:
+        "Return the unified contract version + per-subject capability " +
+        "summary + per-subject tool inventory.",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText(learningDirectorV2CapabilityReport());
+      },
+    };
+    api.registerTool(learningDirectorV2CapabilityReportTool);
+
+    // F9) subject_v1_request_template
+    const subjectV1RequestTemplateTool: AnyAgentTool = {
+      name: "subject_v1_request_template",
+      label: "Subject v1 request template (Phase 3-F)",
+      description:
+        "Return a canonical empty SubjectSpecialistRequest that clients " +
+        "can copy and fill in.",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText(emptySubjectSpecialistRequest());
+      },
+    };
+    api.registerTool(subjectV1RequestTemplateTool);
+
+    // F10) subject_v1_response_template
+    const subjectV1ResponseTemplateTool: AnyAgentTool = {
+      name: "subject_v1_response_template",
+      label: "Subject v1 response template (Phase 3-F)",
+      description:
+        "Return a canonical empty SubjectSpecialistResponse.",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText(emptySubjectSpecialistResponse());
+      },
+    };
+    api.registerTool(subjectV1ResponseTemplateTool);
+
+    // F11) subject_v1_dispatch_examples
+    const subjectV1DispatchExamplesTool: AnyAgentTool = {
+      name: "subject_v1_dispatch_examples",
+      label: "Subject v1 dispatch examples (Phase 3-F)",
+      description:
+        "Return 5 worked request examples (one per supported subject).",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText({ examples: subjectV1DispatchExamples() });
+      },
+    };
+    api.registerTool(subjectV1DispatchExamplesTool);
+
+    // ───────── Phase 3.5: Legacy mastery backfill ─────────
+    //
+    // 5 tools: dry_run, apply, status, rollback, classify_event.
+    // All legacy events flow through the existing mastery_engine_v2 pathway
+    // (never bypassed). Every emitted evidence record carries
+    // source: "legacy_backfill" + dry_run_report_id.
+
+    // G1) mastery_backfill_dry_run
+    const masteryBackfillDryRunTool: AnyAgentTool = {
+      name: "mastery_backfill_dry_run",
+      label: "Mastery backfill: dry-run preview (no writes)",
+      description:
+        "Classify legacy learning-record events and produce a preview " +
+        "of proposed mastery evidence records. Does NOT write anything. " +
+        "Returns proposed_evidence_count and would_apply flag.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        since: Type.Optional(Type.String()),
+        until: Type.Optional(Type.String()),
+      }),
+      async execute(_ctx, params: any) {
+        const result = await masteryBackfillDryRun({
+          student_id: params.student_id,
+          since: params.since,
+          until: params.until,
+        });
+        return jsonText(result);
+      },
+    };
+    api.registerTool(masteryBackfillDryRunTool);
+
+    // G2) mastery_backfill_apply
+    const masteryBackfillApplyTool: AnyAgentTool = {
+      name: "mastery_backfill_apply",
+      label: "Mastery backfill: apply evidence after dry-run review",
+      description:
+        "Emit mastery evidence for legacy events via the existing " +
+        "mastery_engine_v2 pathway. Requires dry_run_report_id from a " +
+        "prior dry-run. Each record carries source: \"legacy_backfill\".",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        since: Type.Optional(Type.String()),
+        until: Type.Optional(Type.String()),
+        dry_run_report_id: Type.String(),
+      }),
+      async execute(_ctx, params: any) {
+        const result = await masteryBackfillApply({
+          student_id: params.student_id,
+          since: params.since,
+          until: params.until,
+          dry_run_report_id: params.dry_run_report_id,
+        });
+        return jsonText(result);
+      },
+    };
+    api.registerTool(masteryBackfillApplyTool);
+
+    // G3) mastery_backfill_status
+    const masteryBackfillStatusTool: AnyAgentTool = {
+      name: "mastery_backfill_status",
+      label: "Mastery backfill: read-only status",
+      description:
+        "Return backfill status for a student: last_dry_run_at, last_apply_at, " +
+        "total_events_in_raw, total_legacy_backfill_emitted, pending_count. " +
+        "Idempotent — safe to call repeatedly.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+      }),
+      async execute(_ctx, params: any) {
+        const result = await masteryBackfillStatus({ student_id: params.student_id });
+        return jsonText(result);
+      },
+    };
+    api.registerTool(masteryBackfillStatusTool);
+
+    // G4) mastery_backfill_rollback
+    const masteryBackfillRollbackTool: AnyAgentTool = {
+      name: "mastery_backfill_rollback",
+      label: "Mastery backfill: rollback evidence for a dry-run report",
+      description:
+        "Invalidate (mark) evidence records that were emitted with the " +
+        "given dry_run_report_id. Raw learning records are untouched. " +
+        "Only legacy_backfill evidence with the matching report ID is affected.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        dry_run_report_id: Type.String(),
+      }),
+      async execute(_ctx, params: any) {
+        const result = await masteryBackfillRollback({
+          student_id: params.student_id,
+          dry_run_report_id: params.dry_run_report_id,
+        });
+        return jsonText(result);
+      },
+    };
+    api.registerTool(masteryBackfillRollbackTool);
+
+    // G5) mastery_backfill_classify_event
+    const masteryBackfillClassifyEventTool: AnyAgentTool = {
+      name: "mastery_backfill_classify_event",
+      label: "Mastery backfill: classify a single legacy event (pure, no I/O)",
+      description:
+        "Classify a single legacy learning-record event into " +
+        "{subject, knowledge_point, result, attempts, error_code}. " +
+        "Deterministic, no LLM, no file I/O.",
+      parameters: Type.Object({
+        event: Type.Record(Type.String(), Type.Any()),
+      }),
+      async execute(_ctx, params: any) {
+        const result = masteryBackfillClassifyEvent({ event: params.event });
+        return jsonText(result);
+      },
+    };
+    api.registerTool(masteryBackfillClassifyEventTool);
+
+    // ───────── Phase 3.5 sub-session D: school_progress inferred TTL ─────────
+    //
+    // Four tools implementing the 30-day TTL for inferred school-progress
+    // records. Stale records STAY on disk; only the status field flips
+    // `inferred → stale`. Stale records NEVER auto-promote to `confirmed` —
+    // the only promotion path is the explicit human-approval tool
+    // `school_progress_inferred_promote`.
+
+    // D1) school_progress_inferred_status — read-only view of inferred / stale / confirmed counts.
+    const schoolProgressInferredStatusTool: AnyAgentTool = {
+      name: "school_progress_inferred_status",
+      label: "Curriculum Agent: TTL-aware inferred/stale/confirmed view (read-only)",
+      description:
+        "Returns total counts of inferred / stale / confirmed records for one " +
+        "student plus the active TTL config and the most recent sweep timestamp. " +
+        "Read-only: never mutates files.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+      }),
+      async execute(_ctx, params: any) {
+        const cfg = getTtlConfig();
+        const got = await readProgress(WORKSPACE, params.student_id);
+        const records: any[] = got.records ?? [];
+        const total_inferred = records.filter((r) => r.status === "inferred").length;
+        const total_stale = records.filter((r) => r.status === "stale").length;
+        const total_confirmed = records.filter((r) => r.source_type !== "inferred_from_learning").length;
+        // last_sweep_at = max(stale_at) over records that have one.
+        let last_sweep_at: string | null = null;
+        for (const r of records) {
+          if (typeof r.stale_at === "string" && (!last_sweep_at || r.stale_at > last_sweep_at)) {
+            last_sweep_at = r.stale_at;
+          }
+        }
+        return jsonText({
+          ok: true,
+          student_id: params.student_id,
+          total_inferred,
+          total_stale,
+          total_confirmed,
+          ttl_days: cfg.ttl_days,
+          ttl_source: cfg.source,
+          last_sweep_at,
+          path: got.path,
+        });
+      },
+    };
+    api.registerTool(schoolProgressInferredStatusTool);
+
+    // D2) school_progress_inferred_mark_stale — sweep one student.
+    const schoolProgressInferredMarkStaleTool: AnyAgentTool = {
+      name: "school_progress_inferred_mark_stale",
+      label: "Curriculum Agent: mark inferred records stale per TTL (one student)",
+      description:
+        "Sweeps one student's progress records and flips expired inferred records " +
+        "to `status: \"stale\"`. NEVER deletes, NEVER auto-promotes to confirmed. " +
+        "Optionally accepts `now_ms` for deterministic test runs.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        now_ms: Type.Optional(Type.Integer({ minimum: 0 })),
+      }),
+      async execute(_ctx, params: any) {
+        const cfg = getTtlConfig();
+        const now_ms = Number.isFinite(params.now_ms) ? Number(params.now_ms) : Date.now();
+        const storage_io = {
+          readStudentRecords: async (sid: string) => {
+            const r = await readProgress(WORKSPACE, sid);
+            return { records: r.records ?? [], path: r.path };
+          },
+          writeStudentRecords: async (sid: string, recs: any[]) => {
+            const file = path.join(WORKSPACE, "data", "curriculum-progress", `${sid}.jsonl`);
+            await fs.mkdir(path.dirname(file), { recursive: true });
+            const tmp = file + ".tmp";
+            const handle = await fs.open(tmp, "w");
+            try {
+              for (const rec of recs) {
+                await handle.writeFile(JSON.stringify(rec) + "\n");
+              }
+              await handle.sync();
+            } finally {
+              await handle.close();
+            }
+            await fs.rename(tmp, file);
+            return { ok: true as const, written: recs.length, path: file };
+          },
+        };
+        const out = await ttlSweepStudent(params.student_id, now_ms, cfg.ttl_days, storage_io);
+        return jsonText({ ok: true, ...out, ttl_days: cfg.ttl_days, ttl_source: cfg.source });
+      },
+    };
+    api.registerTool(schoolProgressInferredMarkStaleTool);
+
+    // D3) school_progress_inferred_promote — explicit human approval.
+    const schoolProgressInferredPromoteTool: AnyAgentTool = {
+      name: "school_progress_inferred_promote",
+      label: "Curriculum Agent: explicitly promote ONE inferred/stale → confirmed",
+      description:
+        "Promotes ONE specific inferred or stale record to confirmed via explicit " +
+        "human approval only. Caller MUST supply `confirmed_by` (e.g. " +
+        "\"parent_setup\", \"manual\"). Refuses if the target record is already " +
+        "confirmed. NEVER called automatically — always requires an explicit caller.",
+      parameters: Type.Object({
+        student_id: Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" }),
+        knowledge_point: Type.String({ minLength: 3 }),
+        confirmed_by: Type.String({ minLength: 1, maxLength: 100 }),
+        new_status: Type.Optional(Type.Union(["not_started", "in_progress", "completed"].map((s) => Type.Literal(s)))),
+        new_source_type: Type.Optional(Type.Union(["official_curriculum", "parent_confirmed", "teacher_material_confirmed", "textbook_mapping"].map((s) => Type.Literal(s)))),
+        new_source_reference: Type.Optional(Type.String({ minLength: 1, maxLength: 500 })),
+        new_confidence: Type.Optional(Type.Number({ minimum: 0.5, maximum: 1 })),
+        now_ms: Type.Optional(Type.Integer({ minimum: 0 })),
+      }),
+      async execute(_ctx, params: any) {
+        const got = await readProgress(WORKSPACE, params.student_id);
+        // Find the latest record that:
+        //   - matches the target knowledge_point
+        //   - is `inferred` or `stale`
+        //   - is not already confirmed (confirmed records stay as-is)
+        // Cast to `any[]` because TTL-stamped records carry `status: "stale"`,
+        // which is not part of the upstream `ProgressStatus` union but is a
+        // valid runtime lifecycle value added by this sub-session.
+        const allRecords: any[] = got.records ?? [];
+        const candidates = allRecords.filter(
+          (r) =>
+            Array.isArray(r.knowledge_points) &&
+            r.knowledge_points.includes(params.knowledge_point) &&
+            (r.status === "inferred" || r.status === "stale"),
+        );
+        if (candidates.length === 0) {
+          // Distinguish: is there ANY record with this KP that's already confirmed?
+          const confirmedExists = allRecords.some(
+            (r) =>
+              Array.isArray(r.knowledge_points) &&
+              r.knowledge_points.includes(params.knowledge_point) &&
+              r.status !== "inferred" && r.status !== "stale",
+          );
+          if (confirmedExists) {
+            return jsonText({ ok: false, reason: "already_confirmed" });
+          }
+          return jsonText({ ok: false, reason: "no_inferred_or_stale_record_for_knowledge_point" });
+        }
+        // Pick the newest candidate.
+        const prev = candidates.sort((a, b) => {
+          const at = a.confirmed_at ?? a.inferred_at ?? "";
+          const bt = b.confirmed_at ?? b.inferred_at ?? "";
+          return at < bt ? 1 : at > bt ? -1 : 0;
+        })[0];
+        const now_ms = Number.isFinite(params.now_ms) ? Number(params.now_ms) : Date.now();
+        const promoted = buildExplicitPromotion(prev, {
+          knowledge_point: params.knowledge_point,
+          confirmed_by: params.confirmed_by,
+          new_status: params.new_status,
+          new_source_type: params.new_source_type,
+          new_source_reference: params.new_source_reference,
+          new_confidence: params.new_confidence,
+          now_ms,
+        });
+        const out = await appendProgressRecord(WORKSPACE, promoted);
+        const { ok: _o, ...rest } = out;
+        return jsonText({
+          ok: true,
+          ...rest,
+          knowledge_point: params.knowledge_point,
+          status: "confirmed",
+          confirmed_by: params.confirmed_by,
+          promoted_at: promoted.confirmed_at,
+          record_id: promoted.record_id,
+          superseded_id: prev.record_id,
+        });
+      },
+    };
+    api.registerTool(schoolProgressInferredPromoteTool);
+
+    // D4) school_progress_inferred_ttl_sweep — sweep one OR all students.
+    const schoolProgressInferredTtlSweepTool: AnyAgentTool = {
+      name: "school_progress_inferred_ttl_sweep",
+      label: "Curriculum Agent: TTL sweep one OR all students (mark stale)",
+      description:
+        "Performs a TTL sweep across one student (when student_id is supplied) " +
+        "or across every student that has a curriculum-progress file (when " +
+        "student_id is omitted). Returns per-student newly-stale ids plus the " +
+        "totals. NEVER deletes, NEVER auto-promotes to confirmed.",
+      parameters: Type.Object({
+        student_id: Type.Optional(Type.String({ pattern: "^student_[A-Za-z0-9_-]+$" })),
+        now_ms: Type.Optional(Type.Integer({ minimum: 0 })),
+      }),
+      async execute(_ctx, params: any) {
+        const cfg = getTtlConfig();
+        const now_ms = Number.isFinite(params.now_ms) ? Number(params.now_ms) : Date.now();
+        const writeStudentRecords = async (sid: string, recs: any[]) => {
+          const file = path.join(WORKSPACE, "data", "curriculum-progress", `${sid}.jsonl`);
+          await fs.mkdir(path.dirname(file), { recursive: true });
+          const tmp = file + ".tmp";
+          const handle = await fs.open(tmp, "w");
+          try {
+            for (const rec of recs) {
+              await handle.writeFile(JSON.stringify(rec) + "\n");
+            }
+            await handle.sync();
+          } finally {
+            await handle.close();
+          }
+          await fs.rename(tmp, file);
+          return { ok: true as const, written: recs.length, path: file };
+        };
+        const makeStorage = () => ({
+          readStudentRecords: async (sid: string) => {
+            const r = await readProgress(WORKSPACE, sid);
+            return { records: r.records ?? [], path: r.path };
+          },
+          writeStudentRecords,
+        });
+        let studentIds: string[] = [];
+        if (params.student_id) {
+          studentIds = [params.student_id];
+        } else {
+          const dir = path.join(WORKSPACE, "data", "curriculum-progress");
+          try {
+            const entries = await fs.readdir(dir);
+            studentIds = entries
+              .filter((e) => e.endsWith(".jsonl"))
+              .map((e) => e.replace(/\.jsonl$/, ""))
+              .filter((sid) => /^student_[A-Za-z0-9_-]+$/.test(sid));
+          } catch (e: any) {
+            if (e.code !== "ENOENT") throw e;
+            studentIds = [];
+          }
+        }
+        const perStudent = [];
+        let total_newly_stale = 0;
+        for (const sid of studentIds) {
+          const out = await ttlSweepStudent(sid, now_ms, cfg.ttl_days, makeStorage());
+          perStudent.push({
+            student_id: sid,
+            newly_stale_ids: out.newly_stale_ids,
+            total_stale_count: out.total_stale_count,
+            total_inferred: out.total_inferred,
+            total_confirmed: out.total_confirmed,
+          });
+          total_newly_stale += out.newly_stale_ids.length;
+        }
+        return jsonText({
+          ok: true,
+          swept_students: perStudent,
+          total_newly_stale,
+          swept_at: new Date(now_ms).toISOString(),
+          ttl_days: cfg.ttl_days,
+          ttl_source: cfg.source,
+        });
+      },
+    };
+    api.registerTool(schoolProgressInferredTtlSweepTool);
+
+    // ───────── Phase 3.5 sub-session B: Local TTS (sherpa-onnx-tts priority) ─────────
+    // Local-only TTS. NO cloud TTS APIs are allowed. When sherpa-onnx-tts
+    // runtime + model are unavailable in the sandbox, the tools fall back to
+    // a deterministic placeholder WAV (440 Hz sine, mono 16 kHz 16-bit PCM).
+
+    const ttsSynthesizeTool: AnyAgentTool = {
+      name: "tts_synthesize",
+      label: "Local TTS synthesize (Phase 3.5-B)",
+      description:
+        "Synthesize speech for the given text using local TTS only. " +
+        "Priority backend is sherpa-onnx-tts (offline). If the sherpa runtime " +
+        "+ model are not installed in the sandbox, this returns a " +
+        "deterministic placeholder WAV (440 Hz sine, mono 16 kHz 16-bit PCM) " +
+        "marked with backend='placeholder'. Cloud TTS providers are " +
+        "FORBIDDEN. Returns {ok, audio_b64, audio_format, duration_ms, " +
+        "voice_id, content_hash, backend} on success.",
+      parameters: Type.Object({
+        text: Type.String({ minLength: 1, maxLength: 2000 }),
+        voice_id: Type.Optional(Type.String({ minLength: 1 })),
+        speed: Type.Optional(Type.Number({ minimum: 0.5, maximum: 2.0 })),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText(ttsSynthesize({
+          text: params.text,
+          voice_id: params.voice_id ?? "default",
+          speed: params.speed ?? 1.0,
+        }));
+      },
+    };
+    api.registerTool(ttsSynthesizeTool);
+
+    const ttsListVoicesTool: AnyAgentTool = {
+      name: "tts_list_voices",
+      label: "Local TTS list voices (Phase 3.5-B)",
+      description:
+        "List the available local TTS voices. Each entry includes " +
+        "voice_id, locale, gender, sample_rate_hz, description. The list is " +
+        "deterministic and reflects what the local backend can produce.",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        const voices = ttsListVoices();
+        return jsonText({ ok: true, count: voices.length, voices });
+      },
+    };
+    api.registerTool(ttsListVoicesTool);
+
+    const ttsStatusTool: AnyAgentTool = {
+      name: "tts_status",
+      label: "Local TTS status (Phase 3.5-B)",
+      description:
+        "Report the local TTS backend status. Returns " +
+        "{backend: 'sherpa-onnx-tts' | 'placeholder', available, reason}. " +
+        "Cloud TTS providers are never reported as available — only the " +
+        "local sherpa-onnx-tts binary qualifies.",
+      parameters: Type.Object({}),
+      async execute(_ctx, _params: any) {
+        return jsonText({ ok: true, ...ttsStatus() });
+      },
+    };
+    api.registerTool(ttsStatusTool);
+
+    const ttsHashTextTool: AnyAgentTool = {
+      name: "tts_hash_text",
+      label: "Local TTS content hash (Phase 3.5-B)",
+      description:
+        "Compute a deterministic content hash for (text, voice_id, speed). " +
+        "Same inputs always produce the same 16-char hex prefix of sha256. " +
+        "Useful for cache-key testing and content-addressed storage.",
+      parameters: Type.Object({
+        text: Type.String({ minLength: 1, maxLength: 2000 }),
+        voice_id: Type.Optional(Type.String({ minLength: 1 })),
+        speed: Type.Optional(Type.Number({ minimum: 0.5, maximum: 2.0 })),
+      }),
+      async execute(_ctx, params: any) {
+        return jsonText({
+          ok: true,
+          content_hash: ttsComputeContentHash(
+            params.text,
+            params.voice_id ?? "default",
+            params.speed ?? 1.0,
+          ),
+        });
+      },
+    };
+    api.registerTool(ttsHashTextTool);
+
+    // ───────── Phase 4A: Raw Question Ingestor + Question Segmenter (pure, no disk writes) ─────────
+
+    const rawQuestionIngestTool: AnyAgentTool = {
+      name: "raw_question_ingest",
+      label: "Raw question ingest (Phase 4A, pure)",
+      description:
+        "Ingest raw content (text/structured/pdf/image) into RawCandidate[]. " +
+        "PDF and image binary inputs return an unsupported_in_round_4a error (no cloud OCR installed). " +
+        "Pure: does NOT write to disk and does NOT promote anything to the verified bank.",
+      parameters: Type.Object({
+        kind: Type.String({ enum: RAW_INGEST_KINDS as unknown as string[] }),
+        content: Type.Union([
+          Type.String(),
+          Type.Object({}, { additionalProperties: true }),
+          Type.Array(Type.Object({}, { additionalProperties: true })),
+        ]),
+        source_class: Type.String({ enum: RAW_INGEST_SOURCE_CLASSES as unknown as string[] }),
+        source_id: Type.String({ minLength: 1 }),
+        license: Type.String({ enum: RAW_INGEST_LICENSES as unknown as string[] }),
+      }),
+      async execute(_ctx, params: any) {
+        const r = ingestRawQuestion({
+          kind: params.kind,
+          content: params.content,
+          source_class: params.source_class,
+          source_id: params.source_id,
+          license: params.license,
+        });
+        return jsonText(r);
+      },
+    };
+    api.registerTool(rawQuestionIngestTool);
+
+    const rawQuestionSegmentTool: AnyAgentTool = {
+      name: "raw_question_segment",
+      label: "Raw question segment (Phase 4A, pure)",
+      description:
+        "Segment an array of RawCandidate into SegmentedQuestion[]. Pure: does NOT write to disk. " +
+        "Recognizes short_answer / multiple_choice / true_false / fill_in_blank / essay / unknown.",
+      parameters: Type.Object({
+        candidates: Type.Array(
+          Type.Object({
+            candidate_id: Type.String(),
+            raw_text: Type.String(),
+            byte_offset: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+            detection_signals: Type.Optional(
+              Type.Object({
+                has_question_mark: Type.Boolean(),
+                has_choice_pattern: Type.Boolean(),
+                has_answer_key: Type.Boolean(),
+                stem_length: Type.Integer(),
+              }),
+            ),
+            source_kind: Type.Optional(Type.String()),
+            source_provenance: Type.Optional(
+              Type.Object({
+                source_class: Type.String(),
+                source_id: Type.String(),
+                license: Type.String(),
+              }),
+            ),
+          }, { additionalProperties: true }),
+        ),
+      }),
+      async execute(_ctx, params: any) {
+        const r = segmentCandidates(params.candidates || []);
+        return jsonText(r);
+      },
+    };
+    api.registerTool(rawQuestionSegmentTool);
+  },
+});

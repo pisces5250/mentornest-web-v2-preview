@@ -1,0 +1,102 @@
+{
+  "startedAt": "2026-08-27T23:40:41.317Z",
+  "base": "http://localhost:5181/",
+  "axe": {
+    "version": "4.13.0"
+  },
+  "viewports": {
+    "mobile": {
+      "width": 360,
+      "height": 800,
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 0,
+      "consoleErrors": []
+    },
+    "tablet": {
+      "width": 768,
+      "height": 1024,
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 0,
+      "consoleErrors": []
+    },
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 0,
+      "consoleErrors": []
+    }
+  },
+  "full_session": {
+    "q1_type": "multiple_choice",
+    "q1_correct_on_first": true,
+    "q1_advanced": true,
+    "q2_seen": true,
+    "q2_summary_reached": false
+  },
+  "keyboard": {},
+  "reload_resume": {
+    "first_qid": "question-fixture_mc_g3_001",
+    "resumed_notice_visible": true,
+    "resumed_qid": "question-fixture_mc_g3_001",
+    "resumed_to_same_question": true
+  },
+  "retry": {
+    "wrong_feedback_seen": true,
+    "retry_button_seen": true,
+    "submit_disabled_after_retry": false
+  },
+  "error_state": {},
+  "hint_escalation": {
+    "hint_panel_before_click": 0,
+    "hint_toggle_present_1": 1,
+    "hint_panel_after_1st_hint": 1,
+    "hint_stage_after_1st_hint": "hint_level_2",
+    "hint_toggle_present_2": 0,
+    "hint_panel_after_2nd_hint": 1,
+    "hint_stage_after_2nd_hint": "hint_level_2",
+    "visual_count_after_level2": 1,
+    "escalation_visible_to_level2": true
+  },
+  "representation_switch": {
+    "rep_before": "fraction_bar",
+    "toggle_present": 1,
+    "rep_after": "number_line",
+    "switched": true
+  },
+  "summary": {
+    "reached": true,
+    "headline": "今天全部一次就答對，太厲害了！",
+    "total_steps": "4"
+  },
+  "axeRuns": [
+    {
+      "viewport": "mobile",
+      "violations": []
+    },
+    {
+      "viewport": "tablet",
+      "violations": []
+    },
+    {
+      "viewport": "desktop",
+      "violations": []
+    }
+  ],
+  "finishedAt": "2026-08-27T23:40:50.477Z",
+  "summary_meta": {
+    "totalCritical": 0,
+    "totalSerious": 0,
+    "exit": 0,
+    "failedAt": null
+  }
+}

@@ -1,0 +1,256 @@
+{
+  "startedAt": "2026-08-27T17:30:49.884Z",
+  "base": "http://localhost:5181/",
+  "axe": {
+    "version": "4.13.0"
+  },
+  "viewports": {
+    "mobile": {
+      "width": 360,
+      "height": 800,
+      "choiceCount": 4,
+      "firstChoiceVisible": true,
+      "cardBox": {
+        "x": 24,
+        "y": 186,
+        "width": 360,
+        "height": 617
+      },
+      "touchTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        }
+      ],
+      "gridColumns": "326px",
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 1,
+      "consoleErrors": []
+    },
+    "tablet": {
+      "width": 768,
+      "height": 1024,
+      "choiceCount": 4,
+      "firstChoiceVisible": true,
+      "cardBox": {
+        "x": 24,
+        "y": 144,
+        "width": 768,
+        "height": 617
+      },
+      "touchTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        }
+      ],
+      "gridColumns": "361px 361px",
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 1,
+      "consoleErrors": []
+    },
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "choiceCount": 4,
+      "firstChoiceVisible": true,
+      "cardBox": {
+        "x": 160,
+        "y": 144,
+        "width": 960,
+        "height": 617
+      },
+      "touchTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        },
+        {
+          "tag": "BUTTON",
+          "w": 102,
+          "h": 62
+        }
+      ],
+      "gridColumns": "457px 457px",
+      "axeCritical": 0,
+      "axeSerious": 0,
+      "axeModerate": 0,
+      "axeMinor": 0,
+      "axeIncomplete": 1,
+      "consoleErrors": []
+    }
+  },
+  "keyboard": {
+    "initialFocus": "false",
+    "initialTabindex": [
+      "0",
+      "-1",
+      "-1",
+      "-1"
+    ],
+    "afterArrowFocusedIndex": 1,
+    "ariaCheckedAfterSpace": [
+      "false",
+      "true",
+      "false",
+      "false"
+    ],
+    "feedbackVisibleAfterSubmit": true
+  },
+  "aria": {
+    "radiogroupExists": true,
+    "radiogroupLabelledby": "question-stem",
+    "radiogroupDescribedby": null,
+    "radioCount": 4,
+    "radiosWithAriaChecked": true,
+    "hintToggleAriaExpanded": "false",
+    "hintToggleAriaControls": "hint-text",
+    "liveRegionExists": true,
+    "liveRegionAriaLive": "polite",
+    "stemId": "question-stem",
+    "choiceKeysPresent": true,
+    "choiceKeysAriaHidden": true
+  },
+  "motion": {
+    "reducedMotionRequested": true,
+    "transitionDuration": "1e-05s",
+    "animationDuration": "1e-05s",
+    "transitionCollapsed": true,
+    "animationCollapsed": true,
+    "motionCollapsed": true
+  },
+  "touchTargets": [
+    {
+      "cls": "mn-choice",
+      "w": 102,
+      "h": 62,
+      "meetsG3G4_48": true
+    },
+    {
+      "cls": "mn-choice",
+      "w": 102,
+      "h": 62,
+      "meetsG3G4_48": true
+    },
+    {
+      "cls": "mn-choice",
+      "w": 102,
+      "h": 62,
+      "meetsG3G4_48": true
+    },
+    {
+      "cls": "mn-choice",
+      "w": 102,
+      "h": 62,
+      "meetsG3G4_48": true
+    },
+    {
+      "cls": "mn-button",
+      "w": 96,
+      "h": 50,
+      "meetsG3G4_48": true
+    },
+    {
+      "cls": "mn-button",
+      "w": 96,
+      "h": 50,
+      "meetsG3G4_48": true
+    }
+  ],
+  "axeRuns": [
+    {
+      "viewport": "mobile",
+      "violations": [],
+      "incomplete": 1
+    },
+    {
+      "viewport": "tablet",
+      "violations": [],
+      "incomplete": 1
+    },
+    {
+      "viewport": "desktop",
+      "violations": [],
+      "incomplete": 1
+    }
+  ],
+  "behavioral": {
+    "default": {
+      "dataMode": null,
+      "correctHasIcon": true,
+      "correctHasKey": true,
+      "incorrectHasIcon": false,
+      "incorrectHasKey": false
+    },
+    "high-contrast": {
+      "dataMode": "high-contrast",
+      "correctHasIcon": true,
+      "correctHasKey": true,
+      "incorrectHasIcon": false,
+      "incorrectHasKey": false
+    },
+    "color-vision-safe": {
+      "dataMode": "color-vision-safe",
+      "correctHasIcon": true,
+      "correctHasKey": true,
+      "incorrectHasIcon": false,
+      "incorrectHasKey": false
+    }
+  },
+  "finishedAt": "2026-08-27T17:30:54.574Z",
+  "summary": {
+    "totalCritical": 0,
+    "totalSerious": 0,
+    "exit": 0,
+    "failedAt": null
+  }
+}

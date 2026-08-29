@@ -1,0 +1,81 @@
+version: "1.0"
+
+student_learning_model:
+
+  profile:
+    fields:
+      - student_id
+      - display_name
+      - grade
+      - school
+      - curriculum
+      - textbook_versions
+
+  school_progress:
+    fields:
+      - subject
+      - confirmed_progress
+      - confirmed_source
+      - inferred_progress
+      - inference_confidence
+      - updated_at
+
+  learning_event:
+    fields:
+      - student_id
+      - subject
+      - knowledge_point
+      - subskill
+      - question_id
+      - question_type
+      - difficulty
+      - result
+      - attempts
+      - hints
+      - first_wrong_answer
+      - error_type
+      - representation_used
+      - review_needed
+      - timestamp
+
+  mastery:
+    fields:
+      - student_id
+      - subject
+      - knowledge_point
+      - subskill
+      - mastery
+      - confidence
+      - last_seen
+      - review_due
+      - school_alignment
+      - error_patterns
+
+question_bank:
+
+  layers:
+    - raw_question_pool
+    - verified_question_bank
+    - personalized_practice_pool
+
+  question:
+    fields:
+      - question_id
+      - subject
+      - grade
+      - curriculum
+      - publisher
+      - unit
+      - knowledge_points
+      - question_type
+      - prompt
+      - choices
+      - answer
+      - explanation
+      - difficulty
+      - source
+      - source_page
+      - source_license
+      - commercial_use_allowed
+      - attribution_required
+      - verified

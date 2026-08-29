@@ -1,0 +1,41 @@
+version: 1
+subject: "science"
+curriculum_doc: "tw-12yrc-science-v1"
+scope: "G1-G6"
+
+grades:
+  3:
+    knowledge_points:
+      - id: "science.G3.OBS.plant-animal"
+        description: "動植物外觀與棲息地觀察"
+        stage: "三上"
+      - id: "science.G3.PROC.measure-basic"
+        description: "長度、體積、質量的簡易測量"
+        stage: "三下"
+
+  4:
+    knowledge_points:
+      - id: "science.G4.MATTER.state-change"
+        description: "物質三態與狀態變化"
+        stage: "四上"
+      - id: "science.G4.FORCE.push-pull"
+        description: "力的方向與大小"
+        stage: "四下"
+
+  5:
+    knowledge_points:
+      - id: "science.G5.LIGHT.shade-and-shadow"
+        description: "光的直進與影子"
+        stage: "五上"
+      - id: "science.G5.WATER.cycle"
+        description: "水循環"
+        stage: "五下"
+
+  6:
+    knowledge_points:
+      - id: "science.G6.EARTH.weather"
+        description: "天氣變化與觀測記錄"
+        stage: "六上"
+      - id: "science.G6.ECOLOGY.food-chain"
+        description: "生物間的交互作用與食物鏈"
+        stage: "六下"

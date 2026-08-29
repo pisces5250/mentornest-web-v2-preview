@@ -1,0 +1,21 @@
+{
+  "id": "mentornest-learning",
+  "name": "MentorNest Learning",
+  "description": "Persistent student profiles and learning records for MentorNest",
+  "contracts": {
+    "tools": [
+      "student_profile_get",
+      "student_profile_update",
+      "learning_record_append",
+      "generate_practice_set",
+      "classify_math_error"
+    ]
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  }
+}

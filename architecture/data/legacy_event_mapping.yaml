@@ -1,0 +1,115 @@
+version: "1.0"
+created_on: "2026-08-27T1131Z"
+status: "human-curated for legacy_backfill dry-run preview"
+description: >
+  Manual mapping table for the 26 legacy learning_events in
+  data/learning-records/student_001.jsonl. Each row records the
+  observed `knowledge_point` string, the resolved curriculum V1 KP
+  ID (or exclusion reason), and the curator's rationale.
+
+  This file is the authoritative input to mastery_backfill_dry_run v2
+  (mapping_aware mode). Backfill engine MUST NOT invent mappings; it
+  MUST look them up here. Unmapped events are excluded (NOT silently
+  guessed).
+
+student_profile:
+  student_id: "student_001"
+  display_name: "奐奐"
+  grade: 5
+  school_year: "2026"
+  curriculum: "taiwan-12-year-curriculum"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Mapping table — order = stable sort by legacy_kp
+# ──────────────────────────────────────────────────────────────────────────────
+
+mapping:
+  - legacy_kp: "異分母分數加法"
+    legacy_count: 24
+    resolved_kp: "math.G5.FRAC.add-unlike-denom"
+    resolved_stage: "五上"
+    resolved_description: "異分母分數的加減（含帶分數）"
+    rationale: >
+      Direct content match. Curriculum V1 G5 FRAC KP description is
+      "異分母分數的加減（含帶分數）" — exactly the legacy event's KP.
+      student_001 grade = 5 → age-appropriate.
+    evidence:
+      - "event note: 'Web practice: 算算看：1/2 + 1/4 = ?'"
+      - "event note: 'Web practice: 算算看：1/3 + 1/6 = ?'"
+    action: "convert"
+
+  - legacy_kp: "分數加法"
+    legacy_count: 1
+    resolved_kp: null
+    exclusion_reason: "insufficient_question_content"
+    rationale: >
+      The single event with this KP has note 'Learning Memory 測試' with
+      NO question stem, no expected answer, no representation hint.
+      User directive 20260827T1131Z: '不可只靠名稱猜'. Without concrete
+      question content, mapping to G3.FRAC.intro-fraction (the only
+      general-fraction KP in V1) would be a guess that may attribute
+      evidence to the wrong KP and bias mastery. Per policy
+      `data_integrity.objective_mastery_only`, this event is excluded.
+    evidence:
+      - "event note: 'Learning Memory 測試' (no stem)"
+    action: "exclude"
+
+  - legacy_kp: "Web API 測試"
+    legacy_count: 1
+    resolved_kp: null
+    exclusion_reason: "not_a_subject_kp"
+    rationale: >
+      Note is 'tools/invoke API test' — this is a system integration
+      test event, not a learning event. The KP string 'Web API 測試'
+      is the literal text the developer typed while exercising the
+      learning_record_append tool. Has no mapping to any curriculum KP
+      (math/chinese/english/science/social_studies all reject it).
+    evidence:
+      - "event note: 'tools/invoke API test'"
+    action: "exclude"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Summary
+# ──────────────────────────────────────────────────────────────────────────────
+
+summary:
+  total_legacy_events: 26
+  by_action:
+      convert: 24
+      exclude: 2
+  by_exclusion_reason:
+      insufficient_question_content: 1
+      not_a_subject_kp: 1
+  resolved_kps:
+    - math.G5.FRAC.add-unlike-denom: 24
+  excluded_legacy_kps:
+    - 分數加法: 1
+    - Web API 測試: 1
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Curriculum V1 references consulted
+# ──────────────────────────────────────────────────────────────────────────────
+
+curriculum_v1_math_kps_available:
+  kps:
+    - "math.G1.NUM.count-and-compare (10以內的數、計數、大小比較)"
+    - "math.G1.NUM.add-sub-10 (10以內的加減)"
+    - "math.G1.NUM.add-sub-20 (20以內的加減)"
+    - "math.G1.GEOM.shape-recognition (平面圖形辨識)"
+    - "math.G2.NUM.add-sub-100 (100以內的加減)"
+    - "math.G2.NUM.multiply-intro (2、5、10 乘法表)"
+    - "math.G2.MEAS.length-cm-m (長度)"
+    - "math.G3.NUM.multiply-1-9 (1–9 乘法表)"
+    - "math.G3.FRAC.intro-fraction (分數的初步認識；等分分數)"
+    - "math.G3.GEOM.perimeter-intro (周長)"
+    - "math.G4.NUM.big-numbers (億以內的數)"
+    - "math.G5.FRAC.add-unlike-denom (異分母分數的加減含帶分數)"
+    - "math.G6.FRAC.multiply-fraction-fraction (分數乘以分數)"
+  note: "V1 has NO same-denom-fraction-add KP at G4 (e.g. math.G4.FRAC.add-like-denom). G3.FRAC.intro-fraction is the only general-fraction KP and is a prereq to G5, not a same-denom-addition target. Cannot safely map '分數加法' without concrete question content."
+
+invariants:
+  - "mapping table is HUMAN-CURATED; never auto-extended"
+  - "backfill engine MUST refuse any legacy KP without a mapping row"
+  - "unmapped events are EXCLUDED (NOT silently guessed)"
+  - "data/learning-records/*.jsonl remains APPEND-ONLY; backfill only reads"
+  - "legacy_backfill_apply requires mapping_aware=true to honor this table"
