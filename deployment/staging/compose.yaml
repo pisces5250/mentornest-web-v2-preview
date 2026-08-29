@@ -41,6 +41,9 @@ services:
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?必須由 staging secret store 注入}
       OPENCLAW_REQUIRED_CAPABILITIES: learning_director,assessment,learning_memory,verified_bank_read
       OPENCLAW_CAPABILITY_CONTRACT_VERSION: "1"
+      OPENCLAW_EXPECTED_RUNTIME_VERSION: ${OPENCLAW_RUNTIME_VERSION:?必須鎖定已驗證的 runtime version}
+      OPENCLAW_EXPECTED_IMAGE_DIGEST: ${OPENCLAW_LEARNING_IMAGE:?必須與部署的 immutable image identity 一致}
+      OPENCLAW_EXPECTED_DATA_NAMESPACE: ${STAGING_DATA_NAMESPACE:?必須與隔離 staging namespace 一致}
     expose: ["8787"]
     depends_on:
       openclaw-learning:

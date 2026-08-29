@@ -1,9 +1,12 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "feature/**"
 
 permissions:
   contents: read
@@ -26,3 +29,34 @@ jobs:
         run: |
           docker build --tag mentornest-web-v2:ci .
           docker build --file Dockerfile.backend --tag mentornest-tutor-backend:ci .
+      - name: 驗證 Web 與 Tutor container liveness contract
+        run: |
+          docker run --detach --name mentornest-web-ci --publish 18080:80 mentornest-web-v2:ci
+          docker run --detach --name mentornest-tutor-ci --publish 18787:8787 \
+            --env MENTORNEST_GATEWAY_SESSION_SECRET=ci-session-secret-at-least-32-characters \
+            --env MENTORNEST_SERVICE_AUTH_KEY=ci-service-auth-key-at-least-32-characters \
+            mentornest-tutor-backend:ci
+
+          cleanup() {
+            docker logs mentornest-web-ci || true
+            docker logs mentornest-tutor-ci || true
+            docker rm --force mentornest-web-ci mentornest-tutor-ci || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null && \
+               curl --fail --silent http://127.0.0.1:18787/api/health >/tmp/tutor-health.json; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              echo "Web／Tutor liveness contract 未在期限內就緒" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          grep --fixed-strings '"ok":true' /tmp/tutor-health.json
+          grep --fixed-strings '"cloud_fallback":false' /tmp/tutor-health.json
+          test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-web-ci)" != unhealthy
+          test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-tutor-ci)" != unhealthy

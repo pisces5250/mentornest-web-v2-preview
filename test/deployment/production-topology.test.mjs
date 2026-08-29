@@ -58,6 +58,7 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
     STAGING_DATA_NAMESPACE: "mentornest-staging-isolated",
     VOICE_BACKEND_IMAGE: `voice@sha256:${"a".repeat(64)}`,
     OPENCLAW_LEARNING_IMAGE: `openclaw@sha256:${"b".repeat(64)}`,
+    OPENCLAW_RUNTIME_VERSION: "openclaw-test-1.0.0",
     MENTORNEST_GATEWAY_SESSION_SECRET: "test-only-session-secret-at-least-32-chars",
     MENTORNEST_SERVICE_AUTH_KEY: "test-only-service-key-at-least-32-chars",
     OPENCLAW_GATEWAY_TOKEN: "test-only-openclaw-token-at-least-32-chars",
@@ -82,6 +83,13 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
   });
   assert.notEqual(productionTargetRejected.status, 0);
   assert.match(productionTargetRejected.stderr, /不得指向 production fallback service/);
+
+  const ambiguousNamespaceRejected = spawnSync(process.execPath, [script], {
+    encoding: "utf8",
+    env: { ...validEnv, STAGING_DATA_NAMESPACE: "mentornest-shared" },
+  });
+  assert.notEqual(ambiguousNamespaceRejected.status, 0);
+  assert.match(ambiguousNamespaceRejected.stderr, /必須明確標示為 staging 隔離空間/);
 
   const registryMismatchRejected = spawnSync(process.execPath, [script], {
     encoding: "utf8",

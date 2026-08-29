@@ -57,6 +57,8 @@ test("session secret 與 service auth key 不可互換", () => {
   assert.equal(verifyServiceToken(token, { secret: SECRET, audience: "voice-backend" }), null);
   assert.equal(verifyServiceToken(token, { secret: serviceKey, audience: "tutor-backend" }), null);
   assert.equal(verifyServiceToken(token, { secret: serviceKey, audience: "voice-backend" }).subject_ref, "student_test_auth");
+  const expired = createServiceToken({ subjectRef: "student_test_auth", audience: "voice-backend", ttlSeconds: -1 }, serviceKey);
+  assert.equal(verifyServiceToken(expired, { secret: serviceKey, audience: "voice-backend" }), null);
 });
 
 test("CSRF 缺失時 fail-closed", () => {
@@ -122,4 +124,33 @@ test("readiness 驗證 contract version 與完整 capability 宣告", async () =
   assert.equal(missing.ok, false);
   assert.deepEqual(missing.missing_capabilities, [required[1]]);
   assert.equal((await make({ ok: true, contract_version: "2", capabilities: required }).ready()).ok, false);
+});
+
+test("staging readiness 綁定 runtime、image identity、namespace 與 production data isolation", async () => {
+  const digest = `registry.example/openclaw@sha256:${"b".repeat(64)}`;
+  const body = {
+    ok: true,
+    contract_version: "1",
+    runtime_version: "openclaw-test-1.0.0",
+    image_digest: digest,
+    data_namespace: "mentornest-staging-test-isolated",
+    production_data_allowed: false,
+    capabilities: ["learning_memory.append_observation"],
+  };
+  const make = (override = {}) => createOpenClawGateway({
+    baseUrl: "http://openclaw.test",
+    token: "server-only-token-with-24-characters",
+    requiredCapabilities: ["learning_memory.append_observation"],
+    contractVersion: "1",
+    expectedRuntimeVersion: "openclaw-test-1.0.0",
+    expectedImageDigest: digest,
+    expectedDataNamespace: "mentornest-staging-test-isolated",
+    requireProductionDataIsolation: true,
+    fetchImpl: async () => ({ ok: true, async json() { return { ...body, ...override }; } }),
+  });
+
+  assert.equal((await make().ready()).ok, true);
+  assert.deepEqual((await make({ image_digest: "wrong" }).ready()).mismatches, ["image_digest"]);
+  assert.deepEqual((await make({ data_namespace: "production" }).ready()).mismatches, ["data_namespace"]);
+  assert.deepEqual((await make({ production_data_allowed: true }).ready()).mismatches, ["production_data_isolation"]);
 });

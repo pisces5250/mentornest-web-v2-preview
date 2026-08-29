@@ -81,6 +81,10 @@ const gateway = process.env.OPENCLAW_GATEWAY_ORIGIN
       token: process.env.OPENCLAW_GATEWAY_TOKEN,
       requiredCapabilities,
       contractVersion: process.env.OPENCLAW_CAPABILITY_CONTRACT_VERSION || '1',
+      expectedRuntimeVersion: process.env.OPENCLAW_EXPECTED_RUNTIME_VERSION,
+      expectedImageDigest: process.env.OPENCLAW_EXPECTED_IMAGE_DIGEST,
+      expectedDataNamespace: process.env.OPENCLAW_EXPECTED_DATA_NAMESPACE,
+      requireProductionDataIsolation: process.env.MENTORNEST_ENV === 'staging',
     })
   : createUnavailableGateway();
 

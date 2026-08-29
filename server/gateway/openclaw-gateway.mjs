@@ -22,6 +22,10 @@ export function createOpenClawGateway({
   timeoutMs = 8000,
   requiredCapabilities = [...CAPABILITIES],
   contractVersion = "1",
+  expectedRuntimeVersion,
+  expectedImageDigest,
+  expectedDataNamespace,
+  requireProductionDataIsolation = false,
 }) {
   if (!baseUrl || !/^https?:\/\//.test(baseUrl)) throw new Error("MENTORNEST_GATEWAY_URL 無效");
   if (!token || token.length < 24) throw new Error("MENTORNEST_GATEWAY_TOKEN 未設定或過短");
@@ -62,10 +66,34 @@ export function createOpenClawGateway({
       const body = await response.json().catch(() => null);
       const advertised = new Set(body?.capabilities || []);
       const missing = requiredCapabilities.filter((name) => !advertised.has(name));
-      const ok = response.ok && body?.ok === true && String(body.contract_version) === String(contractVersion) && missing.length === 0;
-      return { ok, contract_version: body?.contract_version ?? null, missing_capabilities: missing };
+      const mismatches = [];
+      if (String(body?.contract_version) !== String(contractVersion)) mismatches.push("contract_version");
+      if (expectedRuntimeVersion && body?.runtime_version !== expectedRuntimeVersion) mismatches.push("runtime_version");
+      if (expectedImageDigest && body?.image_digest !== expectedImageDigest) mismatches.push("image_digest");
+      if (expectedDataNamespace && body?.data_namespace !== expectedDataNamespace) mismatches.push("data_namespace");
+      if (requireProductionDataIsolation && body?.production_data_allowed !== false) mismatches.push("production_data_isolation");
+      const ok = response.ok && body?.ok === true && missing.length === 0 && mismatches.length === 0;
+      return {
+        ok,
+        contract_version: body?.contract_version ?? null,
+        runtime_version: body?.runtime_version ?? null,
+        image_digest: body?.image_digest ?? null,
+        data_namespace: body?.data_namespace ?? null,
+        production_data_allowed: body?.production_data_allowed ?? null,
+        missing_capabilities: missing,
+        mismatches,
+      };
     } catch {
-      return { ok: false, contract_version: null, missing_capabilities: [...requiredCapabilities] };
+      return {
+        ok: false,
+        contract_version: null,
+        runtime_version: null,
+        image_digest: null,
+        data_namespace: null,
+        production_data_allowed: null,
+        missing_capabilities: [...requiredCapabilities],
+        mismatches: ["runtime_unavailable"],
+      };
     }
   }
 
@@ -75,7 +103,18 @@ export function createOpenClawGateway({
 export function createUnavailableGateway() {
   return Object.freeze({
     async invoke() { throw new GatewayError("gateway_unavailable", 503); },
-    async ready() { return { ok: false, contract_version: null, missing_capabilities: [...CAPABILITIES] }; },
+    async ready() {
+      return {
+        ok: false,
+        contract_version: null,
+        runtime_version: null,
+        image_digest: null,
+        data_namespace: null,
+        production_data_allowed: null,
+        missing_capabilities: [...CAPABILITIES],
+        mismatches: ["runtime_unavailable"],
+      };
+    },
   });
 }
 

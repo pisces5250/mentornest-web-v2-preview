@@ -8,6 +8,7 @@ const required = [
   "STAGING_DATA_NAMESPACE",
   "VOICE_BACKEND_IMAGE",
   "OPENCLAW_LEARNING_IMAGE",
+  "OPENCLAW_RUNTIME_VERSION",
   "MENTORNEST_GATEWAY_SESSION_SECRET",
   "MENTORNEST_SERVICE_AUTH_KEY",
   "OPENCLAW_GATEWAY_TOKEN",
@@ -18,7 +19,7 @@ if (process.env.MENTORNEST_ENV !== "staging") errors.push("MENTORNEST_ENV 必須
 for (const name of required) {
   const value = process.env[name] ?? "";
   if (!value || /replace-with|inject-from|registry\.example/.test(value)) errors.push(`${name} 尚未安全設定`);
-  if (name.endsWith("IMAGE") && !value.includes("@sha256:")) errors.push(`${name} 必須鎖定 immutable sha256 digest`);
+  if (name.endsWith("IMAGE") && !/@sha256:[a-f0-9]{64}$/i.test(value)) errors.push(`${name} 必須鎖定完整 immutable sha256 digest`);
 }
 for (const name of ["MENTORNEST_GATEWAY_SESSION_SECRET", "MENTORNEST_SERVICE_AUTH_KEY", "OPENCLAW_GATEWAY_TOKEN"]) {
   if ((process.env[name] ?? "").length < 32) errors.push(`${name} 至少需要 32 個字元`);
@@ -30,6 +31,7 @@ if (process.env.PRODUCTION_FALLBACK_SERVICE_ID !== RETAINED_PRODUCTION_FALLBACK_
   errors.push("production fallback service ID 與 architecture registry 不一致");
 }
 if (/prod/i.test(process.env.STAGING_DATA_NAMESPACE ?? "")) errors.push("staging data namespace 不得指向 production");
+if (!/staging/i.test(process.env.STAGING_DATA_NAMESPACE ?? "")) errors.push("staging data namespace 必須明確標示為 staging 隔離空間");
 for (const name of Object.keys(process.env)) {
   if (name.startsWith("VITE_") && /(TOKEN|SECRET|KEY|ORIGIN)/.test(name)) errors.push(`${name} 不得暴露內部位址或 credential 到 browser bundle`);
 }
