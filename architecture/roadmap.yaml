@@ -333,7 +333,31 @@ phases:
 
   phase_6:
     name: "Advanced interaction"
-    status: planned
+    status: partially_implemented_candidate_not_production_ready
+    reconciliation_20260829:
+      phase_6a:
+        status: implemented_with_reproducible_tests_production_integration_pending
+        evidence:
+          - "commits cddc585 and 3108654"
+          - "server/tutor/reading-aloud-evaluator.mjs"
+          - "Phase 6A unit and vertical-slice tests under test/"
+        blockers:
+          - "production learning backend adapter is not wired"
+          - "production authentication and staging acceptance are not complete"
+      phase_6b:
+        status: prototype_implemented_writer_boundary_remediated_deployment_acceptance_pending
+        evidence:
+          - "commit 4cba5bb"
+          - "server/tutor/conversation-manager.mjs"
+          - "src/tutor/ConversationTutor.tsx"
+        blockers:
+          - "session state is process-local"
+          - "production Learning Memory gateway adapter and auth are not implemented"
+          - "deployment topology is defined but not staged or cut over"
+      historical_note: >
+        The former `planned` value described the original advanced-interaction
+        roadmap.  It is superseded for 6A/6B only; handwriting and vision input
+        remain planned.
     goals:
       - handwriting_canvas
       - vision_math_input
@@ -417,4 +441,3 @@ phase_7_design_registry_v1:
     - design system implementation tech (CSS variables vs Tailwind vs design tokens JSON)
     - whether to ship design tokens JSON as a separate npm package (mentornest-design-tokens)
     - keyboard shortcut policy for G5+ (R for replay, H for hint, etc.)
-

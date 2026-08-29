@@ -149,7 +149,7 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
 // ─────────────────────────────────────────────────────────────────────────────
 // End-of-session summary builder
 //
-// The ONLY thing written to data/learning-records/<id>.jsonl.
+// The ONLY observation submitted to the Learning Memory writer at session end.
 // Hard rules:
 //   - Never include transcript.
 //   - Never include per-turn specialist decision.

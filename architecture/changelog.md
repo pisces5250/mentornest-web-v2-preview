@@ -1737,3 +1737,52 @@ synthesis.
   - Learning Memory Agent（summary only, no transcript / audio）
 - Lead: English Specialist（English teaching 屬於其權限）
 - Orchestrator: 確認 Lead + 守住 Hard Invariants，不介入專業內容
+
+---
+
+## 2026-08-29 — Phase P0 Registry Reconciliation
+
+**Lead:** Architecture / Runtime Lead
+
+**Participants:** System Orchestrator、Runtime Engineering、QA、Infrastructure
+
+**Execution Owner:** Architecture / Runtime Lead
+
+**Verification Owner:** QA
+
+依 current runtime/source code、可重現測試、deployment evidence、歷史
+registry 的優先序完成現況對齊：
+
+- 新增 `architecture/current-state.yaml` 作為薄的現況 overlay；既有 phase
+  記錄保留為 historical evidence。
+- Phase 6A 標為「已實作且有測試，production integration pending」。
+- Phase 6B 標為「prototype 已實作，writer boundary 與 production
+  acceptance pending」。
+- 區分現行 production `mentornest-web` fallback 與本 repo 的 Web v2
+  production-replacement candidate；未授權 cutover。
+- 修正 Design System、visual-theme ownership 與 append-only live-data 規則
+  的矛盾；舊說法以 superseded historical note 保留。
+- 清除 `AGENTS.md` 語言段落中的重複目錄清單污染，治理內容不變。
+
+Hard invariants：未讀寫 production student data、未 deploy、未 cutover、
+未改 mastery／Verified Bank authority。
+
+Acceptance evidence：`git diff --check`、所有非 backup architecture YAML
+解析、source／tests／Docker／Vite／Git history 對照；完整 P0 測試與 build
+證據由 reproducible-baseline 工作流統一產出。
+
+---
+
+## 2026-08-29 — Phase P0 基線、writer boundary 與 production candidate topology
+
+- Leads：Learning Memory／Assessment／Security、Infrastructure／QA、Frontend；System Orchestrator 負責整合與 hard invariants。
+- Conversation Manager 改用可注入 `LearningMemoryWriter`，未配置正式 writer 時 fail-closed；production code 不再直接 append JSONL。
+- 測試 writer 僅接受 `/tmp` 與 fake student ID，ledger 檔名只使用 hash；transcript／audio 不得落盤。
+- Browser `mastered_kps` 降級為 deprecated 相容 alias；權威語意改為 `mastery_candidate_kps`／本次觀察，不產生正式 mastery。
+- Phase 6A transcript 改由 React state／props 傳遞，移除 one-shot window event race。
+- TTS backend 加入 form parser；ConversationTutor 統一使用 Voice API resolver。
+- Production fixture 改為明確 opt-in，production build 若設定 `VITE_USE_FIXTURES=true` 會拒絕建置。
+- 定義 Web edge、Tutor、Voice、OpenClaw Learning 四個 deployment units；既有 production Web 保留 fallback，未 cutover。
+- 新增 Node 22 baseline、CI、Web／Tutor candidate Docker artifacts、nginx 同源 routing、health／SPA fallback、deployment contract tests。
+
+Acceptance evidence：`npm ci` 完成；`npm test` 299/299 PASS；`npm run build` PASS；production fixture guard 實際拒絕 build；`npm audit` 0 vulnerabilities（Vite 升至 6.4.3 修補線）；`git diff --check` PASS。Strict `npm run typecheck` 仍揭露既存 JS／TS 型別債，明列 blocker，不宣稱通過。未讀寫 production student data、未 deploy、未 push、未 cutover。

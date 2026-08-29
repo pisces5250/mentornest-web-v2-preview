@@ -19,9 +19,6 @@
 //     specialist's verdict shape changes.
 
 import { randomUUID } from "node:crypto";
-import { writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-
 import {
   createRingBuffer,
   decideToTurnAction,
@@ -34,6 +31,11 @@ import {
 import {
   evaluateConversationTurn,
 } from "./english/english_specialist.mjs";
+import {
+  createTestFileLearningMemoryWriter,
+  createUnavailableLearningMemoryWriter,
+  validateLearningMemoryWriter,
+} from "../learning-memory/writer.mjs";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-memory session store (depth bounded by REC for live sessions)
@@ -244,19 +246,19 @@ export function turnConversation(req) {
 // end
 // ─────────────────────────────────────────────────────────────────────────────
 
-let LEARNING_RECORDS_DIR = resolve(
-  process.env.MENTORNEST_LEARNING_RECORDS_DIR ||
-  "/home/node/.openclaw/workspace/data/learning-records",
-);
+let learningMemoryWriter = createUnavailableLearningMemoryWriter();
 
-/** Allow tests to override the directory lazily (after module load). */
-export function _setLearningRecordsDir(p) {
-  if (typeof p === "string" && p) {
-    LEARNING_RECORDS_DIR = resolve(p);
-  }
+/** 正式 runtime 由 composition root 注入 Learning Memory authority adapter。 */
+export function configureLearningMemoryWriter(writer) {
+  learningMemoryWriter = validateLearningMemoryWriter(writer);
 }
 
-export function endConversation(req) {
+/** @deprecated 僅供舊測試遷移；production 不得使用 file adapter。 */
+export function _setLearningRecordsDir(p) {
+  learningMemoryWriter = createTestFileLearningMemoryWriter({ root: p });
+}
+
+export async function endConversation(req) {
   const sessionId = req?.session_id;
   if (typeof sessionId !== "string" || !sessionId) {
     return {
@@ -294,11 +296,20 @@ export function endConversation(req) {
 
   // Persist summary to learning-records ledger (append-only).  No
   // transcript / audio / per-turn decision is written.
-  appendLearningRecord(sess.studentId, {
-    ts: new Date(sess.endedAtMs).toISOString(),
-    kind: "english_conversation_session",
-    ...summary,
-  });
+  let memoryWrite;
+  try {
+    memoryWrite = await learningMemoryWriter.appendObservation({
+      subjectRef: sess.studentId,
+      observation: {
+        ts: new Date(sess.endedAtMs).toISOString(),
+        kind: "english_conversation_session",
+        ...summary,
+      },
+    });
+  } catch {
+    // 記憶服務失效不可破壞兒童端完成流程，也不可在此 fallback 直寫檔案。
+    memoryWrite = { accepted: false, code: "learning_memory_write_failed" };
+  }
 
   // Tear down ring buffer (transcript only lived in memory); keep a
   // tombstone in SESSIONS so subsequent /turn calls can be answered
@@ -315,45 +326,6 @@ export function endConversation(req) {
       ended: true,
     },
     summary,
+    memory_write: memoryWrite,
   };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Learning-record ledger writer (append-only; per-student file)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Append one summary record to data/learning-records/<student_id>.jsonl.
- * Never throws (failure becomes a no-op + audit log; the conversation
- * was successful from the child's perspective).
- */
-function appendLearningRecord(studentId, record) {
-  try {
-    if (typeof studentId !== "string" || !studentId.trim()) return;
-    // Sanitize studentId: replace anything outside [A-Za-z0-9_-] with _
-    // (defensive, prevents path traversal).
-    const safeId = studentId.replace(/[^A-Za-z0-9_-]/g, "_");
-    const dir = LEARNING_RECORDS_DIR;
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    const path = resolve(dir, `${safeId}.jsonl`);
-    appendFileSync(path, JSON.stringify(record) + "\n", "utf8");
-  } catch (err) {
-    // Don't crash the conversation; emit a single audit log line.
-    // (Transcript / audio are NOT included here.)
-    try {
-      const path = resolve(LEARNING_RECORDS_DIR, "_audit.log");
-      if (!existsSync(LEARNING_RECORDS_DIR)) {
-        mkdirSync(LEARNING_RECORDS_DIR, { recursive: true });
-      }
-      appendFileSync(
-        path,
-        `[conversation-end] failed to write learning record: ${(err && err.message) || err}\n`,
-        "utf8",
-      );
-    } catch (_) {
-      /* swallow */
-    }
-  }
 }

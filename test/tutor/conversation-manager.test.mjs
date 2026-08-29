@@ -14,6 +14,7 @@ import {
   _sessionCount,
   _setLearningRecordsDir,
 } from "../../server/tutor/conversation-manager.mjs";
+import { shortHash } from "../../server/tutor/conversation-state.mjs";
 
 // Use a sandbox learning-records directory so we never touch production.
 const SANDBOX_DIR = resolve(
@@ -22,10 +23,10 @@ const SANDBOX_DIR = resolve(
 _setLearningRecordsDir(SANDBOX_DIR);
 
 function sandboxPath() {
-  return resolve(SANDBOX_DIR, "student_test_phase6b.jsonl");
+  return resolve(SANDBOX_DIR, `${shortHash("student_test_phase6b")}.jsonl`);
 }
 
-test("happy path: start -> turn x2 -> end", () => {
+test("happy path: start -> turn x2 -> end", async () => {
   const s = startConversation({
     student_id: "student_test_phase6b",
     knowledge_point: "english.G5.CONV.free-conversation",
@@ -54,14 +55,14 @@ test("happy path: start -> turn x2 -> end", () => {
   assert.equal(t2.ok, true);
   assert.equal(t2.turn_index, 2);
 
-  const e = endConversation({ session_id: s.session.session_id });
+  const e = await endConversation({ session_id: s.session.session_id });
   assert.equal(e.ok, true);
   assert.equal(_sessionCount(), 0);
   assert.equal(e.summary.turn_count, 2);
   assert.equal(e.summary.student_id_hash.length, 8);
 });
 
-test("turn out of sync -> turn_out_of_sync", () => {
+test("turn out of sync -> turn_out_of_sync", async () => {
   const s = startConversation({
     student_id: "student_test_phase6b",
     knowledge_point: "english.G5.CONV.free-conversation",
@@ -76,16 +77,16 @@ test("turn out of sync -> turn_out_of_sync", () => {
   assert.equal(t.ok, false);
   assert.equal(t.code, "turn_out_of_sync");
   assert.equal(t.expected_turn_index, 1);
-  endConversation({ session_id: s.session.session_id });
+  await endConversation({ session_id: s.session.session_id });
 });
 
-test("end: unknown session_id -> session_required", () => {
-  const e = endConversation({ session_id: "does-not-exist" });
+test("end: unknown session_id -> session_required", async () => {
+  const e = await endConversation({ session_id: "does-not-exist" });
   assert.equal(e.ok, false);
   assert.equal(e.code, "session_required");
 });
 
-test("end: appends exactly ONE summary record (no transcript / no audio)", () => {
+test("end: appends exactly ONE summary record (no transcript / no audio)", async () => {
   const s = startConversation({
     student_id: "student_test_phase6b",
     knowledge_point: "english.G5.CONV.free-conversation",
@@ -102,7 +103,7 @@ test("end: appends exactly ONE summary record (no transcript / no audio)", () =>
     transcript: "I see a dog",
     turn_index: 2,
   });
-  const e = endConversation({ session_id: s.session.session_id });
+  const e = await endConversation({ session_id: s.session.session_id });
   assert.equal(e.ok, true);
 
   // The summary must have been written.
@@ -122,7 +123,7 @@ test("end: appends exactly ONE summary record (no transcript / no audio)", () =>
   assert.ok(!JSON.stringify(record).includes("I see a dog"));
 });
 
-test("session ring buffer is dropped on end (transcript only lived in memory)", () => {
+test("session ring buffer is dropped on end (transcript only lived in memory)", async () => {
   const s = startConversation({
     student_id: "student_test_phase6b",
     knowledge_point: "english.G5.CONV.free-conversation",
@@ -134,7 +135,7 @@ test("session ring buffer is dropped on end (transcript only lived in memory)", 
     transcript: "secret transcript",
     turn_index: 1,
   });
-  endConversation({ session_id: s.session.session_id });
+  await endConversation({ session_id: s.session.session_id });
   // After end, the session record is gone.
   assert.equal(_sessionCount(), 0);
   // The learning record MUST NOT contain "secret transcript".

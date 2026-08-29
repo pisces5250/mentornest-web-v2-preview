@@ -2,7 +2,7 @@
 
 ## 語言
 
-.clawhub .learnings .openclaw .push-bundle AGENTS.md AGENTS.md.bak AGENTS.md.bak.20260826T183714Z HEARTBEAT.md IDENTITY.md IDENTITY.md.bak SOUL.md SOUL.md.bak TOOLS.md USER.md USER.md.bak _archive architecture backups bin data memory mentornest-voice-backend mentornest-web-v2 mentornest-web-v2-bundle.tar.gz mentornest-web-v2.bundle mentornest-web-v2.tar.gz models services skills start-mentornest.sh .clawhub .learnings .openclaw .push-bundle AGENTS.md AGENTS.md.bak AGENTS.md.bak.20260826T183714Z HEARTBEAT.md IDENTITY.md IDENTITY.md.bak SOUL.md SOUL.md.bak TOOLS.md USER.md USER.md.bak _archive architecture backups bin data memory mentornest-voice-backend mentornest-web-v2 mentornest-web-v2-bundle.tar.gz mentornest-web-v2.bundle mentornest-web-v2.tar.gz models services skills start-mentornest.sh .clawhub .learnings .openclaw .push-bundle AGENTS.md AGENTS.md.bak AGENTS.md.bak.20260826T183714Z HEARTBEAT.md IDENTITY.md IDENTITY.md.bak SOUL.md SOUL.md.bak TOOLS.md USER.md USER.md.bak _archive architecture backups bin data memory mentornest-voice-backend mentornest-web-v2 mentornest-web-v2-bundle.tar.gz mentornest-web-v2.bundle mentornest-web-v2.tar.gz models services skills start-mentornest.sh code comment 與 commit message，一律使用繁體中文（zh-TW）。
+code comment 與 commit message，一律使用繁體中文（zh-TW）。
 API、函式、變數、CLI、第三方產品名稱可保留英文。
 
 ## 核心工作原則

@@ -1,0 +1,38 @@
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  location = /healthz {
+    access_log off;
+    add_header Content-Type text/plain;
+    return 200 "ok\n";
+  }
+
+  # 同源 edge 負責路由；瀏覽器不直接取得內部 service 位址。
+  location /api/tutor/ {
+    proxy_pass ${TUTOR_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+  }
+
+  location ~ ^/api/(stt|tts|audio)/ {
+    proxy_pass ${VOICE_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+    client_max_body_size 10m;
+  }
+
+  location /api/learning/ {
+    proxy_pass ${LEARNING_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}

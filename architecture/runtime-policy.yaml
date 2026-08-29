@@ -247,10 +247,12 @@ provider_quota_policy:
          failure suggests cross-cutting invariant regression."
     - id: INV-QUOTA-7
       rule: >
-        "Production invariants (AGENTS.md / SOUL.md / USER.md / IDENTITY.md MD5,
-         student_001.jsonl MD5, mastery-evidence baseline) MUST be preserved
-         in every band. Sub-agents touching production data must run a
-         pre/post MD5 snapshot."
+        "Production governance files must not be changed outside the task scope.
+         Production learning and mastery streams are append-only: verify identity,
+         event count and digest before/after any authorised operation, but NEVER
+         rewrite a live stream merely to restore an earlier MD5 or line count.
+         Automated tests must use isolated synthetic data and must not touch
+         production student records."
     - id: INV-QUOTA-8
       rule: >
         "Checkpoint/resume semantics are preserved. Every band transition
@@ -277,4 +279,3 @@ provider_quota_policy:
       - "spawns returning a quota-exhausted error within 60s"
       - "explicit human directive at runtime"
     on_uncertain_band: "orchestrator_main MUST default to the LOWER band (more conservative)."
-

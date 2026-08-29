@@ -25,12 +25,14 @@ const SANDBOX = resolve("/tmp/mentornest-vertical-slice-" + Date.now());
 _setLearningRecordsDir(SANDBOX);
 
 function recordPath(studentId) {
-  return resolve(SANDBOX, `${studentId}.jsonl`);
+  return resolve(SANDBOX, `${shortHash(studentId)}.jsonl`);
 }
 
-test("vertical: 1-step — start to finish writes summary only", () => {
+import { shortHash } from "../../../server/tutor/conversation-state.mjs";
+
+test("vertical: 1-step — start to finish writes summary only", async () => {
   const s = startConversation({
-    student_id: "student_g5_conversation",
+    student_id: "student_test_g5_conversation",
     knowledge_point: "english.G5.CONV.free-conversation",
     age_band: "G5-G6",
   });
@@ -53,12 +55,12 @@ test("vertical: 1-step — start to finish writes summary only", () => {
     turn_index: 3,
   });
 
-  const e = endConversation({ session_id: s.session.session_id });
+  const e = await endConversation({ session_id: s.session.session_id });
   assert.equal(e.ok, true);
   assert.equal(_sessionCount(), 0);
 
   // File exists, contains exactly one record.
-  const p = recordPath("student_g5_conversation");
+  const p = recordPath("student_test_g5_conversation");
   assert.ok(existsSync(p));
   const lines = readFileSync(p, "utf8").trim().split("\n");
   assert.equal(lines.length, 1);
@@ -78,24 +80,24 @@ test("vertical: 1-step — start to finish writes summary only", () => {
   }
 });
 
-test("vertical: 2 sessions for 2 students do not mix", () => {
+test("vertical: 2 sessions for 2 students do not mix", async () => {
   const s1 = startConversation({
-    student_id: "student_a",
+    student_id: "student_test_a",
     knowledge_point: "english.G5.CONV.free-conversation",
     age_band: "G5-G6",
   });
   const s2 = startConversation({
-    student_id: "student_b",
+    student_id: "student_test_b",
     knowledge_point: "english.G5.CONV.free-conversation",
     age_band: "G5-G6",
   });
   turnConversation({ session_id: s1.session.session_id, transcript: "AAA", turn_index: 1 });
   turnConversation({ session_id: s2.session.session_id, transcript: "BBB", turn_index: 1 });
-  endConversation({ session_id: s1.session.session_id });
-  endConversation({ session_id: s2.session.session_id });
+  await endConversation({ session_id: s1.session.session_id });
+  await endConversation({ session_id: s2.session.session_id });
 
-  const aLines = readFileSync(recordPath("student_a"), "utf8").trim().split("\n");
-  const bLines = readFileSync(recordPath("student_b"), "utf8").trim().split("\n");
+  const aLines = readFileSync(recordPath("student_test_a"), "utf8").trim().split("\n");
+  const bLines = readFileSync(recordPath("student_test_b"), "utf8").trim().split("\n");
   assert.equal(aLines.length, 1);
   assert.equal(bLines.length, 1);
   const a = JSON.parse(aLines[0]);
@@ -105,12 +107,12 @@ test("vertical: 2 sessions for 2 students do not mix", () => {
   assert.ok(!JSON.stringify(b).includes("AAA"));
 });
 
-test("vertical: ring buffer cap = 5", () => {
+test("vertical: ring buffer cap = 5", async () => {
   // This is a structural property of createRingBuffer (see
   // conversation-state.test.mjs).  Here we verify it survives the
   // manager-level session lifecycle.
   const s = startConversation({
-    student_id: "ring_test_v",
+    student_id: "student_test_ring_v",
     knowledge_point: "english.G5.CONV.free-conversation",
     age_band: "G5-G6",
   });
@@ -121,8 +123,8 @@ test("vertical: ring buffer cap = 5", () => {
       turn_index: i,
     });
   }
-  endConversation({ session_id: s.session.session_id });
-  const r = JSON.parse(readFileSync(recordPath("ring_test_v"), "utf8").trim());
+  await endConversation({ session_id: s.session.session_id });
+  const r = JSON.parse(readFileSync(recordPath("student_test_ring_v"), "utf8").trim());
   assert.equal(r.turn_count, 7); // full session turn count is NOT capped
   // Summary text must contain only "7 turns"; older turns are gone.
   assert.match(r.summary, /7 turns/);

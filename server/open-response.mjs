@@ -72,6 +72,7 @@ function assertNoOutbound(before, after, op) {
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
+app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 
 // Raw body for audio uploads
 app.use('/api/stt/transcribe', express.raw({ type: '*/*', limit: '10mb' }));
@@ -418,8 +419,9 @@ function shortHash(input) {
 //   - Transcript is held ONLY in server-side ring buffer (depth 5).
 //     When the session ends, the ring buffer is dropped.
 //   - Per-turn transcript / audio / decision is NEVER logged.
-//   - At session-end, ONE summary record is appended to
-//     data/learning-records/<student_id>.jsonl.  That record contains:
+//   - At session-end, ONE summary observation is submitted to the
+//     configured Learning Memory writer. Storage location and subject
+//     resolution are owned by that authority boundary. The observation contains:
 //     student_id_hash (NOT raw id), session_duration_sec, turn_count,
 //     specialist_actions sequence, dominant_error_code, summary text.
 //   - No transcript / no audio in the summary.
@@ -430,7 +432,17 @@ import {
   startConversation,
   turnConversation,
   endConversation,
+  configureLearningMemoryWriter,
 } from "./tutor/conversation-manager.mjs";
+import { createTestFileLearningMemoryWriter } from "./learning-memory/writer.mjs";
+
+// 唯一允許的 in-process file writer 是 /tmp + fake ID 測試 adapter。
+// Production 必須在 composition root 注入正式 Learning Memory authority adapter。
+if (process.env.MENTORNEST_LEARNING_RECORDS_DIR) {
+  configureLearningMemoryWriter(createTestFileLearningMemoryWriter({
+    root: process.env.MENTORNEST_LEARNING_RECORDS_DIR,
+  }));
+}
 
 app.post('/api/tutor/english-conversation/start', (req, res) => {
   try {
@@ -474,9 +486,9 @@ app.post('/api/tutor/english-conversation/turn', (req, res) => {
   }
 });
 
-app.post('/api/tutor/english-conversation/end', (req, res) => {
+app.post('/api/tutor/english-conversation/end', async (req, res) => {
   try {
-    const result = endConversation(req.body ?? {});
+    const result = await endConversation(req.body ?? {});
     if (!result.ok) {
       return res.status(400).json({ ok: false, code: result.code, message: result.message });
     }

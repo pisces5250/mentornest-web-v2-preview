@@ -10,9 +10,15 @@ import { spawn } from "node:child_process";
 import { setTimeout as wait } from "node:timers/promises";
 import { rmSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { shortHash } from "../../server/tutor/conversation-state.mjs";
 
 const SANDBOX_DIR = resolve("/tmp/mentornest-api-test-" + Date.now());
 const PORT = 8787 + Math.floor(Math.random() * 200);
+let serverOutput = "";
+
+function ledgerPath(studentId) {
+  return resolve(SANDBOX_DIR, `${shortHash(studentId)}.jsonl`);
+}
 
 function startServer() {
   const child = spawn(
@@ -28,6 +34,8 @@ function startServer() {
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
+  child.stdout.on("data", (chunk) => { serverOutput += chunk; });
+  child.stderr.on("data", (chunk) => { serverOutput += chunk; });
   return child;
 }
 
@@ -41,7 +49,7 @@ async function waitForServer() {
     }
     await wait(100);
   }
-  throw new Error("server did not become ready");
+  throw new Error(`server did not become ready: ${serverOutput.trim() || "沒有 server output"}`);
 }
 
 const server = startServer();
@@ -155,7 +163,8 @@ test("AC5 end -> summary written to sandbox, not to production", async () => {
   })).json();
   assert.equal(e.ok, true);
   assert.equal(e.summary.turn_count, 1);
-  assert.ok(existsSync(resolve(SANDBOX_DIR, "student_test_api_summary.jsonl")));
+  assert.equal(e.memory_write?.accepted, true);
+  assert.ok(existsSync(ledgerPath("student_test_api_summary")));
 });
 
 test("AC6 transcript never appears in summary (privacy)", async () => {
@@ -164,7 +173,7 @@ test("AC6 transcript never appears in summary (privacy)", async () => {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      student_id: "student_privacy_check",
+      student_id: "student_test_privacy_check",
       knowledge_point: "english.G5.CONV.free-conversation",
       age_band: "G5-G6",
     }),
@@ -186,7 +195,7 @@ test("AC6 transcript never appears in summary (privacy)", async () => {
 
   const { readFileSync } = await import("node:fs");
   const contents = readFileSync(
-    resolve(SANDBOX_DIR, "student_privacy_check.jsonl"),
+    ledgerPath("student_test_privacy_check"),
     "utf8",
   );
   assert.ok(!contents.includes(secret), "transcript leaked into learning record");
@@ -197,7 +206,7 @@ test("AC7 ring buffer depth: 5-turn session evicts oldest", async () => {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      student_id: "ring_buffer_test",
+      student_id: "student_test_ring_buffer",
       knowledge_point: "english.G5.CONV.free-conversation",
       age_band: "G5-G6",
     }),
@@ -222,7 +231,7 @@ test("AC8 turn_after_end -> session_ended 410", async () => {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      student_id: "ended_session_test",
+      student_id: "student_test_ended_session",
       knowledge_point: "english.G5.CONV.free-conversation",
       age_band: "G5-G6",
     }),

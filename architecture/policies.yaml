@@ -280,10 +280,8 @@ child_research_consent_policy:
     - INV-RC-A: Cloud STT / cloud OCR / cloud recording is forbidden regardless of consent (overrides any future consent decision).
     - INV-RC-B: A child who has not been research-consented sees the same product as a consented child; no A/B test may bypass consent.
 
-visual_theme_hook:
-  status: deferred_to_web_v2_and_child_learning_experience_designer
-  reference: architecture/design/design-system.yaml#human_decisions_20260827T1252Z/HD-WV2-2
-  policy: >
-    Math visual engine owns SVG color defaults (Phase 3.5-A).  The Web
-    v2 design tokens are the source of truth for HTML chrome.  End-user
-    "theme switcher" is NOT in scope until a follow-up human decision.
+# Historical note: the former top-level `visual_theme_hook` with status
+# `deferred_to_web_v2_and_child_learning_experience_designer` was superseded
+# on 2026-08-28 by `skills_policy.visual_theme_hook` above.  End-user theme
+# switching remains out of scope; this does not change the Designer's current
+# ownership of implemented Web v2 tokens.

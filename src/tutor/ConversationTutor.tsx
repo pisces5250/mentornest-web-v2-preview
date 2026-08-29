@@ -26,6 +26,7 @@
 
 import React, { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { TTSPlayer } from "../input/TTSPlayer";
+import { buildVoiceUrl } from "../foundation/voice_api";
 import {
   startConversationSession,
   postConversationTurn,
@@ -143,7 +144,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const startTtsAtRef = useRef<number | null>(null);
 
   const sttEndpoint =
-    props.sttEndpoint ?? "/api/stt/transcribe";
+    props.sttEndpoint ?? buildVoiceUrl("/api/stt/transcribe");
 
   // Tear down any in-flight media on unmount.
   useEffect(() => {

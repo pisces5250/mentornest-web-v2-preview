@@ -155,7 +155,7 @@ failure_recovery:
   rules:
     - INV-FR-1: Every error state surfaces a "what to do next" CTA.
     - INV-FR-2: Repeated failures escalate to review_needed, never just bigger error visuals.
-    - INV-FR-3: No dead-ends: every screen has an exit (back / home / help).
+    - "INV-FR-3: No dead-ends: every screen has an exit (back / home / help)."
     - INV-FR-4: Submitting an empty answer shows a hint, not an error.
   invariants:
     - INV-FR-5: No blame language ("你錯了", "再做一次就放棄了" are forbidden).

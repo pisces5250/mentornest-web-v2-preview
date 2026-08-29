@@ -60,6 +60,7 @@ function CrossGlyph() {
 export function SessionSummaryView(props: SessionSummaryViewProps) {
   const { summary, ageBand } = props;
   const recommendation = recommendNext(summary);
+  const masteryCandidates = summary.mastery_candidate_kps ?? summary.mastered_kps ?? [];
 
   const headline =
     summary.first_attempt_correct === summary.total_steps
@@ -115,12 +116,12 @@ export function SessionSummaryView(props: SessionSummaryViewProps) {
         </section>
       )}
 
-      {summary.mastered_kps.length > 0 && (
-        <section data-testid="mastered-kps-section" aria-label="一次就答對的部分">
-          <h3>已經掌握</h3>
+      {masteryCandidates.length > 0 && (
+        <section data-testid="mastery-candidate-kps-section" aria-label="這次一次就答對的部分">
+          <h3>這次一次就答對</h3>
           <ul>
-            {summary.mastered_kps.map((kp) => (
-              <li className="mn-kp-row" key={kp} data-testid={`mastered-kp-${kp}`}>
+            {masteryCandidates.map((kp) => (
+              <li className="mn-kp-row" key={kp} data-testid={`mastery-candidate-kp-${kp}`}>
                 <span className="mn-icon-disc" data-tone="moss" aria-hidden="true">
                   <CheckGlyph />
                 </span>

@@ -233,7 +233,8 @@ export function sessionReduce(state, action) {
  *     representation_switches_total,
  *     kp_attempted: [{ kp, attempts, hints_used, first_verdict, final_verdict, source }],
  *     weak_kps: [<kp ids where final_verdict was incorrect OR 3+ attempts>],
- *     mastered_kps: [<kp ids where first_attempt_correct>],
+ *     mastery_candidate_kps: [<kp ids where first_attempt_correct>],
+ *     mastered_kps: deprecated non-authoritative alias,
  *     duration_seconds,
  *   }
  */
@@ -269,6 +270,9 @@ export function buildSummary(state) {
     kpMap.set(s.knowledge_point, entry);
   }
   const kps = Array.from(kpMap.values());
+  const masteryCandidateKps = kps
+    .filter((k) => k.first_verdict === STEP_VERDICT.CORRECT)
+    .map((k) => k.kp);
   return {
     total_steps: state.steps.length,
     completed_steps: completed,
@@ -277,7 +281,9 @@ export function buildSummary(state) {
     representation_switches_total: switchesTotal,
     kp_attempted: kps,
     weak_kps: kps.filter((k) => k.final_verdict === STEP_VERDICT.INCORRECT || k.attempts >= 3).map((k) => k.kp),
-    mastered_kps: kps.filter((k) => k.first_verdict === STEP_VERDICT.CORRECT).map((k) => k.kp),
+    mastery_candidate_kps: masteryCandidateKps,
+    // 相容欄位：不得視為正式 mastery；正式判定只能來自 Assessment/Mastery authority。
+    mastered_kps: masteryCandidateKps,
     duration_seconds: Math.max(0, Math.round((finished - started) / 1000)),
   };
 }
@@ -290,7 +296,7 @@ export function buildSummary(state) {
  *
  * Rule (locked in Phase 5C plan):
  *   - if any weak_kps → "targeted_practice" with those KPs
- *   - else if mastered_kps and no remaining weak → "advance" (next KP in curriculum)
+ *   - else if mastery candidates and no remaining weak → "advance" (next KP in curriculum)
  *   - else → "continue" (mix of new + reinforcement)
  *
  * NOTE: this is a *recommendation only*.  The Learning Director decides the
@@ -305,11 +311,12 @@ export function recommendNext(summary) {
       reason: `${summary.weak_kps.length} 個知識點這次沒有掌握，下一輪可以多做一點相關練習。`,
     };
   }
-  if (summary.mastered_kps.length > 0 && summary.total_steps > 0) {
+  const masteryCandidates = summary.mastery_candidate_kps ?? summary.mastered_kps ?? [];
+  if (masteryCandidates.length > 0 && summary.total_steps > 0) {
     return {
       recommended_next_action: "advance",
       recommended_kps: [],
-      reason: `這次 ${summary.mastered_kps.length} 個知識點一次就答對，可以往下一個新主題前進。`,
+      reason: `這次 ${masteryCandidates.length} 個知識點一次就答對，可以往下一個新主題前進。`,
     };
   }
   return {
