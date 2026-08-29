@@ -42,6 +42,16 @@ import {
 import { OpenResponseComposer } from "../input/OpenResponseComposer";
 import { VoiceRecorder } from "../input/VoiceRecorder";
 import { TTSPlayer } from "../input/TTSPlayer";
+import { compareReading } from "../tutor/readingComparison";
+import {
+  evaluateReadingWithSpecialist,
+  type EnglishSpecialistClientResult,
+} from "../tutor/EnglishSpecialistClient";
+import type {
+  TutorEvaluation,
+  ReadingComparison,
+} from "../tutor/TutorEvaluationContract";
+import { TutorFeedbackCard, type TutorFeedbackState } from "../tutor/TutorFeedbackCard";
 
 // View-layer KP ID → child-facing zh-TW phrase.
 const KP_PHRASE_ZH: Record<string, string> = {
@@ -92,6 +102,11 @@ export interface QuestionRendererProps {
   onHint: () => void;
   onRepresentationSwitch: (to: SessionStep["representation_type"]) => void;
   onRetry: () => void;
+  /** Phase 6A — optional.  Called when the TutorFeedbackCard's
+   *  "下一題" button is clicked.  SessionView passes handleAdvance;
+   *  callers that don't need an explicit advance (e.g. preview-only
+   *  views) can omit it. */
+  onAdvance?: () => void;
   hintsUsed: number;
   attemptsCount: number;
   lastVerdict: "correct" | "incorrect" | "unverifiable" | null;
@@ -201,7 +216,7 @@ function stemWithMono(stem: string): React.ReactNode {
 // ─────────────────────────────────────────────────────────────────────
 
 export function QuestionRenderer(props: QuestionRendererProps) {
-  const { step, ageBand, studentId, onSubmit, onHint, onRepresentationSwitch, onRetry, hintsUsed, attemptsCount, lastVerdict, phase } = props;
+  const { step, ageBand, studentId, onSubmit, onHint, onRepresentationSwitch, onRetry, onAdvance, hintsUsed, attemptsCount, lastVerdict, phase } = props;
 
   const orchQuestionType =
     step.question_type === "multiple_choice" ? "multiple_choice" : "fill_in_blank";
@@ -283,6 +298,7 @@ export function QuestionRenderer(props: QuestionRendererProps) {
         step={step}
         spec={spec}
         ageBand={ageBand}
+        studentId={studentId}
         lastVerdict={lastVerdict}
         phase={phase}
         hintsUsed={hintsUsed}
@@ -290,6 +306,7 @@ export function QuestionRenderer(props: QuestionRendererProps) {
         onSubmit={onSubmit}
         onRetry={onRetry}
         onHint={onHint}
+        onAdvance={onAdvance}
         goalPhrase={goalPhrase}
       />
     );
@@ -780,6 +797,7 @@ function OpenResponseSubtree(props: {
   step: SessionStep;
   spec: any;
   ageBand: string;
+  studentId: string;
   lastVerdict: string | null;
   phase: string;
   attemptsCount: number;
@@ -788,19 +806,34 @@ function OpenResponseSubtree(props: {
   onSubmit: (args: any) => void;
   onRetry: () => void;
   onHint: () => void;
+  onAdvance?: () => void;
 }) {
   const {
     step, lastVerdict, phase, attemptsCount, hintsUsed, goalPhrase,
-    onSubmit, onRetry, onHint,
+    studentId, onSubmit, onRetry, onHint, onAdvance,
   } = props;
   const [mode, setMode] = useState<"text" | "voice">(
     step.question_type === "voice_response" ? "voice" : "text"
   );
 
-  // Open response is rubric-graded; we never claim correct/incorrect.
-  // We surface a "received" verdict that drives hint row / advance flow.
-  const submitted = lastVerdict !== null;
+  // Phase 6A — English Specialist (Layer B) feedback state.
+  // For voice_response steps we run the deterministic reading
+  // comparison inline (Layer A) and POST to the specialist (Layer B)
+  // once the student submits. The card replaces the legacy
+  // "已收到你的回答 / 老師會看你的回答" placeholder.
+  const isVoiceReadAloud =
+    step.question_type === "voice_response" &&
+    typeof step.expected_answer === "string" &&
+    !!step.expected_answer;
+  const expectedPassage =
+    isVoiceReadAloud && typeof step.expected_answer === "string"
+      ? step.expected_answer
+      : "";
 
+  // Phase 6A — voice_response submit body (kept stable for
+  // session-state / analytics). Includes a transient transcript
+  // (session-only, never persisted) so the OpenResponseSubtree can
+  // call the specialist when it sees the verdict.
   const handleTextSubmit = useCallback((text: string) => {
     onSubmit({
       verdict: "unverifiable", // rubric interpretation deferred to specialist
@@ -822,22 +855,25 @@ function OpenResponseSubtree(props: {
     });
   }, [onSubmit]);
 
+  // Open response is rubric-graded; we never claim correct/incorrect.
+  // We surface a "received" verdict that drives hint row / advance flow.
+  const submitted = lastVerdict !== null;
+
   // Hint row: same semantics as MC / InputSubtree.
+  // For voice_response the placeholder copy is moved into the
+  // TutorFeedbackCard so this row stays clean.
   const hintActive = lastVerdict === "incorrect" && !shouldRevealAnswer(phase, hintsUsed, lastVerdict, false);
   const hintLabel =
     lastVerdict === "correct" ? "答對了"
-    : submitted ? "已收到你的回答"
     : hintActive ? "再試一次"
     : hintsUsed > 0 ? `提示 ${Math.min(hintsUsed, MAX_HINT_LEVEL)}/${MAX_HINT_LEVEL}`
     : null;
   const hintBody =
     lastVerdict === "correct" ? "很好，繼續下一題。"
-    : submitted ? "老師會看你的回答，再給你回饋。"
     : hintActive ? "再仔細看看題目，或者按下面的「看提示」。"
     : null;
   const hintTone =
     lastVerdict === "correct" ? "moss"
-    : submitted ? "ink"
     : hintActive ? "amber"
     : hintsUsed > 0 ? (hintsUsed >= 2 ? "amber" : "moss")
     : "ink";
@@ -935,11 +971,24 @@ function OpenResponseSubtree(props: {
           </>
         )}
 
-        {submitted && (
+        {submitted && step.question_type !== "voice_response" && (
           <div className="mn-question-card__submitted" role="status">
             <CheckIcon />
             <span>已收到你的回答。</span>
           </div>
+        )}
+
+        {submitted && step.question_type === "voice_response" && (
+          <EnglishSpecialistFeedback
+            stepId={step.step_id}
+            studentId={props.studentId}
+            ageBand={props.ageBand}
+            knowledgePoint={step.knowledge_point}
+            expectedText={expectedPassage}
+            onReread={onRetry}
+            onAdvance={onAdvance}
+            isVoiceReadAloud={isVoiceReadAloud}
+          />
         )}
       </div>
 
@@ -965,6 +1014,157 @@ function OpenResponseSubtree(props: {
         )}
       </div>
     </section>
+  );
+}
+
+// ─── Subtree: English Specialist feedback (voice read-aloud only) ────────
+//
+// Phase 6A — Layer A (deterministic, browser) + Layer B (server
+// English Specialist).  This subtree does the full feedback loop:
+//
+//   1. On mount, runs Layer A (readingComparison) over the
+//      expected_text + the latest submitted transcript.  We use
+//      window.sessionStorage to read the most recent transcript
+//      committed by VoiceRecorder — VoiceRecorder keeps it in
+//      component state, and we don't want to thread it through the
+//      reducer just for one evaluator call.  If we can't find a
+//      transcript (e.g. text-mode fallback) we still ask the server
+//      specialist, which gracefully returns "unclear".
+//
+//   2. While the specialist runs, show the evaluating placeholder.
+//
+//   3. On success, render TutorFeedbackCard with the result.
+//
+//   4. On error, show a child-friendly error + retry.
+//
+// We do NOT persist the transcript. We do NOT write to mastery. We
+// only render. The verdict stays "unverifiable" — the specialist's
+// output lives in component state, not in session-state.
+
+function EnglishSpecialistFeedback(props: {
+  stepId: string;
+  studentId: string;
+  ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
+  knowledgePoint: string;
+  expectedText: string;
+  onReread: () => void;
+  onAdvance?: () => void;
+  isVoiceReadAloud: boolean;
+}) {
+  const {
+    stepId,
+    studentId,
+    ageBand,
+    knowledgePoint,
+    expectedText,
+    onReread,
+    onAdvance,
+    isVoiceReadAloud,
+  } = props;
+
+  const [state, setState] = React.useState<TutorFeedbackState>({
+    kind: "evaluating",
+  });
+
+  // Pull the most recent transcript out of the parent tree.  We rely
+  // on a custom event dispatched by OpenResponseComposer's text
+  // submit path (text → voice mode switch) OR we ask VoiceRecorder
+  // for it via a ref-attr window event.  To keep things explicit and
+  // observable, VoiceRecorder dispatches a
+  // `mentornest:voice-transcript` CustomEvent with the transcript
+  // string on submit.  We listen for it here.
+  const transcriptRef = React.useRef<string>("");
+  const transcriptConfidenceRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    function onTranscript(ev: Event) {
+      const ce = ev as CustomEvent<{ stepId: string; transcript: string; confidence?: number | null }>;
+      if (ce.detail?.stepId !== stepId) return;
+      transcriptRef.current = ce.detail.transcript;
+      transcriptConfidenceRef.current = ce.detail.confidence ?? null;
+    }
+    window.addEventListener("mentornest:voice-transcript", onTranscript as EventListener);
+    return () => {
+      window.removeEventListener("mentornest:voice-transcript", onTranscript as EventListener);
+    };
+  }, [stepId]);
+
+  React.useEffect(() => {
+    if (!isVoiceReadAloud) {
+      setState({
+        kind: "error",
+        message: "這一題不需要老師批改朗讀。",
+      });
+      return;
+    }
+    const transcript = transcriptRef.current;
+    // Run Layer A synchronously (no IO) and capture the comparison so
+    // we can attach it to the request payload.
+    const layerA: ReadingComparison = compareReading({
+      expected: expectedText,
+      transcript,
+      sttConfidence: transcriptConfidenceRef.current,
+    });
+
+    let cancelled = false;
+    (async () => {
+      const result: EnglishSpecialistClientResult = await evaluateReadingWithSpecialist({
+        student_id: studentId,
+        knowledge_point: knowledgePoint,
+        age_band: ageBand,
+        expected_text: expectedText,
+        transcript,
+        transcript_confidence: transcriptConfidenceRef.current,
+        reading_comparison: layerA,
+      });
+      if (cancelled) return;
+      if (result.ok) {
+        setState({ kind: "result", evaluation: result.evaluation });
+      } else {
+        setState({
+          kind: "error",
+          message: result.message,
+          onRetry: () => {
+            // Re-arm: re-run the specialist with the same transcript.
+            setState({ kind: "evaluating" });
+            (async () => {
+              const retry = await evaluateReadingWithSpecialist({
+                student_id: studentId,
+                knowledge_point: knowledgePoint,
+                age_band: ageBand,
+                expected_text: expectedText,
+                transcript,
+                transcript_confidence: transcriptConfidenceRef.current,
+                reading_comparison: layerA,
+              });
+              if (cancelled) return;
+              if (retry.ok) setState({ kind: "result", evaluation: retry.evaluation });
+              else setState({ kind: "error", message: retry.message });
+            })();
+          },
+        });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [
+    isVoiceReadAloud,
+    expectedText,
+    studentId,
+    ageBand,
+    knowledgePoint,
+  ]);
+
+  // No "advance" → wrap to a no-op so the button still feels pressable.
+  const safeAdvance = onAdvance ?? (() => undefined);
+
+  return (
+    <TutorFeedbackCard
+      state={state}
+      expectedText={expectedText}
+      onReread={onReread}
+      onAdvance={safeAdvance}
+      stepId={stepId}
+    />
   );
 }
 

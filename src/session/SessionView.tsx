@@ -134,6 +134,7 @@ export function SessionView(props: SessionViewProps) {
         onHint={handleHint}
         onRepresentationSwitch={handleRepresentationSwitch}
         onRetry={handleRetry}
+        onAdvance={handleAdvance}
         hintsUsed={currentStep.hints_used}
         attemptsCount={currentStep.attempts.length}
         lastVerdict={(currentStep.last_verdict as any) ?? null}

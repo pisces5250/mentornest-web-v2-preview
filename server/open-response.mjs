@@ -2,10 +2,12 @@
  * mentornest-web-v2 — Open Response + Voice backend
  *
  * Endpoints:
- *   POST /api/stt/transcribe   — receive audio, run local SenseVoice, return transcript
- *   POST /api/tts/synthesize   — receive text, run local sherpa-onnx TTS, return audio URL
- *   GET  /api/audio/:id        — serve synthesised audio (TTL 30s, then auto-delete)
- *   GET  /api/health           — health probe
+ *   POST /api/stt/transcribe           — receive audio, run local SenseVoice, return transcript
+ *   POST /api/tts/synthesize           — receive text, run local sherpa-onnx TTS, return audio URL
+ *   GET  /api/audio/:id                — serve synthesised audio (TTL 30s, then auto-delete)
+ *   GET  /api/health                   — health probe
+ *   POST /api/tutor/english-evaluate   — deterministic English read-aloud evaluation
+ *                                         (Phase 6A — does NOT touch audio; pure function)
  *
  * Hard Invariants:
  *   1. Audio saved to /tmp ONLY. TTL 30s. Auto-deleted.
@@ -13,6 +15,9 @@
  *   3. Transcripts returned in response body ONLY. Never persisted to long-term memory.
  *   4. student_id (if provided) is logged but NEVER joined with the transcript payload.
  *   5. Cloud STT/TTS fallback: NONE. Local-only.
+ *   6. Tutor evaluation is deterministic and stateless; no remote calls, no
+ *      audio access, no LLM. Input is the child-confirmed transcript text
+ *      only (already on the wire after STT).
  */
 
 import express from 'express';
@@ -22,6 +27,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { evaluateReading as englishSpecialistEvaluate } from './tutor/english-specialist.mjs';
+import { compareReading as readingComparison } from './lib/reading-comparison.mjs';
 
 // === Configuration ===
 const PORT = process.env.PORT || 8787;
@@ -265,6 +275,108 @@ app.get('/api/audio/:id', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const data = await fs.readFile(entry.path);
   res.send(data);
+});
+
+// === POST /api/tutor/english-evaluate ===
+//
+// Body:
+//   {
+//     student_id: string,
+//     knowledge_point: string,
+//     age_band: "G1-G2"|"G3-G4"|"G5-G6"|"G7+",
+//     expected_text: string,
+//     transcript: string,
+//     transcript_confidence?: number|null
+//   }
+//
+// Response: { ok: true, evaluation: TutorEvaluation }  (see src/tutor/TutorEvaluationContract.ts)
+//
+// Privacy:
+//   - The transcript has already crossed the wire at /api/stt/transcribe.
+//     This endpoint does NOT touch audio, does NOT log the transcript text
+//     alongside student_id, and does NOT call any remote service.
+//   - This is a pure deterministic function. Two identical inputs always
+//     produce identical outputs.
+
+app.post('/api/tutor/english-evaluate', (req, res) => {
+  const body = req.body ?? {};
+  const student_id = typeof body.student_id === 'string' ? body.student_id : '';
+  const knowledge_point = typeof body.knowledge_point === 'string' ? body.knowledge_point : '';
+  const age_band = body.age_band;
+  const expected_text = typeof body.expected_text === 'string' ? body.expected_text : '';
+  const transcript = typeof body.transcript === 'string' ? body.transcript : '';
+  const transcript_confidence =
+    typeof body.transcript_confidence === 'number' && Number.isFinite(body.transcript_confidence)
+      ? body.transcript_confidence
+      : null;
+
+  // Validate required fields. We reject early with a friendly code so
+  // the front-end can show a child-appropriate message.
+  if (!expected_text.trim()) {
+    return res.status(400).json({
+      ok: false,
+      code: 'expected_required',
+      message: '找不到題目的朗讀內容。請重整頁面再試一次。',
+    });
+  }
+  if (!transcript.trim() && transcript_confidence === null) {
+    return res.status(400).json({
+      ok: false,
+      code: 'transcript_required',
+      message: '老師還沒收到你說的內容，請再說一次。',
+    });
+  }
+  const allowedBands = ['G1-G2', 'G3-G4', 'G5-G6', 'G7+'];
+  if (!allowedBands.includes(age_band)) {
+    return res.status(400).json({
+      ok: false,
+      code: 'invalid_payload',
+      message: '請確認你的年級設定，再試一次。',
+    });
+  }
+
+  try {
+    // Layer A: deterministic comparison. Layer B: English Specialist.
+    // Both run on the server so we don't ship the rules to the browser.
+    const reading_comparison = readingComparison({
+      expected: expected_text,
+      transcript,
+      sttConfidence: transcript_confidence,
+    });
+    const evaluation = englishSpecialistEvaluate({
+      student_id,
+      knowledge_point,
+      age_band,
+      expected_text,
+      transcript,
+      transcript_confidence,
+    });
+
+    // Audit log: count-only, never transcript text alongside student_id.
+    if (student_id) {
+      console.log(
+        `[tutor] english-evaluate student=${student_id.length}chars ` +
+        `kp=${knowledge_point} age_band=${age_band} ` +
+        `coverage=${reading_comparison.coverage.toFixed(2)} ` +
+        `reliability=${reading_comparison.reliability.toFixed(2)} ` +
+        `overall=${evaluation.overall_result} ` +
+        `transcript_chars=${transcript.length}`,
+      );
+    }
+
+    return res.json({
+      ok: true,
+      evaluation,
+      reading_comparison,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      code: 'specialist_unavailable',
+      message: '老師這邊有一點點問題，再試一次就好。',
+      error: err?.message ?? String(err),
+    });
+  }
 });
 
 // === Error handler ===

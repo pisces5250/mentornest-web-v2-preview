@@ -197,8 +197,17 @@ export function VoiceRecorder(props: VoiceRecorderProps) {
 
   const handleSubmit = useCallback(() => {
     if (!transcript.trim()) return;
+    // Phase 6A — fire a one-shot event so EnglishSpecialistFeedback
+    // can pick up the latest transcript.  We never persist the audio
+    // or the transcript; this is purely a parent-tree signal that
+    // mirrors what we already pass to onSubmit().
+    try {
+      window.dispatchEvent(new CustomEvent("mentornest:voice-transcript", {
+        detail: { stepId, transcript: transcript.trim(), confidence: null },
+      }));
+    } catch {}
     onSubmit(transcript.trim());
-  }, [transcript, onSubmit]);
+  }, [transcript, onSubmit, stepId]);
 
   const handleCancel = useCallback(() => {
     setTranscript("");

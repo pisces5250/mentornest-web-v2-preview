@@ -9,7 +9,7 @@
     "dev:backend": "node server/open-response.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test test/**/*.test.mjs"
+    "test": "node --test $(find test -name '*.test.mjs' -type f | sort)"
   },
   "dependencies": {
     "express": "^5.2.1",

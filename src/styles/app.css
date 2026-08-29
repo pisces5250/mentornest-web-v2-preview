@@ -1890,3 +1890,206 @@ a { color: inherit; }
     transition: none;
   }
 }
+
+/* --- Phase 6A Tutor Feedback Card (English read-aloud) ---
+ *
+ * Compact, content-height feedback card that replaces the legacy
+ * oversized "CheckIcon + 已收到你的回答 / 老師會看你的回答" placeholders.
+ *
+ * Anatomy:
+ *   .mn-tutor-feedback
+ *     .mn-tutor-feedback__head      (glyph + title)
+ *     .mn-tutor-feedback__summary   (one-sentence child copy)
+ *     .mn-tutor-feedback__points    (up to 3 teaching points)
+ *     .mn-tutor-feedback__actions   (3 buttons: 再讀一次 / 聽老師念 / 下一題)
+ *
+ * Heights:
+ *   glyph: 36-48px (per sign-off)
+ *   card:  height follows content (no fixed min-height)
+ *
+ * Tones:
+ *   --good        (moss)
+ *   --close       (amber)
+ *   --needs_work  (ink-soft + amber border)
+ *   --unclear     (ink-soft + hint)
+ *   --evaluating  (ink-soft + spinner)
+ *   --error       (error border)
+ */
+
+.mn-tutor-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mn-qg-sp-3);
+  padding: var(--mn-qg-sp-4);
+  background: var(--mn-qg-surface);
+  border-radius: var(--mn-qg-radius);
+  border-left: 4px solid var(--mn-qg-moss);
+  /* No fixed min-height: card height follows content. */
+}
+
+.mn-tutor-feedback--evaluating {
+  border-left-color: var(--mn-qg-ink-soft);
+  align-items: center;
+  flex-direction: row;
+  gap: var(--mn-qg-sp-3);
+}
+.mn-tutor-feedback--error {
+  border-left-color: var(--mn-qg-error);
+}
+.mn-tutor-feedback--good {
+  border-left-color: var(--mn-qg-moss);
+}
+.mn-tutor-feedback--close {
+  border-left-color: var(--mn-qg-amber);
+}
+.mn-tutor-feedback--needs_work {
+  border-left-color: var(--mn-qg-amber);
+}
+.mn-tutor-feedback--unclear {
+  border-left-color: var(--mn-qg-ink-soft);
+}
+
+.mn-tutor-feedback__head {
+  display: flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-3);
+}
+.mn-tutor-feedback__glyph {
+  /* Compact: 36-48px square. */
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  color: var(--mn-qg-ink);
+}
+@media (min-width: 480px) {
+  .mn-tutor-feedback__glyph {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+  }
+}
+@media (min-width: 768px) {
+  .mn-tutor-feedback__glyph {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+  }
+}
+.mn-tutor-feedback--good .mn-tutor-feedback__glyph { color: var(--mn-qg-moss); }
+.mn-tutor-feedback--close .mn-tutor-feedback__glyph { color: var(--mn-qg-amber); }
+.mn-tutor-feedback--needs_work .mn-tutor-feedback__glyph { color: var(--mn-qg-amber); }
+.mn-tutor-feedback--unclear .mn-tutor-feedback__glyph { color: var(--mn-qg-ink-soft); }
+
+.mn-tutor-feedback__title {
+  font-size: var(--mn-qg-fs-body-lg);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--mn-qg-ink);
+}
+
+.mn-tutor-feedback__copy {
+  font-size: var(--mn-qg-fs-body);
+  color: var(--mn-qg-ink);
+  line-height: 1.5;
+}
+
+.mn-tutor-feedback__summary {
+  margin: 0;
+  font-size: var(--mn-qg-fs-body);
+  color: var(--mn-qg-ink);
+  line-height: 1.5;
+}
+
+.mn-tutor-feedback__points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mn-qg-sp-2);
+}
+.mn-tutor-feedback__point {
+  display: grid;
+  grid-template-columns: minmax(64px, max-content) 1fr;
+  align-items: start;
+  gap: var(--mn-qg-sp-3);
+  padding: var(--mn-qg-sp-2) var(--mn-qg-sp-3);
+  background: var(--mn-qg-paper);
+  border-radius: var(--mn-qg-radius);
+  border-left: 2px solid var(--mn-qg-amber);
+  font-size: var(--mn-qg-fs-body);
+  line-height: 1.5;
+}
+.mn-tutor-feedback--good .mn-tutor-feedback__point {
+  border-left-color: var(--mn-qg-moss);
+}
+.mn-tutor-feedback__point-label {
+  font-family: var(--mn-qg-font-mono);
+  font-size: var(--mn-qg-fs-mono-small);
+  color: var(--mn-qg-ink-soft);
+  letter-spacing: 0.02em;
+}
+.mn-tutor-feedback__point-explanation {
+  color: var(--mn-qg-ink);
+}
+
+.mn-tutor-feedback__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mn-qg-sp-3);
+  flex-wrap: wrap;
+}
+.mn-tutor-feedback__listen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-2);
+}
+.mn-tutor-feedback__listen-label {
+  font-family: var(--mn-qg-font-mono);
+  font-size: var(--mn-qg-fs-mono-small);
+  color: var(--mn-qg-ink-soft);
+}
+
+.mn-tutor-feedback__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--mn-qg-grid-line);
+  border-top-color: var(--mn-qg-moss);
+  border-radius: 50%;
+  animation: mn-tutor-feedback-spin 0.9s linear infinite;
+  flex: 0 0 18px;
+}
+@keyframes mn-tutor-feedback-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mn-tutor-feedback__spinner {
+    animation: none;
+  }
+}
+
+/* Make the action buttons comfortably large on small screens. */
+.mn-tutor-feedback__actions .mn-action {
+  min-height: 44px;
+}
+
+.mn-tutor-feedback--error .mn-tutor-feedback__actions,
+.mn-tutor-feedback--evaluating .mn-tutor-feedback__actions {
+  justify-content: center;
+}
+
+/* Legacy placeholder subdued styles preserved for text-mode fallback. */
+.mn-question-card__submitted {
+  display: flex;
+  align-items: center;
+  gap: var(--mn-qg-sp-3);
+  color: var(--mn-qg-ink-soft);
+  font-size: var(--mn-qg-fs-body);
+  padding: var(--mn-qg-sp-3) 0;
+}
+.mn-question-card__submitted svg {
+  width: 18px;
+  height: 18px;
+  color: var(--mn-qg-moss);
+}
