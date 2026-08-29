@@ -1786,3 +1786,21 @@ Acceptance evidence：`git diff --check`、所有非 backup architecture YAML
 - 新增 Node 22 baseline、CI、Web／Tutor candidate Docker artifacts、nginx 同源 routing、health／SPA fallback、deployment contract tests。
 
 Acceptance evidence：`npm ci` 完成；`npm test` 299/299 PASS；`npm run build` PASS；production fixture guard 實際拒絕 build；`npm audit` 0 vulnerabilities（Vite 升至 6.4.3 修補線）；`git diff --check` PASS。Strict `npm run typecheck` 仍揭露既存 JS／TS 型別債，明列 blocker，不宣稱通過。未讀寫 production student data、未 deploy、未 push、未 cutover。
+
+---
+
+## 2026-08-30 — Phase P0.5 Production Bridge & Staging Readiness
+
+- Track A Lead：Frontend Engineering；Participants：QA、Accessibility；Execution Owner：Frontend Engineering；Verification Owner：QA。
+- Track B Lead：Backend／Security；Participants：Learning Director、Assessment、Learning Memory、Question Quality；Execution Owner：Backend；Verification Owner：Security／QA。
+- Track C Lead：Infrastructure；Participants：Backend、Frontend、Security、UX；Execution Owner：Infrastructure；Verification Owner：QA／Security cross-review。
+- `verify:full` 現為 blocking gate：保留 TypeScript `strict`，依序執行 typecheck、311 項 unit／integration、production build、實際 browser Playwright、rendered React axe 與 keyboard-only 驗收。
+- Browser 僅使用同源 session；Tutor／Gateway 從 auth context 取得 subject，透過 server-only token 與 capability allowlist 呼叫 OpenClaw。Session 與 service-token keys 已分離。
+- Gateway 只開放 Learning Director、Assessment observation、Learning Memory observation writer、Verified Bank read；不提供 mastery 或 Verified Bank writer shortcut。
+- Staging topology 落實 Web Edge、Tutor Backend、獨立 Voice Backend、私網 OpenClaw Learning Backend；readiness 驗證 capability contract version 與完整 capability 宣告。
+- Phase 6A 保持 React state transcript contract；Phase 6B production writer 使用 Gateway Learning Memory writer，失敗時 fail-closed。
+- production `mentornest-web` fallback 保留；沒有 production cutover、deploy、production data 操作或 child privacy policy 變更。
+
+Hard invariants：child privacy／security、production data integrity、mastery writer boundary、Verified Bank writer boundary、confirmed／inferred separation、accessibility。
+
+Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PASS；實際 Google Chrome Playwright PASS；axe critical／serious 0（總 violations 0）；keyboard settings dialog／focus return／start session PASS；staging guard targeted tests 7/7 PASS；`git diff --check` PASS。Voice 與 OpenClaw image 仍為跨 repo staging 驗證依賴，本 repo 不宣稱已驗證或已部署。

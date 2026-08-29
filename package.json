@@ -14,9 +14,10 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "verify": "npm test && npm run build",
-    "verify:full": "npm run typecheck && npm run verify",
+    "verify:full": "npm run typecheck && npm run verify && npm run test:browser",
     "preview": "vite preview",
-    "test": "node --test $(find test -name '*.test.mjs' -type f | sort)"
+    "test": "node --test $(find test -name '*.test.mjs' -type f | sort)",
+    "test:browser": "npm run build && node test/a11y/run-react-browser-gate.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",

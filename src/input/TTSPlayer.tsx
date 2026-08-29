@@ -35,6 +35,7 @@ export interface TTSPlayerProps {
   ariaLabel?: string;
   autoPlay?: boolean;     // default false — never auto-play (avoid surprising child)
   showSpeed?: boolean;    // default true
+  onEnded?: () => void;
 }
 
 const SPEED_OPTIONS = [0.75, 1.0, 1.25, 1.5];
@@ -195,7 +196,10 @@ export function TTSPlayer(props: TTSPlayerProps) {
         ref={audioRef}
         onPlay={() => setState("playing")}
         onPause={() => setState("paused")}
-        onEnded={() => setState("idle")}
+        onEnded={() => {
+          setState("idle");
+          props.onEnded?.();
+        }}
         onError={() => { setError("音訊播放失敗"); setState("error"); }}
         preload="none"
         aria-hidden="true"

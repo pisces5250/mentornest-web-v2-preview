@@ -1,0 +1,125 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  createBrowserAuth,
+  createCsrfProtection,
+  createSessionToken,
+  createServiceToken,
+  verifyServiceToken,
+  verifySessionToken,
+} from "../../server/auth/session-auth.mjs";
+import { createOpenClawGateway, GatewayError } from "../../server/gateway/openclaw-gateway.mjs";
+
+const SECRET = "test-only-secret-with-at-least-32-characters";
+
+function responseRecorder() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+test("session token 綁定 issuer、audience、版本與期限", () => {
+  const token = createSessionToken({
+    subject_ref: "student_test_auth",
+    scopes: ["tutor:use"],
+    exp: Math.floor(Date.now() / 1000) + 60,
+  }, SECRET);
+  assert.equal(verifySessionToken(token, SECRET).subject_ref, "student_test_auth");
+  assert.equal(verifySessionToken(`${token}x`, SECRET), null);
+  const expired = createSessionToken({ subject_ref: "student_test_auth", scopes: [], exp: 1 }, SECRET);
+  assert.equal(verifySessionToken(expired, SECRET), null);
+  const cannotOverride = createSessionToken({
+    subject_ref: "student_test_auth",
+    scopes: [],
+    exp: Math.floor(Date.now() / 1000) + 60,
+    ver: 999,
+    iss: "attacker",
+    aud: "another-service",
+  }, SECRET);
+  assert.equal(verifySessionToken(cannotOverride, SECRET).aud, "mentornest-tutor");
+});
+
+test("production auth 不接受 test identity header", () => {
+  const middleware = createBrowserAuth({ mode: "production", sessionSecret: SECRET });
+  const req = { headers: {}, header(name) { return name === "X-MentorNest-Test-Subject" ? "student_test_spoof" : undefined; } };
+  const res = responseRecorder();
+  middleware(req, res, () => assert.fail("不得通過"));
+  assert.equal(res.statusCode, 401);
+});
+
+test("session secret 與 service auth key 不可互換", () => {
+  const serviceKey = "different-service-key-with-32-characters";
+  const token = createServiceToken({ subjectRef: "student_test_auth", audience: "voice-backend" }, serviceKey);
+  assert.equal(verifySessionToken(token, serviceKey), null);
+  assert.equal(verifyServiceToken(token, { secret: SECRET, audience: "voice-backend" }), null);
+  assert.equal(verifyServiceToken(token, { secret: serviceKey, audience: "tutor-backend" }), null);
+  assert.equal(verifyServiceToken(token, { secret: serviceKey, audience: "voice-backend" }).subject_ref, "student_test_auth");
+});
+
+test("CSRF 缺失時 fail-closed", () => {
+  const middleware = createCsrfProtection({ mode: "test", sessionSecret: SECRET });
+  const req = { method: "POST", headers: {}, header() { return undefined; } };
+  const res = responseRecorder();
+  middleware(req, res, () => assert.fail("不得通過"));
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.code, "csrf_rejected");
+});
+
+test("Gateway allowlist、server token 與最小 subject contract", async () => {
+  let captured;
+  const gateway = createOpenClawGateway({
+    baseUrl: "http://openclaw.test",
+    token: "server-only-token-with-24-characters",
+    fetchImpl: async (_url, init) => {
+      captured = init;
+      return { ok: true, async json() { return { ok: true, result: { accepted: true } }; } };
+    },
+  });
+  const result = await gateway.invoke("learning_memory.append_observation", {
+    subjectRef: "student_test_gateway",
+    input: { observation: { kind: "test" } },
+  });
+  assert.equal(result.accepted, true);
+  assert.match(captured.headers.Authorization, /^Bearer server-only/);
+  const body = JSON.parse(captured.body);
+  assert.equal(body.subject_ref, "student_test_gateway");
+  await assert.rejects(
+    gateway.invoke("mastery.write", { subjectRef: "student_test_gateway" }),
+    (error) => error instanceof GatewayError && error.code === "capability_not_allowed",
+  );
+});
+
+test("Gateway 不向 caller 洩漏 upstream body", async () => {
+  const gateway = createOpenClawGateway({
+    baseUrl: "http://openclaw.test",
+    token: "server-only-token-with-24-characters",
+    fetchImpl: async () => ({
+      ok: false,
+      status: 401,
+      async json() { return { ok: false, token: "should-not-leak", detail: "internal" }; },
+    }),
+  });
+  await assert.rejects(
+    gateway.invoke("verified_bank.read", { subjectRef: "student_test_gateway" }),
+    (error) => error.code === "gateway_rejected" && !error.message.includes("should-not-leak"),
+  );
+});
+
+test("readiness 驗證 contract version 與完整 capability 宣告", async () => {
+  const required = ["learning_director.recommend", "assessment.submit_observation"];
+  const make = (body) => createOpenClawGateway({
+    baseUrl: "http://openclaw.test",
+    token: "server-only-token-with-24-characters",
+    requiredCapabilities: required,
+    contractVersion: "1",
+    fetchImpl: async () => ({ ok: true, async json() { return body; } }),
+  });
+  assert.equal((await make({ ok: true, contract_version: "1", capabilities: required }).ready()).ok, true);
+  const missing = await make({ ok: true, contract_version: "1", capabilities: [required[0]] }).ready();
+  assert.equal(missing.ok, false);
+  assert.deepEqual(missing.missing_capabilities, [required[1]]);
+  assert.equal((await make({ ok: true, contract_version: "2", capabilities: required }).ready()).ok, false);
+});

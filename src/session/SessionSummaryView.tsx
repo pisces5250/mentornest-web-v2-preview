@@ -13,7 +13,8 @@
 // in the view; reducer is untouched.
 
 import React from "react";
-import { recommendNext, type SessionSummary } from "./session-state.mjs";
+import { recommendNext } from "./session-state.mjs";
+import type { SessionSummary } from "./session-types";
 
 export interface SessionSummaryViewProps {
   summary: SessionSummary;

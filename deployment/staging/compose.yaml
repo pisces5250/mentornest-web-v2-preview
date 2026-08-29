@@ -1,0 +1,92 @@
+name: mentornest-web-v2-staging
+
+services:
+  web-edge:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VITE_USE_FIXTURES: "false"
+    environment:
+      MENTORNEST_ENV: staging
+      TUTOR_BACKEND_ORIGIN: http://tutor-backend:8787
+      GATEWAY_BACKEND_ORIGIN: http://tutor-backend:8787
+      VOICE_BACKEND_ORIGIN: http://voice-backend:8502
+    ports:
+      - "${STAGING_WEB_BIND_ADDRESS:-127.0.0.1}:${STAGING_WEB_PORT:-8080}:80"
+    depends_on:
+      tutor-backend:
+        condition: service_healthy
+      voice-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    networks: [edge, private]
+    restart: unless-stopped
+
+  tutor-backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.backend
+    environment:
+      MENTORNEST_ENV: staging
+      PORT: "8787"
+      MENTORNEST_AUTH_MODE: production
+      MENTORNEST_GATEWAY_SESSION_SECRET: ${MENTORNEST_GATEWAY_SESSION_SECRET:?必須由 staging secret store 注入}
+      MENTORNEST_SERVICE_AUTH_KEY: ${MENTORNEST_SERVICE_AUTH_KEY:?必須由 staging secret store 注入}
+      OPENCLAW_GATEWAY_ORIGIN: http://openclaw-learning:18789
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?必須由 staging secret store 注入}
+      OPENCLAW_REQUIRED_CAPABILITIES: learning_director,assessment,learning_memory,verified_bank_read
+      OPENCLAW_CAPABILITY_CONTRACT_VERSION: "1"
+    expose: ["8787"]
+    depends_on:
+      openclaw-learning:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/api/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    networks: [private]
+    restart: unless-stopped
+
+  voice-backend:
+    image: ${VOICE_BACKEND_IMAGE:?需提供已由 Voice repository 驗證的 immutable image digest}
+    environment:
+      MENTORNEST_ENV: staging
+      PORT: "8502"
+      MENTORNEST_SERVICE_AUTH_AUDIENCE: voice-backend
+      MENTORNEST_SERVICE_AUTH_KEY: ${MENTORNEST_SERVICE_AUTH_KEY:?必須由 staging secret store 注入}
+      ALLOWED_WEB_ORIGINS: ""
+    expose: ["8502"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8502/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+    restart: unless-stopped
+
+  openclaw-learning:
+    image: ${OPENCLAW_LEARNING_IMAGE:?需提供已驗證的 immutable OpenClaw image digest}
+    environment:
+      MENTORNEST_ENV: staging
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?必須由 staging secret store 注入}
+      MENTORNEST_DATA_NAMESPACE: ${STAGING_DATA_NAMESPACE:?必須使用獨立 staging namespace}
+      MENTORNEST_ALLOW_PRODUCTION_STUDENT_DATA: "false"
+    expose: ["18789"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:18789/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+    restart: unless-stopped
+
+networks:
+  edge: {}
+  private:
+    internal: true

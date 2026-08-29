@@ -124,7 +124,7 @@ export function startConversation(req) {
 // turn
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function turnConversation(req) {
+export function turnConversation(req, authContext = null) {
   const v = validateTurnRequest(req);
   if (!v.ok) return { ok: false, code: v.code, message: v.message };
 
@@ -142,6 +142,9 @@ export function turnConversation(req) {
       code: "session_ended",
       message: "對話已結束。",
     };
+  }
+  if (authContext?.subjectRef && authContext.subjectRef !== sess.studentId) {
+    return { ok: false, code: "session_required", message: "對話已中斷，請重新開始。" };
   }
 
   const expectedTurnIndex = sess.turnIndex + 1;
@@ -258,7 +261,7 @@ export function _setLearningRecordsDir(p) {
   learningMemoryWriter = createTestFileLearningMemoryWriter({ root: p });
 }
 
-export async function endConversation(req) {
+export async function endConversation(req, authContext = null) {
   const sessionId = req?.session_id;
   if (typeof sessionId !== "string" || !sessionId) {
     return {
@@ -274,6 +277,9 @@ export async function endConversation(req) {
       code: "session_required",
       message: "對話已中斷，請重新開始。",
     };
+  }
+  if (authContext?.subjectRef && authContext.subjectRef !== sess.studentId) {
+    return { ok: false, code: "session_required", message: "對話已中斷，請重新開始。" };
   }
 
   // Mark ended even if not already.

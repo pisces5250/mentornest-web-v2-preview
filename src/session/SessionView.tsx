@@ -5,7 +5,8 @@
 // calls from this layer — all authority stays in mentornest-learning.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sessionReduce, STEP_VERDICT, type SessionState } from "./session-state.mjs";
+import { sessionReduce, STEP_VERDICT } from "./session-state.mjs";
+import type { SessionState } from "./session-types";
 import { QuestionRenderer } from "./QuestionRenderer";
 import { SessionSummaryView } from "./SessionSummaryView";
 
@@ -23,7 +24,7 @@ export function SessionView(props: SessionViewProps) {
   const [state, setState] = useState<SessionState>(initialSession);
   const [resumed, setResumed] = useState(false);
   const dispatch = useRef((action: any) => {
-    setState((s) => sessionReduce(s, action));
+    setState((s: SessionState) => sessionReduce(s, action) as SessionState);
   });
 
   // 1) Try to resume from localStorage on mount (if a snapshot exists for this key).
@@ -128,7 +129,7 @@ export function SessionView(props: SessionViewProps) {
 
       <QuestionRenderer
         step={currentStep}
-        ageBand={state.age_band as any}
+        ageBand={state.age_band}
         studentId={state.student_id}
         onSubmit={handleSubmit}
         onHint={handleHint}
@@ -137,8 +138,8 @@ export function SessionView(props: SessionViewProps) {
         onAdvance={handleAdvance}
         hintsUsed={currentStep.hints_used}
         attemptsCount={currentStep.attempts.length}
-        lastVerdict={(currentStep.last_verdict as any) ?? null}
-        phase={currentStep.phase as any}
+        lastVerdict={currentStep.last_verdict}
+        phase={currentStep.phase}
       />
 
       {currentStep.phase === "feedback" && (

@@ -32,6 +32,13 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { compareReading as readingComparison } from './lib/reading-comparison.mjs';
 import { evaluateReadingAloud } from './tutor/reading-aloud-evaluator.mjs';
+import { createBrowserAuth, createCsrfProtection, createServiceToken, requireScope } from './auth/session-auth.mjs';
+import {
+  createGatewayLearningMemoryWriter,
+  createOpenClawGateway,
+  createUnavailableGateway,
+} from './gateway/openclaw-gateway.mjs';
+import { registerGatewayRoutes } from './gateway/routes.mjs';
 
 // === Configuration ===
 const PORT = process.env.PORT || 8787;
@@ -42,6 +49,40 @@ const TTS_SCRIPT = process.env.TTSS_SCRIPT
 const AUDIO_TMP = process.env.MENTORNEST_AUDIO_TMP
   || path.join(os.tmpdir(), 'mentornest-audio');
 const AUDIO_TTL_MS = 30_000; // 30 seconds
+const AUTH_MODE = process.env.MENTORNEST_AUTH_MODE || 'production';
+const SESSION_SECRET = process.env.MENTORNEST_GATEWAY_SESSION_SECRET;
+const SERVICE_AUTH_KEY = process.env.MENTORNEST_SERVICE_AUTH_KEY;
+const REQUIRED_CAPABILITY_ALIASES = {
+  learning_director: 'learning_director.recommend',
+  assessment: 'assessment.submit_observation',
+  learning_memory: 'learning_memory.append_observation',
+  verified_bank_read: 'verified_bank.read',
+};
+const requiredCapabilities = (process.env.OPENCLAW_REQUIRED_CAPABILITIES ||
+  'learning_director,assessment,learning_memory,verified_bank_read')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map((value) => REQUIRED_CAPABILITY_ALIASES[value] || value);
+if (AUTH_MODE === 'production' && (!SERVICE_AUTH_KEY || SERVICE_AUTH_KEY.length < 32)) {
+  throw new Error('production 必須設定至少 32 字元的 MENTORNEST_SERVICE_AUTH_KEY');
+}
+const browserAuth = createBrowserAuth({
+  mode: AUTH_MODE,
+  sessionSecret: SESSION_SECRET,
+});
+const csrfProtection = createCsrfProtection({
+  mode: AUTH_MODE,
+  sessionSecret: SESSION_SECRET,
+});
+const gateway = process.env.OPENCLAW_GATEWAY_ORIGIN
+  ? createOpenClawGateway({
+      baseUrl: process.env.OPENCLAW_GATEWAY_ORIGIN,
+      token: process.env.OPENCLAW_GATEWAY_TOKEN,
+      requiredCapabilities,
+      contractVersion: process.env.OPENCLAW_CAPABILITY_CONTRACT_VERSION || '1',
+    })
+  : createUnavailableGateway();
 
 await fs.mkdir(AUDIO_TMP, { recursive: true });
 
@@ -106,6 +147,24 @@ app.get('/api/health', (_req, res) => {
       transcript_persisted: false,
     },
   });
+});
+
+app.get('/api/ready', async (_req, res) => {
+  const openclaw = await gateway.ready();
+  return res.status(openclaw.ok ? 200 : 503).json({ ok: openclaw.ok, dependencies: { openclaw } });
+});
+
+// 僅供 edge auth_request；不回傳 subject，僅核發短效 audience-bound service credential。
+app.get('/api/auth/session/verify', browserAuth, (req, res) => {
+  const audience = (req.header('X-Original-URI') || '').startsWith('/api/stt') ||
+    (req.header('X-Original-URI') || '').startsWith('/api/tts') ||
+    (req.header('X-Original-URI') || '').startsWith('/api/audio')
+    ? 'voice-backend' : 'tutor-backend';
+  res.set('X-MentorNest-Service-Authorization', `Bearer ${createServiceToken({
+    subjectRef: req.auth.subjectRef,
+    audience,
+  }, SERVICE_AUTH_KEY || 'test-only-service-auth-key-32-chars')}`);
+  return res.status(204).end();
 });
 
 // === POST /api/stt/transcribe ===
@@ -299,9 +358,9 @@ app.get('/api/audio/:id', async (req, res) => {
 //   - This is a pure deterministic function. Two identical inputs always
 //     produce identical outputs.
 
-app.post('/api/tutor/english-evaluate', (req, res) => {
+app.post('/api/tutor/english-evaluate', browserAuth, csrfProtection, requireScope('tutor:use'), (req, res) => {
   const body = req.body ?? {};
-  const student_id = typeof body.student_id === 'string' ? body.student_id : '';
+  const student_id = req.auth.subjectRef;
   const knowledge_point = typeof body.knowledge_point === 'string' ? body.knowledge_point : '';
   const age_band = body.age_band;
   const expected_text = typeof body.expected_text === 'string' ? body.expected_text : '';
@@ -442,11 +501,20 @@ if (process.env.MENTORNEST_LEARNING_RECORDS_DIR) {
   configureLearningMemoryWriter(createTestFileLearningMemoryWriter({
     root: process.env.MENTORNEST_LEARNING_RECORDS_DIR,
   }));
+} else {
+  configureLearningMemoryWriter(createGatewayLearningMemoryWriter(gateway));
 }
 
-app.post('/api/tutor/english-conversation/start', (req, res) => {
+registerGatewayRoutes(app, {
+  gateway,
+  auth: browserAuth,
+  csrf: csrfProtection,
+  requireScope,
+});
+
+app.post('/api/tutor/english-conversation/start', browserAuth, csrfProtection, requireScope('tutor:use'), (req, res) => {
   try {
-    const result = startConversation(req.body ?? {});
+    const result = startConversation({ ...(req.body ?? {}), student_id: req.auth.subjectRef });
     if (!result.ok) {
       return res.status(400).json({ ok: false, code: result.code, message: result.message });
     }
@@ -461,18 +529,16 @@ app.post('/api/tutor/english-conversation/start', (req, res) => {
   }
 });
 
-app.post('/api/tutor/english-conversation/turn', (req, res) => {
+app.post('/api/tutor/english-conversation/turn', browserAuth, csrfProtection, requireScope('tutor:use'), (req, res) => {
   try {
-    const result = turnConversation(req.body ?? {});
+    const result = turnConversation(req.body ?? {}, req.auth);
     if (!result.ok) {
       const status = result.code === 'session_required' || result.code === 'session_ended' ? 410 : 400;
       return res.status(status).json({ ok: false, code: result.code, message: result.message });
     }
     // Audit log (no transcript text, no raw student_id).
-    const sid = req.body?.student_id || (result.session_id ? 'unknown' : 'unknown');
-    const sidHash = shortHash(typeof sid === 'string' ? sid : 'unknown');
     console.log(
-      `[tutor] conversation-turn sid=${sidHash} sess=${result.session_id.slice(0, 8)} ` +
+      `[tutor] conversation-turn sess=${result.session_id.slice(0, 8)} ` +
       `turn=${result.turn_index} action=${result.decision.action} ended=${result.ended}`,
     );
     return res.json(result);
@@ -486,9 +552,9 @@ app.post('/api/tutor/english-conversation/turn', (req, res) => {
   }
 });
 
-app.post('/api/tutor/english-conversation/end', async (req, res) => {
+app.post('/api/tutor/english-conversation/end', browserAuth, csrfProtection, requireScope('tutor:use'), async (req, res) => {
   try {
-    const result = await endConversation(req.body ?? {});
+    const result = await endConversation(req.body ?? {}, req.auth);
     if (!result.ok) {
       return res.status(400).json({ ok: false, code: result.code, message: result.message });
     }

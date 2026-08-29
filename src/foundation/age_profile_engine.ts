@@ -29,7 +29,7 @@ export interface AgeProfile {
   mascot_allowed: boolean;
   // R6 icon style: rounded line baseline; duotone only for feedback/progress/hints
   icon_style_baseline: "rounded_line" | "flat_line";
-  icon_duotone_for: Array<"feedback" | "progress" | "hints">;
+  icon_duotone_for: ReadonlyArray<"feedback" | "progress" | "hints">;
   child_copy_register: "concrete_playful" | "balanced" | "concise_adult_like";
 }
 
@@ -51,7 +51,7 @@ const PROFILES: ReadonlyArray<AgeProfile> = Object.freeze([
     animation_allowed: true,
     mascot_allowed: true,
     icon_style_baseline: "rounded_line",
-    icon_duotone_for: Object.freeze(["feedback", "progress", "hints"]),
+    icon_duotone_for: Object.freeze(["feedback", "progress", "hints"] as const),
     child_copy_register: "concrete_playful",
   }),
   Object.freeze({
@@ -71,7 +71,7 @@ const PROFILES: ReadonlyArray<AgeProfile> = Object.freeze([
     animation_allowed: true,
     mascot_allowed: true,
     icon_style_baseline: "rounded_line",
-    icon_duotone_for: Object.freeze(["feedback", "hints"]),
+    icon_duotone_for: Object.freeze(["feedback", "hints"] as const),
     child_copy_register: "balanced",
   }),
   Object.freeze({
@@ -91,7 +91,7 @@ const PROFILES: ReadonlyArray<AgeProfile> = Object.freeze([
     animation_allowed: true,
     mascot_allowed: false, // R6: G5-G6 must not look childish; no mascot
     icon_style_baseline: "rounded_line",
-    icon_duotone_for: Object.freeze(["progress"]),
+    icon_duotone_for: Object.freeze(["progress"] as const),
     child_copy_register: "concise_adult_like",
   }),
   Object.freeze({
@@ -111,7 +111,7 @@ const PROFILES: ReadonlyArray<AgeProfile> = Object.freeze([
     animation_allowed: true,
     mascot_allowed: false,
     icon_style_baseline: "rounded_line",
-    icon_duotone_for: Object.freeze([]),
+    icon_duotone_for: Object.freeze([] as const),
     child_copy_register: "concise_adult_like",
   }),
 ]);

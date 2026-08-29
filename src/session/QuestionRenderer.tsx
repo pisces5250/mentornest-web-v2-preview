@@ -25,10 +25,10 @@
 //   revealed only after hintsUsed >= 1 OR review_needed.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
-import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
-import { useCoarseViewport } from "../foundation/use_coarse_viewport.ts";
-import { useKeypadVisibility } from "../foundation/use_keypad_visibility.ts";
+import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.js";
+import { resolveAgeProfile } from "../foundation/age_profile_engine.js";
+import { useCoarseViewport } from "../foundation/use_coarse_viewport.js";
+import { useKeypadVisibility } from "../foundation/use_keypad_visibility.js";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
 import { validateKeypadAnswer } from "../input/answer-validator.mjs";
@@ -84,7 +84,7 @@ export interface SessionStep {
   knowledge_point: string;
   subject: string;
   question_type: QuestionType;
-  representation_type: "text" | "fraction_bar" | "number_line" | "area_model";
+  representation_type: "text" | "fraction_bar" | "number_line" | "area_model" | "bar_model";
   stem: string;
   choices?: ReadonlyArray<string>;
   expected_answer: string | number;
@@ -153,7 +153,7 @@ function buildMathVisual(step: SessionStep): null | {
         denominator: denominator_a,
         label: `${numerator_a}/${denominator_a}`,
       });
-      if (desc?.constraints_check?.violations?.length) return null;
+      if (desc?.constraints_check && !desc.constraints_check.ok) return null;
       const svgResult = generateFractionBarSVG({
         numerator: numerator_a,
         denominator: denominator_a,
@@ -173,7 +173,7 @@ function buildMathVisual(step: SessionStep): null | {
       const a = parseInt(an, 10);
       const c = parseInt(cn, 10);
       const desc = renderBarModel({ rows: Math.max(1, Math.min(10, a)), cols: Math.max(1, Math.min(10, c)) });
-      if (desc?.constraints_check?.violations?.length) return null;
+      if (desc?.constraints_check && !desc.constraints_check.ok) return null;
       const svgResult = generateAreaModelSVG({
         rows: Math.max(1, Math.min(10, a)),
         cols: Math.max(1, Math.min(10, c)),
@@ -643,7 +643,7 @@ function InputSubtree(props: {
     const result = validateKeypadAnswer({
       keypad_value: value,
       expected: step.expected_answer,
-    });
+    }) as { verdict: "correct" | "incorrect" | "unverifiable" };
     onSubmit({
       verdict: result.verdict,
       error_type: result.verdict === "incorrect" ? "wrong_value" : null,
@@ -825,7 +825,7 @@ function InputSubtree(props: {
 function OpenResponseSubtree(props: {
   step: SessionStep;
   spec: any;
-  ageBand: string;
+  ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
   studentId: string;
   lastVerdict: string | null;
   phase: string;

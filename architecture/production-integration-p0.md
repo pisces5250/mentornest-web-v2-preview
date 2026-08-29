@@ -21,7 +21,8 @@ Browser
 Web edge（nginx；static SPA、同源 API gateway）
   ├─ /api/tutor/*             → Tutor backend
   ├─ /api/stt|tts|audio/*     → Voice backend
-  └─ /api/learning/*          → OpenClaw learning gateway adapter
+  └─ /api/learning/*          → authenticated MentorNest Gateway
+                                      └─ OpenClaw learning runtime adapter
                                       └─ authoritative Assessment / Mastery / Memory
 ```
 
@@ -51,7 +52,7 @@ Web static frontend、Tutor backend、Voice backend 與 OpenClaw runtime 是不�
 |---|---|---|
 | `TUTOR_BACKEND_ORIGIN` | Web edge | Tutor internal origin |
 | `VOICE_BACKEND_ORIGIN` | Web edge | Voice internal origin |
-| `LEARNING_BACKEND_ORIGIN` | Web edge | OpenClaw adapter internal origin |
+| `GATEWAY_BACKEND_ORIGIN` | Web edge | authenticated MentorNest Gateway internal origin；edge 不直連 OpenClaw |
 | `PORT` | Tutor | HTTP listen port |
 | `MENTORNEST_ENV` | 各服務 | `development` / `test` / `staging` / `production`；production 禁止 fixture |
 
@@ -64,3 +65,6 @@ Secrets、session signing keys 與 service credentials 必須由平台 secret st
 - Voice service 的獨立 image、health contract 與平台設定不在本 repository，需跨 repo 驗證。
 - `server/open-response.mjs` 尚待拆分 Tutor／Voice ownership；P0 Docker backend 只作 integration candidate。
 - 尚未有 staging service IDs、平台 deployment evidence 與 fallback 演練紀錄。
+
+P0.5 已新增可執行的 staging composition 與 fail-closed environment guard，詳見
+`architecture/staging-topology-p05.md`。這是 candidate artifact，尚無實際平台部署證據。

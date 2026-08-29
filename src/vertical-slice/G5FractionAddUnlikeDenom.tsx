@@ -22,10 +22,10 @@
 // writes to the production student-data directory.
 
 import React, { useState, useMemo, useCallback } from "react";
-import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
-import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
-import { lintChildCopy } from "../foundation/child_copy_linter.mjs";
-import { scoreCognitiveLoad } from "../foundation/cognitive_load_scorer.mjs";
+import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.js";
+import { resolveAgeProfile } from "../foundation/age_profile_engine.js";
+import { lintChildCopy } from "../foundation/child_copy_linter.js";
+import { scoreCognitiveLoad } from "../foundation/cognitive_load_scorer.js";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { validateKeypadAnswer } from "../input/answer-validator.mjs";
@@ -122,7 +122,7 @@ export function G5FractionAddUnlikeDenom() {
     wrong_attempts: wrongCount,
     hints_already_shown: 0,
     representation_used: "symbolic",
-    error_type: attempts[attempts.length - 1]?.reason ?? null,
+    error_type: attempts[attempts.length - 1]?.reason ?? undefined,
   }), [wrongCount, attempts]);
 
   // 4) SVG generation (only when hint says show_fraction_bar)
@@ -154,11 +154,11 @@ export function G5FractionAddUnlikeDenom() {
     const result = validateKeypadAnswer({
       keypad_value: value,
       expected: QUESTION.expected_answer,
-    });
+    }) as { verdict: "correct" | "incorrect" | "unverifiable"; reason?: string };
     setAttempts((prev) => [...prev, {
       value,
       verdict: result.verdict,
-      reason: result.reason,
+      reason: result.reason ?? null,
     }]);
   }, []);
 

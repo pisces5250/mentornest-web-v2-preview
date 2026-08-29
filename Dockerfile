@@ -15,8 +15,8 @@ COPY deployment/nginx/default.conf.template /etc/nginx/templates/default.conf.te
 
 ENV TUTOR_BACKEND_ORIGIN=http://tutor-backend:8787 \
     VOICE_BACKEND_ORIGIN=http://voice-backend:8502 \
-    LEARNING_BACKEND_ORIGIN=http://openclaw-learning:18789 \
-    NGINX_ENVSUBST_FILTER=^(TUTOR_BACKEND_ORIGIN|VOICE_BACKEND_ORIGIN|LEARNING_BACKEND_ORIGIN)$
+    GATEWAY_BACKEND_ORIGIN=http://tutor-backend:8787 \
+    NGINX_ENVSUBST_FILTER=^(TUTOR_BACKEND_ORIGIN|VOICE_BACKEND_ORIGIN|GATEWAY_BACKEND_ORIGIN)$
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget -qO- http://127.0.0.1/healthz || exit 1

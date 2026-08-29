@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
-import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
-import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
-import { scoreCognitiveLoad } from "../foundation/cognitive_load_scorer.mjs";
-import { lintChildCopy } from "../foundation/child_copy_linter.mjs";
+import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.js";
+import { resolveAgeProfile } from "../foundation/age_profile_engine.js";
+import { scoreCognitiveLoad } from "../foundation/cognitive_load_scorer.js";
+import { lintChildCopy } from "../foundation/child_copy_linter.js";
 
 // ─────────────────────────────────────────────────────────────────────
 // Fixture: one G3-G4 multiple_choice question.

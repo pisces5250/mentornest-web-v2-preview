@@ -19,7 +19,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run verify
+      - name: 安裝 Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run verify:full
       - name: 建置 production candidate images
         run: |
           docker build --tag mentornest-web-v2:ci .

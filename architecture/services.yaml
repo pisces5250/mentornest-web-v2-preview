@@ -62,7 +62,14 @@ services:
       frontend: "Vite on port 5173"
       tutor_backend: "server/open-response.mjs on port 8787"
       api_proxy: "/api -> http://localhost:8787"
-    deployment_readiness: candidate_topology_defined_not_staged_or_cut_over
+    deployment_readiness: staging_composition_defined_not_deployed_or_cut_over
+    staging_contract: "architecture/staging-topology-p05.md"
+    staging_artifacts:
+      compose: "deployment/staging/compose.yaml"
+      environment_guard: "deployment/staging/validate-env.mjs"
+    cross_repo_dependencies:
+      voice_backend: "required_but_image_and_readiness_not_verified_in_this_repository"
+      openclaw_learning: "required_but_image_capabilities_and_platform_deployment_not_verified_in_this_repository"
 
 cross_service_rules:
   - >

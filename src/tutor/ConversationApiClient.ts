@@ -22,6 +22,7 @@ import {
   TutorEvaluationError,
   isTutorEvaluationError,
 } from "./TutorEvaluationContract";
+import { browserCsrfToken } from "../foundation/browser_security";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
@@ -43,7 +44,11 @@ async function postJson<T>(
   try {
     const r = await fetch(endpointUrl(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-MentorNest-CSRF": browserCsrfToken(),
+      },
+      credentials: "same-origin",
       body: JSON.stringify(body),
       signal: controller.signal,
     });

@@ -21,7 +21,7 @@
 import React from "react";
 import { sanitizeSvg, filterAttrs } from "./svg-sanitizer.mjs";
 
-type Primitive = "fraction_bar" | "number_line" | "area_model";
+type Primitive = "fraction_bar" | "number_line" | "area_model" | "bar_model";
 
 export interface MathVisualDescriptor {
   type: Primitive;
@@ -84,7 +84,7 @@ export function MathVisualRenderer(props: MathVisualRendererProps) {
           className="mn-math-visual__svg-wrap"
           aria-hidden="true"
           // dangerouslySetInnerHTML is safe BECAUSE we sanitized above.
-          dangerouslySetInnerHTML={{ __html: sanitizeResult.sanitized }}
+          dangerouslySetInnerHTML={{ __html: sanitizeResult.sanitized ?? "" }}
         />
       </div>
       {props.caption && (

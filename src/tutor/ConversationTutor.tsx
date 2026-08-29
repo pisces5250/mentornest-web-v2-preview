@@ -359,7 +359,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
                 {state.phase === "SPEAKING" && (
                   <TTSPlayer
                     text={state.lastUtterance}
-                    voice="en_US_lessac"
+                    voiceId="en_US-lessac-medium"
                     autoPlay={false}
                     onEnded={() => dispatch({ type: "TTS_DONE" })}
                   />
