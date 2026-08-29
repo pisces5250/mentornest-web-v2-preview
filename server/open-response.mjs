@@ -407,6 +407,97 @@ function shortHash(input) {
   return h.toString(16).padStart(8, "0").slice(0, 8);
 }
 
+// === Phase 6B — Conversational English Tutor (HTTP polling) ===
+//
+// Three endpoints:
+//   POST /api/tutor/english-conversation/start
+//   POST /api/tutor/english-conversation/turn
+//   POST /api/tutor/english-conversation/end
+//
+// Privacy contract (Learning Memory Agent policy, Phase 6B):
+//   - Transcript is held ONLY in server-side ring buffer (depth 5).
+//     When the session ends, the ring buffer is dropped.
+//   - Per-turn transcript / audio / decision is NEVER logged.
+//   - At session-end, ONE summary record is appended to
+//     data/learning-records/<student_id>.jsonl.  That record contains:
+//     student_id_hash (NOT raw id), session_duration_sec, turn_count,
+//     specialist_actions sequence, dominant_error_code, summary text.
+//   - No transcript / no audio in the summary.
+//   - Audit log on the console: only session_id, turn_count, action
+//     sequence, hash of student_id.  No transcript text.
+
+import {
+  startConversation,
+  turnConversation,
+  endConversation,
+} from "./tutor/conversation-manager.mjs";
+
+app.post('/api/tutor/english-conversation/start', (req, res) => {
+  try {
+    const result = startConversation(req.body ?? {});
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, code: result.code, message: result.message });
+    }
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      code: 'unknown',
+      message: '老師這邊有一點點問題，再試一次就好。',
+      error: err?.message ?? String(err),
+    });
+  }
+});
+
+app.post('/api/tutor/english-conversation/turn', (req, res) => {
+  try {
+    const result = turnConversation(req.body ?? {});
+    if (!result.ok) {
+      const status = result.code === 'session_required' || result.code === 'session_ended' ? 410 : 400;
+      return res.status(status).json({ ok: false, code: result.code, message: result.message });
+    }
+    // Audit log (no transcript text, no raw student_id).
+    const sid = req.body?.student_id || (result.session_id ? 'unknown' : 'unknown');
+    const sidHash = shortHash(typeof sid === 'string' ? sid : 'unknown');
+    console.log(
+      `[tutor] conversation-turn sid=${sidHash} sess=${result.session_id.slice(0, 8)} ` +
+      `turn=${result.turn_index} action=${result.decision.action} ended=${result.ended}`,
+    );
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      code: 'unknown',
+      message: '老師這邊有一點點問題，再試一次就好。',
+      error: err?.message ?? String(err),
+    });
+  }
+});
+
+app.post('/api/tutor/english-conversation/end', (req, res) => {
+  try {
+    const result = endConversation(req.body ?? {});
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, code: result.code, message: result.message });
+    }
+    // Audit log: session ended; summary was written.  No transcript / audio.
+    console.log(
+      `[tutor] conversation-end sess=${result.session.session_id.slice(0, 8)} ` +
+      `turn_count=${result.session.turn_index} ` +
+      `actions=${(result.summary.specialist_actions || []).join(',')} ` +
+      `dominant=${result.summary.dominant_error_code || 'none'}`,
+    );
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      code: 'unknown',
+      message: '老師這邊有一點點問題，再試一次就好。',
+      error: err?.message ?? String(err),
+    });
+  }
+});
+
 // === Error handler ===
 app.use((err, _req, res, _next) => {
   res.status(500).json({ ok: false, error: err.message });

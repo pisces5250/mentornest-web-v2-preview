@@ -52,6 +52,7 @@ import type {
   ReadingComparison,
 } from "../tutor/TutorEvaluationContract";
 import { TutorFeedbackCard, type TutorFeedbackState } from "../tutor/TutorFeedbackCard";
+import { ConversationTutor } from "../tutor/ConversationTutor";
 
 // View-layer KP ID → child-facing zh-TW phrase.
 const KP_PHRASE_ZH: Record<string, string> = {
@@ -75,7 +76,8 @@ export type QuestionType =
   | "short_answer"
   | "true_false"
   | "open_response"
-  | "voice_response";
+  | "voice_response"
+  | "english_conversation";
 
 export interface SessionStep {
   step_id: string;
@@ -309,6 +311,33 @@ export function QuestionRenderer(props: QuestionRendererProps) {
         onAdvance={onAdvance}
         goalPhrase={goalPhrase}
       />
+    );
+  }
+
+  // Phase 6B — Conversational English Tutor (HTTP polling; no verdict pop-up).
+  if (step.question_type === "english_conversation") {
+    return (
+      <section
+        className="mn-question-card"
+        data-testid={`question-${step.step_id}`}
+        data-state="conversation"
+        aria-label="和老師說英文"
+      >
+        <div className="mn-question-card__meta">
+          <div className="mn-question-card__meta-left">
+            <span className="mn-tag">和老師說英文</span>
+            <span className="mn-question-card__kp">{step.knowledge_point}</span>
+          </div>
+        </div>
+        <div className="mn-question-card__stem-wrap">
+          <p>{step.stem}</p>
+        </div>
+        <ConversationTutor
+          studentId={studentId}
+          knowledgePoint={step.knowledge_point}
+          ageBand={ageBand}
+        />
+      </section>
     );
   }
 

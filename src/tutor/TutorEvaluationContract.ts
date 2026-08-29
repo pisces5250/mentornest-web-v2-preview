@@ -200,3 +200,171 @@ export function capTeachingPoints<T extends TutorTeachingPoint>(
 ): T[] {
   return points.slice(0, 3);
 }
+
+// ============================================================================
+// Phase 6B — Conversational English Tutor (no verdict pop-up; tutor turn-taking)
+//
+// Difference from Phase 6A:
+//   Phase 6A: child records + submits; specialist returns verdict + teaching
+//             points; UI renders card.
+//   Phase 6B: child presses "start"; tutor holds a real-time listening turn
+//             via VAD; each silence boundary POSTs transcript to server;
+//             server-side specialist decides the NEXT utterance the tutor
+//             should SAY (acknowledge / ask_question / model_phrase /
+//             correct_gently / extend / wrap_up).  No verdict card.
+//
+// Hard rules (defensive; enforced in conversation-manager.mjs + reviewed):
+//   1. Per-session in-memory ring buffer, depth = 5 turns. Older turns are
+//      evicted; transcript is NEVER persisted.
+//   2. End-of-session summary is the ONLY thing written to the learning
+//      record ledger; no per-turn transcript / audio / decision is written.
+//   3. Wrap-up is opt-in via specialist decide; the child (not the system)
+//      ends the session.
+// ============================================================================
+
+export type TutorTurnAction =
+  | "acknowledge"      // short praise / encouragement
+  | "ask_question"     // keep the conversation going
+  | "model_phrase"     // show the child a correct exemplar
+  | "correct_gently"   // soft correction + repeat target
+  | "extend"           // push for more / deeper answer
+  | "wrap_up";         // close the conversation (specialist-initiated)
+
+/** Prompt spec surfaced in the UI (mostly for ask_question / extend). */
+export interface TutorPromptSpec {
+  /** Optional prompt text shown to the child on screen (zh-TW). */
+  text?: string;
+  /** Optional exemplar (e.g. for model_phrase / correct_gently). */
+  exemplar?: string;
+}
+
+/** Decision produced by the English Specialist per turn. */
+export interface TutorTurnDecision {
+  action: TutorTurnAction;
+  /** What the tutor says out loud (TTS text, zh-TW for G5 child). */
+  utterance: string;
+  /** Optional prompt / exemplar / correction target. */
+  prompt?: TutorPromptSpec;
+  /** Sub-skill the specialist is targeting (e.g. "vocab", "fluency"). */
+  subskill: string;
+  /** Specialist's own rationale (audit only). */
+  rationale: string;
+  /** Confidence in [0, 1]. Front-end may use it to soften UI. */
+  confidence: number;
+}
+
+/** What the server returns for a turn request. */
+export interface ConversationTurnResponse {
+  ok: true;
+  decision: TutorTurnDecision;
+  /** Plain text for TTS (zh-TW). */
+  tts_text: string;
+  /** Optional pre-synthesised audio URL (TTS cache hit). */
+  audio_url?: string;
+  /** Echoed back for client-side state tracking. */
+  turn_index: number;
+  /** Echoed back so the client can confirm sync. */
+  session_id: string;
+}
+
+/** Per-session state echoed back on every response. */
+export interface ConversationSessionInfo {
+  session_id: string;
+  /** 0-based turn index. */
+  turn_index: number;
+  /** True once specialist decided "wrap_up" or child ended. */
+  ended: boolean;
+}
+
+/** Start request/response. */
+export interface ConversationStartRequest {
+  student_id: string;
+  knowledge_point: string;            // e.g. "english.G5.CONV.free-conversation"
+  age_band: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
+  /** Optional topic hint, e.g. "about my day" — passed to specialist. */
+  topic?: string;
+  /** Locale for STT (en-US / en-GB …). */
+  locale?: "en-US" | "en-GB" | "en-AU" | "en-CA";
+}
+
+export interface ConversationStartResponse {
+  ok: true;
+  session: ConversationSessionInfo;
+  /** Tutor's opening greeting (zh-TW). */
+  greeting: string;
+  /** Pre-synthesised audio for the greeting (optional). */
+  greeting_audio_url?: string;
+}
+
+/** Per-turn request. */
+export interface ConversationTurnRequest {
+  session_id: string;
+  transcript: string;
+  turn_index: number;
+  /** Optional STT confidence reported by the client. */
+  transcript_confidence?: number | null;
+}
+
+/** End-of-session request/response. */
+export interface ConversationEndRequest {
+  session_id: string;
+  /** Optional reason: child pressed end, or specialist wrap_up. */
+  reason?: "child_ended" | "specialist_wrap_up";
+}
+
+export interface ConversationEndResponse {
+  ok: true;
+  session: ConversationSessionInfo;
+  /** Summary written to the learning record (audit copy). */
+  summary: ConversationSessionSummary;
+}
+
+/** What gets written to data/learning-records/<id>.jsonl at end. */
+export interface ConversationSessionSummary {
+  student_id_hash: string;            // FNV-1a, 8 hex chars
+  knowledge_point: string;
+  session_duration_sec: number;
+  turn_count: number;
+  /** Sequence of specialist actions (e.g. ["acknowledge","ask_question"]). */
+  specialist_actions: TutorTurnAction[];
+  /** Aggregate dominant error code, or null. */
+  dominant_error_code: string | null;
+  /** Short summary text for parent / curriculum review. */
+  summary: string;
+}
+
+/** Type guards for the conversational endpoints. */
+export function isConversationStartResponse(
+  x: unknown,
+): x is ConversationStartResponse {
+  return (
+    !!x &&
+    typeof x === "object" &&
+    (x as any).ok === true &&
+    typeof (x as any).session === "object" &&
+    typeof (x as any).greeting === "string"
+  );
+}
+
+export function isConversationTurnResponse(
+  x: unknown,
+): x is ConversationTurnResponse {
+  return (
+    !!x &&
+    typeof x === "object" &&
+    (x as any).ok === true &&
+    typeof (x as any).decision === "object" &&
+    typeof (x as any).tts_text === "string"
+  );
+}
+
+export function isConversationEndResponse(
+  x: unknown,
+): x is ConversationEndResponse {
+  return (
+    !!x &&
+    typeof x === "object" &&
+    (x as any).ok === true &&
+    typeof (x as any).summary === "object"
+  );
+}
