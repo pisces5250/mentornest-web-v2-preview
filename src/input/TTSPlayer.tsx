@@ -1,20 +1,32 @@
 // src/input/TTSPlayer.tsx
 //
-// Phase 5C-2C — Local TTS playback component.
+// Phase 5C-2C / Round 17 — Local TTS playback component.
 //
-// Posts text to /api/tts/synthesize, gets back audio_url, plays via <audio>.
-// Speed control 0.5-2.0x.
+// Posts text to the standalone Voice Backend at
+// `${VITE_MENTORNEST_VOICE_API_BASE}/api/tts/synthesize`, gets back
+// audio_url (relative path), plays via <audio>. Speed control 0.5-2.0x.
 //
-// Privacy: text is sent to local sherpa-onnx TTS. Audio file is server-side
-// TTL 30s. Never persisted to long-term memory.
+// Privacy: text is sent to local sherpa-onnx TTS. Audio file is
+// server-side TTL 30s. Never persisted to long-term memory.
 //
 // Hard Invariants:
 //   - No cloud TTS fallback
 //   - Speed limited to 0.5-2.0
 //   - Audio never auto-recorded
 //   - Local-only (offline) backend required
+//   - never displays backend error wording, JSON parse errors, or
+//     API URL to the child
+//
+// Concurrency:
+//   - Single-inference voice backend returns 503 + Retry-After when
+//     busy. We display a friendly retry hint; no auto-retry.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  buildVoiceUrl,
+  classifyVoiceError,
+  devDiag,
+} from "../foundation/voice_api";
 
 export interface TTSPlayerProps {
   text: string;
@@ -56,14 +68,35 @@ export function TTSPlayer(props: TTSPlayerProps) {
     setError(null);
     setState("loading");
     try {
-      const resp = await fetch("/api/tts/synthesize", {
+      // application/x-www-form-urlencoded is a CORS "simple" request
+      // — the browser will NOT issue an OPTIONS preflight for it.
+      // This is needed because the Zeabur ingress intercepts OPTIONS
+      // preflights and returns a synthetic `allow: POST` without the
+      // Access-Control-Allow-Origin header, which would otherwise block
+      // cross-origin calls entirely.
+      const form = new URLSearchParams();
+      form.set("text", text);
+      form.set("speed", String(speed));
+      const resp = await fetch(buildVoiceUrl("/api/tts/synthesize"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, speed }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
       });
-      const json = await resp.json();
-      if (!json.ok) throw new Error(json.error || "TTS failed");
-      const url = `${json.audio_url}?t=${Date.now()}`;
+      const env = (await resp.json().catch(() => null)) as {
+        ok?: boolean;
+        audio_id?: string;
+        audio_url?: string;
+        error?: string;
+      } | null;
+      if (!resp.ok || !env?.ok || !env.audio_url) {
+        const info = classifyVoiceError(env ?? resp);
+        devDiag("tts-player", info);
+        setError(info.message);
+        setState("error");
+        return;
+      }
+      // Resolve audio_url against the voice backend base.
+      const url = `${buildVoiceUrl(env.audio_url)}?t=${Date.now()}`;
       setAudioUrl(url);
 
       // Wait for the next render cycle so the <audio> ref exists
@@ -84,7 +117,10 @@ export function TTSPlayer(props: TTSPlayerProps) {
         }
       }
     } catch (e: any) {
-      setError(e?.message || "語音播放失敗");
+      // Network / fetch threw before we even got a Response.
+      const info = classifyVoiceError(e);
+      devDiag("tts-player", info);
+      setError(info.message);
       setState("error");
     }
   }, [text, speed]);

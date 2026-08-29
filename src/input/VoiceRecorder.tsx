@@ -1,8 +1,9 @@
 // src/input/VoiceRecorder.tsx
 //
-// Phase 5C-2B — Voice recorder component.
+// Phase 5C-2B / Round 17 — Voice recorder component.
 //
-// Captures audio via MediaRecorder, posts to /api/stt/transcribe,
+// Captures audio via MediaRecorder, posts to the standalone Voice
+// Backend at `${VITE_MENTORNEST_VOICE_API_BASE}/api/stt/transcribe`,
 // shows transcript for child review before submit.  Hard limits:
 //   - 60 second recording cap
 //   - No cloud STT fallback (sensevoice_local only)
@@ -13,10 +14,23 @@
 // Privacy invariants respected:
 //   - mic permission requested explicitly
 //   - audio_retained: false (server-side TTL 30s)
-//   - transcript NOT auto-recorded to Learning Memory
+//   - transcript NOT auto-recorded to Learning Memory or localStorage
 //   - child can re-record unlimited times before submit
+//   - never displays backend error wording, JSON parse errors, or
+//     stack traces to the child (see foundation/voice_api.ts)
+//
+// Concurrency:
+//   - The single-inference voice backend returns 503 + Retry-After
+//     when busy. We display a friendly retry hint and respect the
+//     server's back-off; we do NOT auto-spam retries.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  buildVoiceUrl,
+  classifyVoiceError,
+  devDiag,
+  type VoiceErrorInfo,
+} from "../foundation/voice_api";
 
 export type VoiceRecorderState =
   | "idle"
@@ -131,27 +145,47 @@ export function VoiceRecorder(props: VoiceRecorderProps) {
   }, [stopRecorder]);
 
   const sendForTranscription = useCallback(async (blob: Blob) => {
+    setState("processing");
     try {
-      setState("processing");
-      const resp = await fetch(`/api/stt/transcribe?language=${encodeURIComponent(language)}`, {
+      const url = buildVoiceUrl(
+        `/api/stt/transcribe?language=${encodeURIComponent(language)}`,
+      );
+      const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": blob.type || "audio/webm" },
         body: blob,
       });
-      const json = await resp.json();
-      if (!json.ok) throw new Error(json.error || "STT failed");
-      const t = (json.transcript || "").trim();
+      // Parse the envelope once.
+      const env = (await resp.json().catch(() => null)) as {
+        ok?: boolean;
+        transcript?: string;
+        error?: string;
+      } | null;
+      if (!resp.ok || !env?.ok) {
+        // Prefer envelope if backend returned a structured error JSON
+        // inside a non-2xx; fall back to the Response itself.
+        const info: VoiceErrorInfo = classifyVoiceError(env ?? resp);
+        devDiag("voice-recorder", info);
+        setError(info.message);
+        setState(info.kind === "no_transcript" ? "idle" : "error");
+        return;
+      }
+      // Happy path: env.ok === true, env.transcript present.
+      const t = (env?.transcript || "").trim();
       setTranscript(t);
       if (t.length === 0) {
-        // Re-record prompt — don't fail the child
+        // Re-record prompt — don't fail the child.
         setState("idle");
         setError("沒聽清楚，再說一次好嗎？");
       } else {
         setState("transcribed");
       }
     } catch (e: any) {
+      // Network / fetch threw before we even got a Response.
+      const info = classifyVoiceError(e);
+      devDiag("voice-recorder", info);
+      setError(info.message);
       setState("error");
-      setError(e?.message || "STT 失敗");
     }
   }, [language]);
 
