@@ -18,7 +18,9 @@
 | OpenClaw runtime identity／image／真 staging | **UNVERIFIED** | 沒有 runtime repository／registry／平台證據 |
 | Voice provider remediation source | VERIFIED（source candidate） | sibling branch `feature/p0-6-staging-contract`，commit `0104abc`；provider tests 4/4 |
 | Voice remote CI／container digest／STT-TTS image inference | **UNVERIFIED** | private Actions API 無可讀 run；本機無 Docker／模型 image |
-| Web v2 GitHub Actions／Web-Tutor container | **UNVERIFIED** | push 到既有 origin 被安全審查要求目的地特定授權；沒有 run ID／URL |
+| Web v2 GitHub Actions／Web-Tutor container | VERIFIED | Run `33282611761`（`https://github.com/pisces5250/mentornest-web-v2-preview/actions/runs/33282611761`）：Node 22、Playwright、`verify:full`、兩 image builds、兩 container liveness 全部成功 |
+| Web candidate immutable image | VERIFIED | `ghcr.io/pisces5250/mentornest-web-v2-preview-web@sha256:c1f3c24aa22c464038c38be78e62f3edbffddb0424e8501df3f26361cd359926` |
+| Tutor candidate immutable image | VERIFIED | `ghcr.io/pisces5250/mentornest-web-v2-preview-tutor@sha256:616f335831721e411da17c653d60c637ea3372abee8aed3d7fa8a5dc9db5d456` |
 | 真實跨服務 staging smoke | **UNVERIFIED** | 尚無 OpenClaw 與 Voice immutable verified digests，也未建立 staging deployment |
 | Production fallback | VERIFIED（registry／未變更） | `mentornest-web` service ID 保留；未 cutover、未刪除、未改流量 |
 
@@ -48,6 +50,6 @@
 ## Readiness decision
 
 目前可判定為 `deploy-ready candidate`，不可判定為 `staging ready` 或 `merge ready`。
-解除 blocker 必須取得：Web v2 遠端 CI run、Web／Tutor image build與 health evidence、Voice
-provider CI 與 immutable digest／fixture inference、OpenClaw runtime digest／readyz／四 capability
+解除 blocker 必須取得：Voice provider CI 與 immutable digest／fixture inference、OpenClaw
+runtime digest／readyz／四 capability
 與平台 namespace isolation，最後對相同 digests 執行 authenticated cross-service smoke。

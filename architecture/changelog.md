@@ -1809,7 +1809,7 @@ Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PA
 
 ## 2026-08-30 — Phase P0.6 Remote Evidence & Staging Readiness
 
-- CI gate 擴充至 `feature/**`，並加入 Web／Tutor container 啟動、liveness、privacy 與 Docker health 驗證；遠端 branch push 因安全審查要求目的地特定授權而未完成，run／image evidence 標為 UNVERIFIED。
+- CI gate 擴充至 `feature/**`，並加入 Web／Tutor container 啟動、liveness、privacy 與 Docker health 驗證。Run `33282611761` 全綠，並發布只含 commit SHA tag 的 GHCR Web／Tutor candidate images；registry manifest digest 已外部讀回驗證。
 - OpenClaw Gateway readiness 增加 runtime version、immutable image identity、staging namespace 與 `production_data_allowed=false` 比對；隔離 HTTP harness 驗證四 capability、錯誤 bearer、missing capability 與 Learning Memory fail-closed。
 - Voice sibling repo 完成 provider remediation candidate：branch `feature/p0-6-staging-contract`、commit `0104abc`；本機 contract tests 4/4，但 remote CI、image digest 與 image inference 仍 UNVERIFIED。
 - 新增 `architecture/staging-evidence-p06.md`、`architecture/openclaw-runtime-contract-p06.md` 與 `architecture/voice-backend-contract-p06.md`，明確分開 consumer、source candidate、provider image 與 deployment evidence。
