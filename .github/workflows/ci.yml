@@ -65,3 +65,47 @@ jobs:
           grep --fixed-strings '"cloud_fallback":false' /tmp/tutor-health.json
           test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-web-ci)" != unhealthy
           test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-tutor-ci)" != unhealthy
+
+  publish-candidate-images:
+    name: 發布 commit-bound staging candidate images
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: 登入 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 建置並發布 Web candidate image
+        id: web-image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ghcr.io/pisces5250/mentornest-web-v2-preview-web:${{ github.sha }}
+      - name: 建置並發布 Tutor candidate image
+        id: tutor-image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          push: true
+          tags: ghcr.io/pisces5250/mentornest-web-v2-preview-tutor:${{ github.sha }}
+      - name: 記錄 immutable image evidence
+        run: |
+          {
+            echo '## P0.6 GHCR candidate evidence'
+            echo ''
+            echo '僅發布 commit SHA tag；未建立 latest 或 production tag。'
+            echo ''
+            echo '- Web digest：`${{ steps.web-image.outputs.digest }}`'
+            echo '- Tutor digest：`${{ steps.tutor-image.outputs.digest }}`'
+          } >> "$GITHUB_STEP_SUMMARY"
