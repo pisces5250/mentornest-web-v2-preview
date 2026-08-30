@@ -45,7 +45,6 @@ import { FIXTURE_G5_FRAC } from "./fixtures.mjs";
  * @property {"text"|"fraction_bar"|"number_line"|"area_model"} representation_type
  * @property {string} stem
  * @property {ReadonlyArray<string>} [choices]
- * @property {string|number} expected_answer
  * @property {"easy"|"medium"|"hard"} difficulty
  * @property {"verified"|"generated"} source
  * @property {string} license

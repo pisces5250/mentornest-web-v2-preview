@@ -5,10 +5,13 @@
 // calls from this layer — all authority stays in mentornest-learning.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sessionReduce, STEP_VERDICT } from "./session-state.mjs";
+import { sessionReduce } from "./session-state.mjs";
 import type { SessionState } from "./session-types";
 import { QuestionRenderer } from "./QuestionRenderer";
 import { SessionSummaryView } from "./SessionSummaryView";
+import { evaluateTutorTurn, type TutorTurnEvaluator } from "../tutor/TutorTurnClient";
+import { TeacherTurnPanel } from "../tutor/TeacherTurnPanel";
+import type { TutorTurnResponse } from "../tutor/TutorTurnContract";
 
 export interface SessionViewProps {
   // Pre-built session (from buildSessionFromLearningDirector).
@@ -17,12 +20,17 @@ export interface SessionViewProps {
   storageKey?: string | null;
   // Where to land on session end.
   onSessionEnd?: (finalSession: SessionState) => void;
+  evaluateTurn?: TutorTurnEvaluator;
 }
 
 export function SessionView(props: SessionViewProps) {
-  const { initialSession, storageKey = "mentornest.session.v1", onSessionEnd } = props;
-  const [state, setState] = useState<SessionState>(initialSession);
+  const { initialSession, storageKey = "mentornest.session.v1", onSessionEnd, evaluateTurn = evaluateTutorTurn } = props;
+  const publicInitialSession = useMemo(() => shapePublicSession(initialSession), [initialSession]);
+  const [state, setState] = useState<SessionState>(publicInitialSession);
   const [resumed, setResumed] = useState(false);
+  const [teacherState, setTeacherState] = useState<
+    { kind: "idle" } | { kind: "evaluating" } | { kind: "error"; message: string } | { kind: "result"; turn: TutorTurnResponse }
+  >({ kind: "idle" });
   const dispatch = useRef((action: any) => {
     setState((s: SessionState) => sessionReduce(s, action) as SessionState);
   });
@@ -34,13 +42,13 @@ export function SessionView(props: SessionViewProps) {
       const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (!parsed || parsed.session_id !== initialSession.session_id) return;
-      setState(parsed);
+      if (!parsed || parsed.session_id !== publicInitialSession.session_id) return;
+      setState(shapePublicSession(parsed));
       setResumed(true);
     } catch (e) {
       // ignore corrupted snapshot
     }
-  }, [storageKey, initialSession.session_id]);
+  }, [storageKey, publicInitialSession.session_id]);
 
   // 2) Persist on every change so reload resumes the same step.
   useEffect(() => {
@@ -61,9 +69,34 @@ export function SessionView(props: SessionViewProps) {
 
   const currentStep = state.steps[state.current_index];
 
-  const handleSubmit = useCallback((args: { verdict: string; error_type?: string | null }) => {
-    dispatch.current({ type: "submit", verdict: args.verdict, error_type: args.error_type ?? null });
-  }, []);
+  const handleSubmit = useCallback(async (args: { answer: unknown; answer_kind: "choice" | "math" | "text" | "voice" }) => {
+    if (!currentStep || teacherState.kind === "evaluating") return;
+    dispatch.current({ type: "evaluating" });
+    setTeacherState({ kind: "evaluating" });
+    try {
+      const response = typeof args.answer === "object" ? JSON.stringify(args.answer) : String(args.answer);
+      const turn = await evaluateTurn({
+        question_id: currentStep.step_id,
+        response_id: `resp_${crypto.randomUUID()}`,
+        response,
+        attempt_index: currentStep.attempts.length + 1,
+        hints_used: currentStep.hints_used,
+        occurred_at: new Date().toISOString(),
+      });
+      dispatch.current({
+        type: "submit",
+        verdict: turn.verdict,
+        error_type: turn.verdict === "incorrect" ? "tutor_diagnosed" : null,
+        assessment_evidence_id: turn.assessment_evidence_id,
+        learning_memory_receipt_id: turn.learning_memory_receipt_id,
+        next_step: turn.loop_completed ? turn.next_step : null,
+      });
+      setTeacherState({ kind: "result", turn });
+    } catch (_) {
+      dispatch.current({ type: "retry" });
+      setTeacherState({ kind: "error", message: "連線有點慢，你的答案還沒有被判定。" });
+    }
+  }, [currentStep, evaluateTurn, teacherState.kind]);
 
   const handleHint = useCallback(() => {
     dispatch.current({ type: "hint" });
@@ -71,6 +104,7 @@ export function SessionView(props: SessionViewProps) {
 
   const handleRetry = useCallback(() => {
     dispatch.current({ type: "retry" });
+    setTeacherState({ kind: "idle" });
   }, []);
 
   const handleRepresentationSwitch = useCallback((to: string) => {
@@ -79,6 +113,7 @@ export function SessionView(props: SessionViewProps) {
 
   const handleAdvance = useCallback(() => {
     dispatch.current({ type: "advance" });
+    setTeacherState({ kind: "idle" });
   }, []);
 
   if (state.status === "completed" && state.summary) {
@@ -115,7 +150,7 @@ export function SessionView(props: SessionViewProps) {
   }
 
   return (
-    <div className="mn-session" data-testid="mn-session" data-session-id={state.session_id}>
+    <div className="mn-session" data-testid="mn-session" data-session-id={state.session_id} data-evaluating={teacherState.kind === "evaluating" ? "true" : "false"} aria-busy={teacherState.kind === "evaluating"}>
       <div className="mn-session-meta-row" data-testid="session-meta-row">
         <span className="mn-status-badge mn-status-badge--mono" data-testid="session-progress">
           題目 {state.current_index + 1} / {state.steps.length}
@@ -128,6 +163,7 @@ export function SessionView(props: SessionViewProps) {
       </div>
 
       <QuestionRenderer
+        key={`${currentStep.step_id}-${currentStep.attempts.length}`}
         step={currentStep}
         ageBand={state.age_band}
         studentId={state.student_id}
@@ -138,39 +174,24 @@ export function SessionView(props: SessionViewProps) {
         onAdvance={handleAdvance}
         hintsUsed={currentStep.hints_used}
         attemptsCount={currentStep.attempts.length}
-        lastVerdict={currentStep.last_verdict}
-        phase={currentStep.phase}
+        lastVerdict={teacherState.kind === "result" ? teacherState.turn.verdict : null}
+        phase={teacherState.kind === "evaluating"
+          ? "evaluating"
+          : teacherState.kind === "result" ? "feedback" : "presenting"}
       />
 
-      {currentStep.phase === "feedback" && (
-        <div className="mn-actions">
-          <button
-            type="button"
-            className="mn-button mn-button--primary"
-            data-testid="next-question"
-            onClick={handleAdvance}
-          >
-            {state.current_index + 1 >= state.steps.length ? "完成練習" : "下一題"}
-          </button>
-        </div>
-      )}
-      {/* For wrong MC attempts the student can advance after seeing the
-          feedback (retry path is also available via QuestionRenderer's
-          retry-button).  We only auto-show this when attempts >= 1 to
-          avoid skipping before they've tried. */}
-      {currentStep.phase !== "feedback" &&
-       currentStep.phase !== "presenting" &&
-       currentStep.attempts.length > 0 &&
-       currentStep.last_verdict === "incorrect" && (
-        <div className="mn-actions">
-          <button
-            type="button"
-            className="mn-button mn-button--ghost"
-            data-testid="skip-question"
-            onClick={handleAdvance}
-          >跳過這題</button>
-        </div>
-      )}
+      <TeacherTurnPanel state={teacherState} onRetry={handleRetry} onHint={handleHint} onAdvance={handleAdvance} />
     </div>
   );
+}
+
+/** Browser session 僅保留呈現欄位；answer key 永遠留在 server。 */
+export function shapePublicSession(session: SessionState): SessionState {
+  return {
+    ...session,
+    steps: session.steps.map((step) => {
+      const { expected_answer: _answerKey, answer_key: _legacyKey, ...publicStep } = step as any;
+      return publicStep;
+    }),
+  } as SessionState;
 }

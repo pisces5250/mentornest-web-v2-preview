@@ -307,9 +307,18 @@ export async function endConversation(req, authContext = null) {
     memoryWrite = await learningMemoryWriter.appendObservation({
       subjectRef: sess.studentId,
       observation: {
-        ts: new Date(sess.endedAtMs).toISOString(),
-        kind: "english_conversation_session",
-        ...summary,
+        kind: "synthetic_english_conversation_session",
+        knowledge_point: summary.knowledge_point,
+        evidence: {
+          student_id_hash: summary.student_id_hash,
+          session_duration_sec: summary.session_duration_sec,
+          turn_count: summary.turn_count,
+          specialist_actions: summary.specialist_actions,
+          dominant_error_code: summary.dominant_error_code,
+          summary: summary.summary,
+        },
+        source: "tutor_server",
+        occurred_at: new Date(sess.endedAtMs).toISOString(),
       },
     });
   } catch {

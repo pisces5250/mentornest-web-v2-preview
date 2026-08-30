@@ -1,5 +1,13 @@
 # MentorNest Architecture Changelog
 
+## 2026-08-30 — Phase 6 AI Tutor learning loop staging candidate
+
+- 新增單一 authenticated／CSRF-protected `POST /api/tutor/turn`，由 Tutor server 掌握 verified question、answer key 與完整權責鏈。
+- 完成即時回答判斷、學科錯誤診斷、教學回饋、提示／再答／再練、Assessment observation、Learning Memory append、Learning Director 調整及 Verified Bank 下一題。
+- Browser 不再持有答案 key，也不能直連 Assessment、Learning Memory、Learning Director 或 Verified Bank authority routes。
+- Memory 寫入失敗、題目未 verified、缺少 answer key version、capability scope 不符時均 fail-closed；observed 與 inferred 不互相升格。
+- 新增孩子流程 browser gate 與 server/client contract regression。此版本仍是 feature branch staging candidate；實際 CI／immutable deployment evidence 完成前不宣告 Phase 6 staging runtime ready，更不代表 production ready。
+
 ## 2026-08-30 — P0.11 部分 staging runtime evidence
 
 - 新建獨立 Zeabur project `mentornest-p0-11-staging` 與 `staging` environment；未修改現有 production project、service、domain 或 secret。

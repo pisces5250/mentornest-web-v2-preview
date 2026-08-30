@@ -272,7 +272,7 @@ test("vertical: listening button never autoplays (aria-label + autoPlay flag in 
   }
 });
 
-test("vertical: transcript 透過 React state 傳遞，不依賴 one-shot window event", () => {
+test("vertical: transcript 直接送 Tutor turn，不依賴 browser 答案或 one-shot window event", () => {
   const renderer = readFileSync(
     resolve(__dirname, "../../../src/session/QuestionRenderer.tsx"),
     "utf8",
@@ -281,8 +281,8 @@ test("vertical: transcript 透過 React state 傳遞，不依賴 one-shot window
     resolve(__dirname, "../../../src/input/VoiceRecorder.tsx"),
     "utf8",
   );
-  assert.match(renderer, /transcript=\{submittedTranscript\}/);
-  assert.match(renderer, /setSubmittedTranscript\(transcript\)/);
+  assert.match(renderer, /answer:\s*transcript,\s*answer_kind:\s*"voice"/);
+  assert.doesNotMatch(renderer, /expectedText|expected_text/);
   assert.doesNotMatch(renderer, /mentornest:voice-transcript/);
   assert.doesNotMatch(recorder, /dispatchEvent\(/);
 });

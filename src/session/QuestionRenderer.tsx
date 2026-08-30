@@ -31,7 +31,6 @@ import { useCoarseViewport } from "../foundation/use_coarse_viewport.js";
 import { useKeypadVisibility } from "../foundation/use_keypad_visibility.js";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
-import { validateKeypadAnswer } from "../input/answer-validator.mjs";
 import { nextMathHint } from "../math-rendering/math_hint_ladder_v2.mjs";
 import {
   renderFractionBar,
@@ -42,16 +41,6 @@ import {
 import { OpenResponseComposer } from "../input/OpenResponseComposer";
 import { VoiceRecorder } from "../input/VoiceRecorder";
 import { TTSPlayer } from "../input/TTSPlayer";
-import { compareReading } from "../tutor/readingComparison";
-import {
-  evaluateReadingWithSpecialist,
-  type EnglishSpecialistClientResult,
-} from "../tutor/EnglishSpecialistClient";
-import type {
-  TutorEvaluation,
-  ReadingComparison,
-} from "../tutor/TutorEvaluationContract";
-import { TutorFeedbackCard, type TutorFeedbackState } from "../tutor/TutorFeedbackCard";
 import { ConversationTutor } from "../tutor/ConversationTutor";
 
 // View-layer KP ID → child-facing zh-TW phrase.
@@ -87,7 +76,6 @@ export interface SessionStep {
   representation_type: "text" | "fraction_bar" | "number_line" | "area_model" | "bar_model";
   stem: string;
   choices?: ReadonlyArray<string>;
-  expected_answer: string | number;
   difficulty: "easy" | "medium" | "hard";
   source: "verified" | "generated";
   license: string;
@@ -97,10 +85,7 @@ export interface QuestionRendererProps {
   step: SessionStep;
   ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
   studentId: string;
-  onSubmit: (args: {
-    verdict: "correct" | "incorrect" | "unverifiable";
-    error_type?: string | null;
-  }) => void;
+  onSubmit: (args: { answer: unknown; answer_kind: "choice" | "math" | "text" | "voice" }) => void;
   onHint: () => void;
   onRepresentationSwitch: (to: SessionStep["representation_type"]) => void;
   onRetry: () => void;
@@ -114,6 +99,7 @@ export interface QuestionRendererProps {
   lastVerdict: "correct" | "incorrect" | "unverifiable" | null;
   phase:
     | "presenting"
+    | "evaluating"
     | "hint_level_1"
     | "hint_level_2"
     | "hint_level_3"
@@ -365,16 +351,9 @@ function MultipleChoiceSubtree(props: {
 }) {
   const { step, spec, lastVerdict, phase, attemptsCount, hintsUsed, goalPhrase, onSubmit, onRetry, onHint } = props;
   const choices = step.choices ?? [];
-  const correctIndex = useMemo(() => {
-    if (typeof step.expected_answer === "number") return step.expected_answer;
-    const idx = choices.findIndex((c) => String(c) === String(step.expected_answer));
-    return idx >= 0 ? idx : 0;
-  }, [step.expected_answer, choices]);
   const [selected, setSelected] = useState<number | null>(null);
 
-  const mcAttempts = typeof attemptsCount === "number" ? attemptsCount : 0;
-  const hasAttempt = mcAttempts > 0;
-  const feedback = hasAttempt;
+  const feedback = phase === "feedback";
 
   useEffect(() => { setSelected(null); }, [step.step_id]);
 
@@ -382,9 +361,8 @@ function MultipleChoiceSubtree(props: {
 
   const handleSubmit = useCallback(() => {
     if (selected === null) return;
-    const verdict = selected === correctIndex ? "correct" : "incorrect";
-    onSubmit({ verdict, error_type: verdict === "incorrect" ? "wrong_choice" : null });
-  }, [selected, correctIndex, onSubmit]);
+    onSubmit({ answer: choices[selected], answer_kind: "choice" });
+  }, [selected, choices, onSubmit]);
 
   // Hint row content: empty when no hint yet, otherwise a feedback /
   // hint banner with the appropriate accent + mono label.
@@ -434,21 +412,12 @@ function MultipleChoiceSubtree(props: {
           const checked = selected === idx;
           const state = !feedback
             ? (checked ? "selected" : "default")
-            : (idx === correctIndex
-                ? "correct"
-                : (checked ? "incorrect" : "default"));
+            : (checked ? "selected" : "default");
 
           // State column content (always rendered so the row has a
           // consistent 3-column anatomy, even when empty).
-          let stateIcon: React.ReactNode = null;
           let stateLabel: string | null = null;
-          if (state === "correct") {
-            stateIcon = <CheckIcon />;
-            stateLabel = "正確";
-          } else if (state === "incorrect") {
-            stateIcon = <CrossIcon />;
-            stateLabel = "不對";
-          } else if (state === "selected") {
+          if (state === "selected") {
             stateLabel = "已選";
           }
 
@@ -489,7 +458,6 @@ function MultipleChoiceSubtree(props: {
                 <span className="mn-choice-key" aria-hidden="true">{String.fromCharCode(65 + idx)}</span>
                 <span className="mn-choice-text">{choice}</span>
                 <span className="mn-choice__state" aria-hidden="true">
-                  <span className="mn-choice__state-icon">{stateIcon}</span>
                   {stateLabel && <span className="mn-choice__state-label">{stateLabel}</span>}
                 </span>
               </button>
@@ -640,15 +608,12 @@ function InputSubtree(props: {
   }, [step.subject, step.knowledge_point, step.stem, step.representation_type, hintsUsed, studentId]);
 
   const handleSubmit = useCallback((value: KeypadValue) => {
-    const result = validateKeypadAnswer({
-      keypad_value: value,
-      expected: step.expected_answer,
-    }) as { verdict: "correct" | "incorrect" | "unverifiable" };
-    onSubmit({
-      verdict: result.verdict,
-      error_type: result.verdict === "incorrect" ? "wrong_value" : null,
-    });
-  }, [step.expected_answer, onSubmit]);
+    const answer = value.kind === "fraction" ? `${value.numerator}/${value.denominator}`
+      : value.kind === "integer" || value.kind === "decimal" ? value.n
+      : value.kind === "operator_expr" ? value.raw
+      : JSON.stringify(value);
+    onSubmit({ answer, answer_kind: "math" });
+  }, [onSubmit]);
 
   const hintActive = !!hintText || (submitted && lastVerdict === "incorrect" && !reveal) || (submitted && lastVerdict === "correct");
   const hintLabel =
@@ -844,21 +809,12 @@ function OpenResponseSubtree(props: {
   const [mode, setMode] = useState<"text" | "voice">(
     step.question_type === "voice_response" ? "voice" : "text"
   );
-  const [submittedTranscript, setSubmittedTranscript] = useState("");
 
   // Phase 6A — English Specialist (Layer B) feedback state.
   // For voice_response steps we run the deterministic reading
   // comparison inline (Layer A) and POST to the specialist (Layer B)
   // once the student submits. The card replaces the legacy
   // "已收到你的回答 / 老師會看你的回答" placeholder.
-  const isVoiceReadAloud =
-    step.question_type === "voice_response" &&
-    typeof step.expected_answer === "string" &&
-    !!step.expected_answer;
-  const expectedPassage =
-    isVoiceReadAloud && typeof step.expected_answer === "string"
-      ? step.expected_answer
-      : "";
 
   // Phase 6A — voice_response submit body (kept stable for
   // session-state / analytics). Includes a transient transcript
@@ -866,28 +822,19 @@ function OpenResponseSubtree(props: {
   // call the specialist when it sees the verdict.
   const handleTextSubmit = useCallback((text: string) => {
     onSubmit({
-      verdict: "unverifiable", // rubric interpretation deferred to specialist
-      error_type: null,
-      response_kind: "open_response_text",
-      response_length_chars: text.length,
-      response_text: text, // session input only; never persisted
+      answer: text,
+      answer_kind: "text",
     });
   }, [onSubmit]);
 
   const handleVoiceSubmit = useCallback((transcript: string) => {
-    setSubmittedTranscript(transcript);
     onSubmit({
-      verdict: "unverifiable",
-      error_type: null,
-      response_kind: "open_response_voice",
-      response_length_chars: transcript.length,
-      transcript: transcript, // session input only; never persisted
-      transcript_hash: null,
+      answer: transcript,
+      answer_kind: "voice",
     });
   }, [onSubmit]);
 
   const handleRetry = useCallback(() => {
-    setSubmittedTranscript("");
     onRetry();
   }, [onRetry]);
 
@@ -1015,17 +962,7 @@ function OpenResponseSubtree(props: {
         )}
 
         {submitted && step.question_type === "voice_response" && (
-          <EnglishSpecialistFeedback
-            stepId={step.step_id}
-            studentId={props.studentId}
-            ageBand={props.ageBand}
-            knowledgePoint={step.knowledge_point}
-            expectedText={expectedPassage}
-            transcript={submittedTranscript}
-            onReread={handleRetry}
-            onAdvance={onAdvance}
-            isVoiceReadAloud={isVoiceReadAloud}
-          />
+          <div className="mn-question-card__submitted" role="status"><CheckIcon /><span>已收到你的回答，老師正在看。</span></div>
         )}
       </div>
 
@@ -1051,132 +988,6 @@ function OpenResponseSubtree(props: {
         )}
       </div>
     </section>
-  );
-}
-
-// ─── Subtree: English Specialist feedback (voice read-aloud only) ────────
-//
-// Phase 6A — Layer A (deterministic, browser) + Layer B (server
-// English Specialist).  This subtree does the full feedback loop:
-//
-//   1. On mount, runs Layer A (readingComparison) over expected_text
-//      and the transcript passed through React state. Transcript is
-//      never persisted to browser storage or the session reducer.
-//
-//   2. While the specialist runs, show the evaluating placeholder.
-//
-//   3. On success, render TutorFeedbackCard with the result.
-//
-//   4. On error, show a child-friendly error + retry.
-//
-// We do NOT persist the transcript. We do NOT write to mastery. We
-// only render. The verdict stays "unverifiable" — the specialist's
-// output lives in component state, not in session-state.
-
-function EnglishSpecialistFeedback(props: {
-  stepId: string;
-  studentId: string;
-  ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
-  knowledgePoint: string;
-  expectedText: string;
-  transcript: string;
-  onReread: () => void;
-  onAdvance?: () => void;
-  isVoiceReadAloud: boolean;
-}) {
-  const {
-    stepId,
-    studentId,
-    ageBand,
-    knowledgePoint,
-    expectedText,
-    transcript,
-    onReread,
-    onAdvance,
-    isVoiceReadAloud,
-  } = props;
-
-  const [state, setState] = React.useState<TutorFeedbackState>({
-    kind: "evaluating",
-  });
-
-  React.useEffect(() => {
-    if (!isVoiceReadAloud) {
-      setState({
-        kind: "error",
-        message: "這一題不需要老師批改朗讀。",
-      });
-      return;
-    }
-    const transcriptConfidence = null;
-    // Run Layer A synchronously (no IO) and capture the comparison so
-    // we can attach it to the request payload.
-    const layerA: ReadingComparison = compareReading({
-      expected: expectedText,
-      transcript,
-      sttConfidence: transcriptConfidence,
-    });
-
-    let cancelled = false;
-    (async () => {
-      const result: EnglishSpecialistClientResult = await evaluateReadingWithSpecialist({
-        student_id: studentId,
-        knowledge_point: knowledgePoint,
-        age_band: ageBand,
-        expected_text: expectedText,
-        transcript,
-        transcript_confidence: transcriptConfidence,
-        reading_comparison: layerA,
-      });
-      if (cancelled) return;
-      if (result.ok) {
-        setState({ kind: "result", evaluation: result.evaluation });
-      } else {
-        setState({
-          kind: "error",
-          message: result.message,
-          onRetry: () => {
-            // Re-arm: re-run the specialist with the same transcript.
-            setState({ kind: "evaluating" });
-            (async () => {
-              const retry = await evaluateReadingWithSpecialist({
-                student_id: studentId,
-                knowledge_point: knowledgePoint,
-                age_band: ageBand,
-                expected_text: expectedText,
-                transcript,
-                transcript_confidence: transcriptConfidence,
-                reading_comparison: layerA,
-              });
-              if (cancelled) return;
-              if (retry.ok) setState({ kind: "result", evaluation: retry.evaluation });
-              else setState({ kind: "error", message: retry.message });
-            })();
-          },
-        });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [
-    isVoiceReadAloud,
-    expectedText,
-    studentId,
-    ageBand,
-    knowledgePoint,
-    transcript,
-  ]);
-
-  // No "advance" → wrap to a no-op so the button still feels pressable.
-  const safeAdvance = onAdvance ?? (() => undefined);
-
-  return (
-    <TutorFeedbackCard
-      state={state}
-      expectedText={expectedText}
-      onReread={onReread}
-      onAdvance={safeAdvance}
-      stepId={stepId}
-    />
   );
 }
 

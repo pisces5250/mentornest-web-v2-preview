@@ -66,15 +66,15 @@ test("vertical: 1-step — start to finish writes summary only", async () => {
   assert.equal(lines.length, 1);
 
   const r = JSON.parse(lines[0]);
-  assert.equal(r.kind, "english_conversation_session");
+  assert.equal(r.kind, "synthetic_english_conversation_session");
   assert.equal(r.knowledge_point, "english.G5.CONV.free-conversation");
-  assert.equal(r.turn_count, 3);
-  assert.equal(r.student_id_hash.length, 8);
+  assert.equal(r.evidence.turn_count, 3);
+  assert.equal(r.evidence.student_id_hash.length, 8);
   // No transcript.
   assert.ok(!("transcript" in r));
   assert.ok(!("audio" in r));
   // Summary text contains structural info but no transcript fragments.
-  assert.match(r.summary, /conversation session: 3 turns/);
+  assert.match(r.evidence.summary, /conversation session: 3 turns/);
   for (const frag of ["Hello teacher", "see a dog", "sunny today"]) {
     assert.ok(!JSON.stringify(r).includes(frag), `transcript leaked: ${frag}`);
   }
@@ -102,7 +102,7 @@ test("vertical: 2 sessions for 2 students do not mix", async () => {
   assert.equal(bLines.length, 1);
   const a = JSON.parse(aLines[0]);
   const b = JSON.parse(bLines[0]);
-  assert.notEqual(a.student_id_hash, b.student_id_hash);
+  assert.notEqual(a.evidence.student_id_hash, b.evidence.student_id_hash);
   assert.ok(!JSON.stringify(a).includes("BBB"));
   assert.ok(!JSON.stringify(b).includes("AAA"));
 });
@@ -125,9 +125,9 @@ test("vertical: ring buffer cap = 5", async () => {
   }
   await endConversation({ session_id: s.session.session_id });
   const r = JSON.parse(readFileSync(recordPath("student_test_ring_v"), "utf8").trim());
-  assert.equal(r.turn_count, 7); // full session turn count is NOT capped
+  assert.equal(r.evidence.turn_count, 7); // full session turn count is NOT capped
   // Summary text must contain only "7 turns"; older turns are gone.
-  assert.match(r.summary, /7 turns/);
+  assert.match(r.evidence.summary, /7 turns/);
 });
 
 test.after(() => {

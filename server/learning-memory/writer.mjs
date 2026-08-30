@@ -38,13 +38,13 @@ export function createTestFileLearningMemoryWriter({ root }) {
       if (typeof subjectRef !== "string" || !TEST_STUDENT_ID.test(subjectRef)) {
         return { accepted: false, code: "test_student_id_required" };
       }
-      if (!observation || observation.kind !== "english_conversation_session") {
+      if (!observation || observation.kind !== "synthetic_english_conversation_session") {
         return { accepted: false, code: "invalid_observation" };
       }
       if (observation.transcript != null || observation.audio != null) {
         return { accepted: false, code: "sensitive_payload_forbidden" };
       }
-      const studentHash = observation.student_id_hash;
+      const studentHash = observation.evidence?.student_id_hash;
       if (!/^[a-f0-9]{8}$/.test(studentHash || "")) {
         return { accepted: false, code: "invalid_student_hash" };
       }

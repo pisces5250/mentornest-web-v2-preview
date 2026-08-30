@@ -1,5 +1,5 @@
 version: "1.0"
-as_of: "2026-08-29"
+as_of: "2026-08-30"
 owner: system-orchestrator
 purpose: "MentorNest current-state overlay after Phase P0 registry reconciliation"
 
@@ -25,7 +25,7 @@ system_topology:
     repository: mentornest-web-v2
     status: production_topology_candidate_not_cut_over
     frontend: "React 18 + Vite + TypeScript; nginx 同源 edge 分流 Tutor、Voice、Learning API"
-    tutor_backend: "Node/Express candidate image；production auth 與正式 Memory adapter 尚待接入"
+    tutor_backend: "Node/Express staging candidate；單一 authenticated Tutor turn 已串接 Assessment、Learning Memory、Learning Director 與 Verified Bank"
     voice_backend: "獨立 deployment unit；本 repo 不把模型或 inference 塞入 Web image"
     learning_runtime: "OpenClaw learning/runtime backend；production gateway adapter 尚未接入"
 
@@ -47,6 +47,19 @@ capability_status:
       - production_ready_learning_memory_write
       - horizontally_scalable_session_storage
       - production_authentication
+  phase_6_ai_tutor_learning_loop:
+    status: implemented_local_evidence_staging_deployment_pending
+    evidence: architecture/phase-6-ai-tutor-learning-loop.md
+    guarantees:
+      - server_side_answer_judgement
+      - subject_diagnosis_with_observed_inferred_separation
+      - assessment_then_memory_then_director_order
+      - verified_bank_only_next_step
+      - browser_answer_key_exclusion
+    not_claimed:
+      - production_ready
+      - production_cutover
+      - restart_safe_durable_idempotency
   design_system:
     status: partially_implemented_production_acceptance_pending
   handwriting_and_vision_input:
@@ -54,11 +67,11 @@ capability_status:
 
 known_blockers:
   - production_backend_adapter_not_implemented
-  - production_authentication_and_session_not_implemented
-  - production_learning_memory_gateway_adapter_not_implemented
+  - production_authentication_and_session_acceptance_not_complete
+  - production_learning_memory_acceptance_not_complete
   - strict_typescript_gate_has_existing_debt
   - voice_service_image_and_runtime_evidence_live_outside_this_repository
-  - staging_and_cutover_evidence_not_available
+  - phase_6_staging_runtime_evidence_pending
 
 openclaw_dependencies:
   - agent_runtime_and_specialist_authority

@@ -11,7 +11,45 @@ const browser = await chromium.launch(executablePath
 try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
+  const tutorRequests = [];
+  await page.route("**/api/tutor/turn", async (route) => {
+    const request = route.request();
+    const input = request.postDataJSON();
+    tutorRequests.push(input);
+    const correct = input.response === "92";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        contract_version: "phase6.tutor-turn.v1",
+        trace_id: correct ? "trace_browser_correct" : "trace_browser_retry",
+        loop_completed: true,
+        judgement: { result: correct ? "correct" : "incorrect" },
+        diagnosis: correct
+          ? { error_code: null, evidence_status: "observed" }
+          : { error_code: "MATH-WRONG-CHOICE", evidence_status: "inferred" },
+        teaching: correct
+          ? { action: "advance", utterance: "答對了，你抓到這題的重點了。" }
+          : { action: "retry_same", utterance: "差一點。先找出題目真正要問的量，再試一次。" },
+        assessment_evidence: { observation_id: correct ? "obs_correct" : "obs_retry" },
+        memory_write: { accepted: true, event_id: correct ? "mem_correct" : "mem_retry" },
+        director_decision: { recommendations: [{ reason: "依觀察到的本次作答調整" }] },
+        next_step: correct ? {
+          id: "fixture_frac_g5_001",
+          subject: "math",
+          knowledge_point: "math.G5.FRAC.add-unlike-denom",
+          type: "fraction_input",
+          representation_type: "fraction_bar",
+          stem: "1/3 + 1/2 = ?",
+          difficulty: "medium",
+          source: "verified",
+          license: "CC0-1.0",
+        } : null,
+      }),
+    });
+  });
+  await page.goto(`${baseUrl}?qtype=multiple_choice`, { waitUntil: "networkidle" });
   await page.getByTestId("settings-gear").waitFor();
 
   // 直接掃描 Vite 實際掛載的 React DOM，不使用手工 HTML mirror。
@@ -52,9 +90,42 @@ try {
   await page.keyboard.press("Enter");
   await page.getByTestId("mn-session").waitFor();
 
+  // Phase 6 孩子流程：第一次答錯會收到老師診斷，可再答；答對後才前往下一題。
+  await page.getByTestId("choice-0").click();
+  await page.getByTestId("mc-submit").click();
+  const retryFeedback = page.getByTestId("teacher-turn-result");
+  await retryFeedback.waitFor();
+  assert.equal(await retryFeedback.getAttribute("data-verdict"), "incorrect");
+  await page.getByTestId("teacher-retry").click();
+  await page.getByTestId("choice-1").click();
+  await page.getByTestId("mc-submit").click();
+  const correctFeedback = page.getByTestId("teacher-turn-result");
+  await correctFeedback.waitFor();
+  assert.equal(await correctFeedback.getAttribute("data-verdict"), "correct");
+  assert.equal(await page.getByTestId("next-question").isVisible(), true);
+  assert.equal(tutorRequests.length, 2, "再答應形成兩筆 append-only response");
+  assert.notEqual(tutorRequests[0].response_id, tutorRequests[1].response_id);
+  assert.deepEqual(tutorRequests.map(({ response }) => response), ["82", "92"]);
+  assert.equal(tutorRequests.some((request) => "expected_answer" in request), false);
+
+  const phase6Axe = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  const phase6Blocking = phase6Axe.violations.filter(
+    (violation) => violation.impact === "critical" || violation.impact === "serious",
+  );
+  assert.deepEqual(phase6Blocking.map(({ id }) => id), [], "老師回饋畫面不得有嚴重可及性違規");
+
   process.stdout.write(`${JSON.stringify({
     axe: { criticalOrSerious: 0, totalViolations: axeResult.violations.length },
     keyboard: { settingsDialog: "通過", startSession: "通過" },
+    phase6TutorFlow: {
+      firstIncorrectDiagnosis: "通過",
+      retryThenCorrect: "通過",
+      appendOnlyResponses: tutorRequests.length,
+      browserAnswerKeyExposure: 0,
+      feedbackCriticalOrSeriousAxe: 0,
+    },
   })}\n`);
   await context.close();
 } finally {

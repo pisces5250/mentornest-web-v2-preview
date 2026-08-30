@@ -35,6 +35,7 @@ function resolveAcceptanceOverride(): { kp: string; stepId: string } | null {
   const qtype = params.get("qtype");
   if (!qtype) return null;
   const map: Record<string, { kp: string; stepId: string }> = {
+    multiple_choice: { kp: "math.G3.MULT.two-digit", stepId: "fixture_mc_g3_001" },
     open_response: { kp: "math.G5.FRAC.add-unlike-denom", stepId: "p5c2_open_text_g5_001" },
     voice_response: { kp: "math.G5.FRAC.add-unlike-denom", stepId: "p5c2_open_voice_g5_001" },
     english_voice: { kp: "english.G5.READ.passage-read-aloud", stepId: "p5c2_eng_read_g5_001" },

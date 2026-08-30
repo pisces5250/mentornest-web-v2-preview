@@ -32,8 +32,7 @@ export function createOpenClawGateway({
   if (!serviceAuthKey || serviceAuthKey.length < 32) throw new Error("OPENCLAW_SERVICE_AUTH_KEY 未設定或過短");
 
   function credential(subjectRef, capability) {
-    const scopes = ["service:invoke"];
-    if (capability === "assessment.submit_observation") scopes.push("assessment:submit_observation");
+    const scopes = ["service:invoke", `capability:${capability || "readiness"}`];
     return createServiceToken({ subjectRef, audience: "openclaw-learning", ttlSeconds: 60, scopes }, serviceAuthKey);
   }
 

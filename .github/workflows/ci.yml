@@ -56,7 +56,11 @@ jobs:
           ')"
           PROVIDER_ASSESSMENT_CREDENTIAL="$(node --input-type=module --eval '
             import { createServiceToken } from "./server/auth/session-auth.mjs";
-            process.stdout.write(createServiceToken({ subjectRef: "student_test_p09_ci", audience: "openclaw-learning", scopes: ["service:invoke", "assessment:submit_observation"] }, process.env.PROVIDER_TEST_AUTH_KEY));
+            process.stdout.write(createServiceToken({ subjectRef: "student_test_p09_ci", audience: "openclaw-learning", scopes: ["service:invoke", "capability:assessment.submit_observation"] }, process.env.PROVIDER_TEST_AUTH_KEY));
+          ')"
+          PROVIDER_MEMORY_CREDENTIAL="$(node --input-type=module --eval '
+            import { createServiceToken } from "./server/auth/session-auth.mjs";
+            process.stdout.write(createServiceToken({ subjectRef: "student_test_p09_ci", audience: "openclaw-learning", scopes: ["service:invoke", "capability:learning_memory.append_observation"] }, process.env.PROVIDER_TEST_AUTH_KEY));
           ')"
 
           docker run --detach --name mentornest-openclaw-provider-ci \
@@ -112,7 +116,7 @@ jobs:
 
           test "$(curl --silent --output /tmp/provider-invoke.json --write-out '%{http_code}' \
             --request POST \
-            --header "Authorization: Bearer ${PROVIDER_TEST_CREDENTIAL}" \
+            --header "Authorization: Bearer ${PROVIDER_MEMORY_CREDENTIAL}" \
             --header 'Content-Type: application/json' \
             --data '{"contract_version":"1","capability":"learning_memory.append_observation","subject_ref":"student_test_p09_ci","input":{"observation":{"kind":"synthetic_ci"}}}' \
             http://127.0.0.1:18789/v1/capabilities/invoke)" = 200

@@ -106,15 +106,25 @@ test("session: representation_switch updates representation_type and counts", ()
   assert.equal(s.steps[0].representation_switches, 1);
 });
 
-test("session: retry resets attempts but keeps hints_used", () => {
+test("session: retry 保留 append-only attempts 與 hints_used", () => {
   let s = sessionInitial({ student_id: "student_t_phase5c_001", steps: [fakeStep()] });
   s = sessionReduce(s, { type: "submit", verdict: STEP_VERDICT.INCORRECT });
   s = sessionReduce(s, { type: "hint" });
   assert.equal(s.steps[0].hints_used, 1);
   s = sessionReduce(s, { type: "retry" });
-  assert.equal(s.steps[0].attempts.length, 0);
+  assert.equal(s.steps[0].attempts.length, 1);
   assert.equal(s.steps[0].phase, STEP_PHASE.PRESENTING);
   assert.equal(s.steps[0].hints_used, 1); // hints_used is preserved
+});
+
+test("session: Tutor result 使用 Director 的安全 next step 取代預排題", () => {
+  let s = sessionInitial({ student_id: "student_t_phase6_director", steps: [fakeStep(), fakeStep({ step_id: "old" })] });
+  s = sessionReduce(s, { type: "submit", verdict: "correct", next_step: {
+    id: "directed_next", type: "fraction_input", knowledge_point: "math.G5.FRAC.simplify",
+    subject: "math", stem: "化簡 2/4", representation_type: "fraction_bar", difficulty: "medium", source: "verified", license: "CC0-1.0",
+  } });
+  assert.equal(s.steps[1].step_id, "directed_next");
+  assert.equal(s.steps[1].expected_answer, undefined);
 });
 
 test("session: advance moves to next step", () => {

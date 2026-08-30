@@ -1001,3 +1001,20 @@ p0_registry_reconciliation_20260829:
   web_v2: production_replacement_candidate_no_cutover
   retained_fallback: mentornest-web
   historical_status_rule: "Earlier `shipped` labels remain evidence of that batch, not a current production-readiness claim."
+
+phase_6_ai_tutor_learning_loop_20260830:
+  status: implemented_local_evidence_staging_runtime_pending
+  entrypoint: "POST /api/tutor/turn"
+  authority_sequence:
+    - verified_bank_read_exact_question
+    - objective_answer_judgement
+    - subject_specialist_diagnosis
+    - assessment_observation
+    - learning_memory_append
+    - learning_director_recommend
+    - verified_bank_next_question
+  browser_contract:
+    sends: [question_id, response_id, response, attempt_index, hints_used, occurred_at]
+    forbidden: [expected_answer, answer_key, rubric, credential]
+  evidence: "architecture/phase-6-ai-tutor-learning-loop.md"
+  not_claimed: [production_ready, production_cutover, restart_safe_durable_idempotency]

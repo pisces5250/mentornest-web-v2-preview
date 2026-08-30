@@ -39,6 +39,7 @@ import {
   createUnavailableGateway,
 } from './gateway/openclaw-gateway.mjs';
 import { registerGatewayRoutes } from './gateway/routes.mjs';
+import { createTutorTurnOrchestrator, TutorTurnError } from './tutor/turn-orchestrator.mjs';
 
 // === Configuration ===
 const PORT = process.env.PORT || 8787;
@@ -92,6 +93,7 @@ const gateway = process.env.OPENCLAW_GATEWAY_ORIGIN
       requireProductionDataIsolation: process.env.MENTORNEST_ENV === 'staging',
     })
   : createUnavailableGateway();
+const tutorTurnOrchestrator = createTutorTurnOrchestrator({ gateway });
 
 await fs.mkdir(AUDIO_TMP, { recursive: true });
 
@@ -519,6 +521,23 @@ registerGatewayRoutes(app, {
   auth: browserAuth,
   csrf: csrfProtection,
   requireScope,
+});
+
+app.post('/api/tutor/turn', browserAuth, csrfProtection, requireScope('tutor:use'), async (req, res) => {
+  try {
+    const result = await tutorTurnOrchestrator.submit(req.body ?? {}, {
+      subjectRef: req.auth.subjectRef,
+    });
+    return res.json(result);
+  } catch (error) {
+    const status = error instanceof TutorTurnError ? error.status : 502;
+    const code = error instanceof TutorTurnError ? error.code : 'learning_loop_unavailable';
+    return res.status(status).json({
+      ok: false,
+      code,
+      message: '老師暫時無法完成這次學習記錄，請稍後再試。',
+    });
+  }
 });
 
 app.post('/api/tutor/english-conversation/start', browserAuth, csrfProtection, requireScope('tutor:use'), (req, res) => {

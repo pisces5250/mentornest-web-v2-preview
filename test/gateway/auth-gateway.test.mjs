@@ -9,6 +9,7 @@ import {
   verifySessionToken,
 } from "../../server/auth/session-auth.mjs";
 import { createOpenClawGateway, GatewayError } from "../../server/gateway/openclaw-gateway.mjs";
+import { registerGatewayRoutes } from "../../server/gateway/routes.mjs";
 
 const SECRET = "test-only-secret-with-at-least-32-characters";
 
@@ -20,6 +21,14 @@ function responseRecorder() {
     json(body) { this.body = body; return this; },
   };
 }
+
+test("Browser 不註冊 Learning authority direct routes", () => {
+  let registered = 0;
+  const app = { post() { registered += 1; } };
+  const result = registerGatewayRoutes(app, {});
+  assert.equal(registered, 0);
+  assert.equal(result.browser_authority_routes, false);
+});
 
 test("session token 綁定 issuer、audience、版本與期限", () => {
   const token = createSessionToken({
@@ -122,7 +131,7 @@ test("Gateway allowlist、server token 與最小 subject contract", async () => 
   );
 });
 
-test("Gateway只為Assessment invocation簽發capability-specific scope", async () => {
+test("Gateway為每個 invocation 簽發 capability-specific scope", async () => {
   let captured;
   const gateway = createOpenClawGateway({
     baseUrl: "http://openclaw.test",
@@ -136,7 +145,8 @@ test("Gateway只為Assessment invocation簽發capability-specific scope", async 
   const token = captured.headers.Authorization.slice("Bearer ".length);
   const claims = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
   assert.ok(claims.scopes.includes("service:invoke"));
-  assert.ok(claims.scopes.includes("assessment:submit_observation"));
+  assert.ok(claims.scopes.includes("capability:assessment.submit_observation"));
+  assert.equal(claims.scopes.includes("capability:learning_memory.append_observation"), false);
 });
 
 test("Gateway 不向 caller 洩漏 upstream body", async () => {

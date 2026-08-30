@@ -332,8 +332,17 @@ phases:
         scope: "What was studied, KP/curriculum alignment, mastery/evidence change, first-attempt correctness, hint usage, error patterns, strengths, areas needing review, recommended next learning action.  License provenance out of child UI; parent/admin may see when relevant.  Read-only — must not modify mastery."
 
   phase_6:
-    name: "Advanced interaction"
-    status: partially_implemented_candidate_not_production_ready
+    name: "AI Tutor Product Development"
+    status: active_staging_candidate_not_production_ready
+    ai_tutor_learning_loop_20260830:
+      status: implemented_local_evidence_staging_runtime_pending
+      delivered:
+        - "server-side 即時回答判斷與學科診斷"
+        - "孩子可理解的教學回饋、提示、再答／再練與下一題動作"
+        - "Assessment observed evidence → Learning Memory append → Learning Director session adjustment"
+        - "Verified Bank 下一題與 browser answer-key exclusion"
+      evidence: "architecture/phase-6-ai-tutor-learning-loop.md"
+      hard_boundary: "STAGING READY 不等於 production ready；未授權 production cutover"
     reconciliation_20260829:
       phase_6a:
         status: implemented_with_reproducible_tests_production_integration_pending

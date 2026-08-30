@@ -36,6 +36,7 @@ export const STEP_VERDICT = Object.freeze({
 
 export const STEP_PHASE = Object.freeze({
   PRESENTING: "presenting",        // question shown, awaiting answer
+  EVALUATING: "evaluating",        // 等候 Tutor 的權威判斷
   HINT_LEVEL_1: "hint_level_1",    // conceptual nudge
   HINT_LEVEL_2: "hint_level_2",    // visual representation
   HINT_LEVEL_3: "hint_level_3",    // intermediate structure
@@ -103,7 +104,6 @@ export function shouldAdvance({ phase, verdict }) {
  *     representation_type: "text" | "fraction_bar" | "number_line" | "area_model",
  *     stem: string,
  *     choices?: string[],
- *     expected_answer: string | number,
  *     difficulty: "easy" | "medium" | "hard",
  *     source: "verified" | "generated",
  *     license: string,            // for parent/admin view ONLY; never surface to child
@@ -145,6 +145,9 @@ function updateCurrentStep(state, mutator) {
 export function sessionReduce(state, action) {
   if (!state) return state;
   switch (action.type) {
+    case "evaluating": {
+      return updateCurrentStep(state, (s) => ({ ...s, phase: STEP_PHASE.EVALUATING }));
+    }
     case "submit": {
       // Record an attempt; advance phase via adaptive policy.
       const idx = state.current_index;
@@ -156,16 +159,31 @@ export function sessionReduce(state, action) {
         if (step.hints_used === 1) return STEP_PHASE.HINT_LEVEL_2;
         return STEP_PHASE.HINT_LEVEL_1;
       })();
-      return updateCurrentStep(state, (s) => ({
+      const recorded = updateCurrentStep(state, (s) => ({
         ...s,
         attempts: [...s.attempts, {
           verdict: action.verdict,
           error_type: action.error_type ?? null,
+          assessment_evidence_id: action.assessment_evidence_id ?? null,
+          learning_memory_receipt_id: action.learning_memory_receipt_id ?? null,
           submitted_at: new Date().toISOString(),
         }],
         last_verdict: action.verdict,
         phase: nextPhase,
       }));
+      if (!action.next_step || typeof action.next_step !== "object") return recorded;
+      const raw = action.next_step;
+      const nextStep = {
+        ...raw,
+        step_id: raw.step_id || raw.id,
+        question_type: raw.question_type || raw.type,
+        attempts: [], hints_used: 0, representation_switches: 0,
+        last_verdict: null, phase: STEP_PHASE.PRESENTING,
+      };
+      if (!nextStep.step_id || !nextStep.question_type) return recorded;
+      const steps = recorded.steps.slice(0, idx + 1);
+      steps.push(nextStep);
+      return { ...recorded, steps };
     }
     case "hint": {
       return updateCurrentStep(state, (s) => ({
@@ -183,11 +201,9 @@ export function sessionReduce(state, action) {
       }));
     }
     case "retry": {
-      // Reset the current step's attempts (used when student says "再試一次").
-      // Keep hints_used as recorded — those still happened.
+      // 再答只重設輸入狀態；既有嘗試是 Assessment evidence，不可刪除。
       return updateCurrentStep(state, (s) => ({
         ...s,
-        attempts: [],
         last_verdict: null,
         phase: STEP_PHASE.PRESENTING,
       }));

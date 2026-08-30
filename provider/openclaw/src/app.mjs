@@ -42,6 +42,7 @@ export function createProviderServer(config, dependencies = {}) {
         if (body?.contract_version !== config.contractVersion) throw requestError("contract_version_mismatch", 409);
         if (typeof body?.subject_ref !== "string") throw requestError("subject_context_required", 400);
         if (body.subject_ref !== claims.subject_ref) throw requestError("subject_context_mismatch", 403);
+        if (!claims.scopes.includes(`capability:${body.capability}`)) throw requestError("insufficient_scope", 403);
         const result = await registry.invoke(body.capability, { subjectRef: body.subject_ref, input: body.input, claims });
         return respond(res, 200, { ok: true, contract_version: config.contractVersion, result });
       } catch (error) {

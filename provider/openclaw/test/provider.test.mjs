@@ -109,10 +109,14 @@ test("錯誤credential、contract mismatch、unknown及Assessment缺scope皆拒�
   })).status, 409);
   assert.equal((await request(runtime.baseUrl, "/v1/capabilities/invoke", {
     token: credential({ subjectRef: "student_test_p09" }), method: "POST", body: { ...base, capability: "not.registered" },
-  })).status, 404);
+  })).status, 403);
   assert.equal((await request(runtime.baseUrl, "/v1/capabilities/invoke", {
     token: credential({ subjectRef: "student_test_p09" }), method: "POST",
     body: { ...base, capability: "assessment.submit_observation", input: assessmentInput },
+  })).status, 403);
+  assert.equal((await request(runtime.baseUrl, "/v1/capabilities/invoke", {
+    token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", "capability:verified_bank.read"] }), method: "POST",
+    body: { ...base, capability: "learning_memory.append_observation", input: { observation: { kind: "synthetic_attempt" } } },
   })).status, 403);
 });
 
@@ -123,7 +127,7 @@ test("Assessment observation是verified-only、deterministic且不寫mastery", a
   t.after(() => runtime.server.close());
   const token = credential({
     subjectRef: "student_test_p010",
-    scopes: ["service:invoke", "assessment:submit_observation"],
+    scopes: ["service:invoke", "capability:assessment.submit_observation"],
   });
   const invoke = (input) => request(runtime.baseUrl, "/v1/capabilities/invoke", {
     token, method: "POST", body: {
@@ -146,7 +150,7 @@ test("Assessment observation是verified-only、deterministic且不寫mastery", a
   assert.deepEqual(await fs.readdir(root), []);
 });
 
-test("Learning Director adapter只接受confirmed mastery，Verified Bank只讀verified staging資料", async (t) => {
+test("Learning Director分離confirmed mastery與observed attempt，Verified Bank只讀verified staging資料", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mentornest-provider-adapters-p09-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const config = loadConfig(environment({ MENTORNEST_DATA_ROOT: root }));
@@ -162,7 +166,7 @@ test("Learning Director adapter只接受confirmed mastery，Verified Bank只讀v
   const runtime = await start(config);
   t.after(() => runtime.server.close());
   const invoke = (capability, input) => request(runtime.baseUrl, "/v1/capabilities/invoke", {
-    token: credential({ subjectRef: "student_test_p09" }), method: "POST",
+    token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", `capability:${capability}`] }), method: "POST",
     body: { contract_version: "1", capability, subject_ref: "student_test_p09", input },
   });
 
@@ -172,6 +176,25 @@ test("Learning Director adapter只接受confirmed mastery，Verified Bank只讀v
   ] });
   assert.equal(director.status, 200);
   assert.equal((await director.json()).result.recommendations[0].knowledge_point, "fake-low");
+  const adapted = await invoke("learning_director.recommend", {
+    confirmed_mastery: [
+      { subject: "chinese", knowledge_point: "fake-high", mastery: 0.8, evidence_status: "confirmed" },
+    ],
+    recent_observations: [
+      { evidence_status: "observed", subject: "math", knowledge_point: "fake-kp", result: "incorrect", error_code: "MATH-WRONG-VALUE", hints_used: 1 },
+    ],
+  });
+  assert.equal(adapted.status, 200);
+  const adaptedBody = await adapted.json();
+  assert.equal(adaptedBody.result.recommendations[0].knowledge_point, "fake-kp");
+  assert.equal(adaptedBody.result.evidence_basis, "confirmed_plus_observed_separated");
+  const confirmation = await invoke("learning_director.recommend", {
+    confirmed_mastery: [],
+    recent_observations: [
+      { evidence_status: "observed", subject: "math", knowledge_point: "fake-kp", result: "correct", error_code: null, hints_used: 0 },
+    ],
+  });
+  assert.equal((await confirmation.json()).result.evidence_basis, "observed_only_no_mastery_promotion");
   assert.equal((await invoke("learning_director.recommend", { confirmed_mastery: [
     { subject: "math", knowledge_point: "fake", mastery: 0.2, evidence_status: "inferred" },
   ] })).status, 400);
@@ -180,6 +203,8 @@ test("Learning Director adapter只接受confirmed mastery，Verified Bank只讀v
   const bankBody = await bank.json();
   assert.equal(bank.status, 200);
   assert.deepEqual(bankBody.result.questions.map((item) => item.id), ["q.synthetic.verified"]);
+  const exact = await invoke("verified_bank.read", { question_id: "q.synthetic.verified", limit: 1 });
+  assert.equal((await exact.json()).result.questions[0].id, "q.synthetic.verified");
 });
 
 test("Learning Memory writer只接受synthetic subject並寫入隔離namespace", async (t) => {
@@ -189,7 +214,7 @@ test("Learning Memory writer只接受synthetic subject並寫入隔離namespace",
   t.after(() => runtime.server.close());
 
   const invoke = (subjectRef) => request(runtime.baseUrl, "/v1/capabilities/invoke", {
-    token: credential({ subjectRef }),
+    token: credential({ subjectRef, scopes: ["service:invoke", "capability:learning_memory.append_observation"] }),
     method: "POST",
     body: {
       contract_version: "1",
@@ -208,7 +233,7 @@ test("Learning Memory writer只接受synthetic subject並寫入隔離namespace",
   assert.equal(records[0].observation.mastery_candidate_kps[0], "fake-kp");
 
   const rejected = await request(runtime.baseUrl, "/v1/capabilities/invoke", {
-    token: credential({ subjectRef: "student_test_p09" }),
+    token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", "capability:learning_memory.append_observation"] }),
     method: "POST",
     body: {
       contract_version: "1",
@@ -230,7 +255,7 @@ test("staging namespace symlink不得逃逸data root", async (t) => {
   const runtime = await start(loadConfig(environment({ MENTORNEST_DATA_ROOT: root })));
   t.after(() => runtime.server.close());
   const response = await request(runtime.baseUrl, "/v1/capabilities/invoke", {
-    token: credential({ subjectRef: "student_test_p09" }), method: "POST",
+    token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", "capability:learning_memory.append_observation"] }), method: "POST",
     body: {
       contract_version: "1", capability: "learning_memory.append_observation",
       subject_ref: "student_test_p09", input: { observation: { kind: "synthetic_escape" } },

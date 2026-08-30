@@ -7,6 +7,8 @@ export interface SessionAttempt {
   verdict: StepVerdict;
   error_type: string | null;
   submitted_at: string;
+  assessment_evidence_id?: string | null;
+  learning_memory_receipt_id?: string | null;
 }
 
 export interface SessionRuntimeStep extends SessionStep {
@@ -14,7 +16,7 @@ export interface SessionRuntimeStep extends SessionStep {
   hints_used: number;
   representation_switches: number;
   last_verdict: StepVerdict | null;
-  phase: "presenting" | "hint_level_1" | "hint_level_2" | "hint_level_3" | "feedback" | "completed";
+  phase: "presenting" | "evaluating" | "hint_level_1" | "hint_level_2" | "hint_level_3" | "feedback" | "completed";
 }
 
 export interface SessionSummary {

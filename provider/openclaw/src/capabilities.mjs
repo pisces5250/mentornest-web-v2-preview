@@ -30,10 +30,7 @@ export function createCapabilityRegistry(config, {
       status: "available",
       implementation: "native",
       authority: "assessment_observer",
-      invoke: async ({ input, claims }) => {
-        if (!claims.scopes.includes("assessment:submit_observation")) throw capabilityError("insufficient_scope", 403);
-        return assessObservation(input);
-      },
+      invoke: async ({ input }) => assessObservation(input),
     }],
     ["learning_memory.append_observation", {
       status: "available",
@@ -124,9 +121,33 @@ function recommendFromConfirmedMastery(input) {
     }
     return { subject: row.subject, knowledge_point: row.knowledge_point, mastery: row.mastery };
   });
+  const recent = normalizeRecentObservations(input.recent_observations);
   rows.sort((a, b) => a.mastery - b.mastery
     || a.subject.localeCompare(b.subject)
     || a.knowledge_point.localeCompare(b.knowledge_point));
+  const needsPractice = recent.filter((row) => row.result !== "correct");
+  if (needsPractice.length > 0) {
+    return {
+      recommendations: needsPractice.slice(0, 3).map((row) => ({
+        subject: row.subject,
+        knowledge_point: row.knowledge_point,
+        reason: "recent_observed_practice",
+      })),
+      evidence_basis: "confirmed_plus_observed_separated",
+      authority: "learning_director_read_only",
+    };
+  }
+  if (recent.length > 0 && rows.length === 0) {
+    return {
+      recommendations: recent.slice(0, 3).map((row) => ({
+        subject: row.subject,
+        knowledge_point: row.knowledge_point,
+        reason: "recent_observed_confirmation",
+      })),
+      evidence_basis: "observed_only_no_mastery_promotion",
+      authority: "learning_director_read_only",
+    };
+  }
   return {
     recommendations: rows.slice(0, 3).map((row) => ({
       subject: row.subject,
@@ -138,8 +159,29 @@ function recommendFromConfirmedMastery(input) {
   };
 }
 
+function normalizeRecentObservations(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 20) throw capabilityError("invalid_recent_observations", 400);
+  return value.map((row) => {
+    if (!row || row.evidence_status !== "observed"
+      || typeof row.subject !== "string" || typeof row.knowledge_point !== "string"
+      || !["correct", "incorrect", "partially_correct"].includes(row.result)
+      || !Number.isInteger(row.hints_used) || row.hints_used < 0 || row.hints_used > 5
+      || (row.error_code !== null && row.error_code !== undefined && typeof row.error_code !== "string")) {
+      throw capabilityError("invalid_recent_observations", 400);
+    }
+    return {
+      subject: row.subject,
+      knowledge_point: row.knowledge_point,
+      result: row.result,
+      error_code: row.error_code ?? null,
+      hints_used: row.hints_used,
+    };
+  });
+}
+
 async function readVerifiedQuestions(dataRoot, root, input = {}, { readdir, readFile, realpath }) {
-  const allowed = new Set(["subject", "grade", "knowledge_point", "difficulty", "type", "limit"]);
+  const allowed = new Set(["question_id", "subject", "grade", "knowledge_point", "difficulty", "type", "limit"]);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw capabilityError("invalid_verified_query", 400);
   if (Object.keys(input).some((key) => !allowed.has(key))) throw capabilityError("verified_query_field_not_allowed", 400);
   const limit = input.limit === undefined ? 20 : input.limit;
@@ -176,6 +218,7 @@ async function assertContainedDirectory(root, directory, realpath) {
 
 function matchesVerifiedQuery(question, query) {
   if (!question || question.verification_status !== "verified") return false;
+  if (query.question_id !== undefined && question.id !== query.question_id) return false;
   for (const field of ["subject", "grade", "knowledge_point", "difficulty", "type"]) {
     if (query[field] !== undefined && question[field] !== query[field]) return false;
   }

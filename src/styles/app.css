@@ -159,6 +159,24 @@ a { color: inherit; }
   border-radius: var(--mn-qg-radius);
 }
 
+/* Phase 6：Tutor 判斷期間鎖住題目，避免重複送出；狀態由相鄰 live region 宣告。 */
+.mn-session[data-evaluating="true"] .mn-question-card {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.mn-teacher-turn {
+  margin-top: var(--mn-space-4, 16px);
+  padding: var(--mn-space-4, 16px);
+  border-inline-start: 4px solid var(--mn-qg-moss);
+  background: var(--mn-qg-surface, #fff);
+}
+
+.mn-teacher-turn h2 { margin-block: 0 8px; }
+.mn-teacher-turn p { max-width: 68ch; }
+.mn-teacher-turn__actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.mn-teacher-turn--error { border-inline-start-color: var(--mn-qg-amber); }
+
 /* ─── Grid background (decorative, behind content) ────────────────────── */
 
 .mn-grid-background {

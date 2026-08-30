@@ -22,7 +22,7 @@ test("測試 writer 拒絕 production ID 與 /tmp 外路徑", async () => {
   const writer = createTestFileLearningMemoryWriter({ root });
   const result = await writer.appendObservation({
     subjectRef: "student_001",
-    observation: { kind: "english_conversation_session", student_id_hash: "1234abcd" },
+    observation: { kind: "synthetic_english_conversation_session", evidence: { student_id_hash: "1234abcd" } },
   });
   assert.equal(result.accepted, false);
   assert.equal(result.code, "test_student_id_required");
@@ -33,10 +33,9 @@ test("測試 writer 只以 hash 建檔，且加入 immutable event metadata", as
   const root = await mkdtemp("/tmp/mentornest-memory-boundary-");
   const writer = createTestFileLearningMemoryWriter({ root });
   const observation = {
-    kind: "english_conversation_session",
-    student_id_hash: "1234abcd",
+    kind: "synthetic_english_conversation_session",
+    evidence: { student_id_hash: "1234abcd", turn_count: 2 },
     transcript: undefined,
-    turn_count: 2,
   };
   const result = await writer.appendObservation({
     subjectRef: "student_test_boundary",

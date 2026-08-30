@@ -13,7 +13,7 @@ export function assessObservation(input) {
   if (!ASSESSMENT_KINDS.has(input.assessment_kind)) fail("invalid_assessment_kind");
   if (!safeId(input.subject) || !safeId(input.knowledge_point)) fail("invalid_assessment_target");
   if (input.subskill !== undefined && !safeId(input.subskill)) fail("invalid_assessment_target");
-  if (input.error_code !== undefined && !safeId(input.error_code)) fail("invalid_error_code");
+  if (input.error_code !== undefined && input.error_code !== null && !safeId(input.error_code)) fail("invalid_error_code");
   assertObject(input.instrument, "verified_instrument_required");
   assertAllowedKeys(input.instrument, new Set(["question_id", "verification_status", "answer_key_version"]));
   if (!safeId(input.instrument.question_id) || input.instrument.verification_status !== "verified"

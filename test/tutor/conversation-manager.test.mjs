@@ -111,13 +111,13 @@ test("end: appends exactly ONE summary record (no transcript / no audio)", async
   assert.ok(existsSync(p), "summary file not written");
   const lines = readFileSync(p, "utf8").trim().split("\n");
   const record = JSON.parse(lines[lines.length - 1]);
-  assert.equal(record.kind, "english_conversation_session");
+  assert.equal(record.kind, "synthetic_english_conversation_session");
   // No transcript text in record.
   assert.ok(!("transcript" in record));
   assert.ok(!("audio" in record));
   // student_id is hashed.
-  assert.equal(record.student_id_hash.length, 8);
-  assert.notEqual(record.student_id_hash, "student_test_phase6b");
+  assert.equal(record.evidence.student_id_hash.length, 8);
+  assert.notEqual(record.evidence.student_id_hash, "student_test_phase6b");
   // No raw transcript leaked.
   assert.ok(!JSON.stringify(record).includes("Hello there"));
   assert.ok(!JSON.stringify(record).includes("I see a dog"));
