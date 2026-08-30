@@ -17,7 +17,8 @@
     "verify:full": "npm run typecheck && npm run verify && npm run test:browser",
     "preview": "vite preview",
     "test": "node --test $(find test -name '*.test.mjs' -type f | sort)",
-    "test:browser": "npm run build && node test/a11y/run-react-browser-gate.mjs"
+    "test:browser": "npm run build && node test/a11y/run-react-browser-gate.mjs",
+    "test:staging-runtime": "node test/staging/runtime-evidence-smoke.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",

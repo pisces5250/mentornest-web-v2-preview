@@ -75,6 +75,11 @@ const csrfProtection = createCsrfProtection({
   mode: AUTH_MODE,
   sessionSecret: SESSION_SECRET,
 });
+const edgeCsrfProtection = createCsrfProtection({
+  mode: AUTH_MODE,
+  sessionSecret: SESSION_SECRET,
+  methodResolver: (req) => req.header('X-Original-Method') || 'GET',
+});
 const gateway = process.env.OPENCLAW_GATEWAY_ORIGIN
   ? createOpenClawGateway({
       baseUrl: process.env.OPENCLAW_GATEWAY_ORIGIN,
@@ -159,7 +164,7 @@ app.get('/api/ready', async (_req, res) => {
 });
 
 // 僅供 edge auth_request；不回傳 subject，僅核發短效 audience-bound service credential。
-app.get('/api/auth/session/verify', browserAuth, (req, res) => {
+app.get('/api/auth/session/verify', browserAuth, edgeCsrfProtection, (req, res) => {
   const audience = (req.header('X-Original-URI') || '').startsWith('/api/stt') ||
     (req.header('X-Original-URI') || '').startsWith('/api/tts') ||
     (req.header('X-Original-URI') || '').startsWith('/api/audio')

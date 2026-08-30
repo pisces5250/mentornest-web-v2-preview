@@ -70,6 +70,33 @@ test("CSRF 缺失時 fail-closed", () => {
   assert.equal(res.body.code, "csrf_rejected");
 });
 
+test("edge auth_request 依原始 mutation method 執行 CSRF，不因 subrequest GET 繞過", () => {
+  const middleware = createCsrfProtection({
+    mode: "test",
+    sessionSecret: SECRET,
+    methodResolver: (req) => req.header("X-Original-Method") || "GET",
+  });
+  const rejected = {
+    method: "GET",
+    header(name) { return name === "X-Original-Method" ? "POST" : undefined; },
+  };
+  const rejectedResponse = responseRecorder();
+  middleware(rejected, rejectedResponse, () => assert.fail("原始 POST 不得以 auth subrequest GET 繞過 CSRF"));
+  assert.equal(rejectedResponse.statusCode, 403);
+
+  const accepted = {
+    method: "GET",
+    header(name) {
+      if (name === "X-Original-Method") return "POST";
+      if (name === "X-MentorNest-CSRF") return "test-csrf";
+      return undefined;
+    },
+  };
+  let passed = false;
+  middleware(accepted, responseRecorder(), () => { passed = true; });
+  assert.equal(passed, true);
+});
+
 test("Gateway allowlist、server token 與最小 subject contract", async () => {
   let captured;
   const gateway = createOpenClawGateway({

@@ -1,0 +1,53 @@
+services:
+  web-edge:
+    image: ${WEB_EDGE_IMAGE:?P0.7 必須指定已驗證的 Web immutable image}
+
+  tutor-backend:
+    image: ${TUTOR_BACKEND_IMAGE:?P0.7 必須指定已驗證的 Tutor immutable image}
+
+  tutor-invalid-runtime-credential:
+    image: ${TUTOR_BACKEND_IMAGE:?P0.7 必須指定已驗證的 Tutor immutable image}
+    environment:
+      MENTORNEST_ENV: staging
+      PORT: "8787"
+      MENTORNEST_AUTH_MODE: production
+      MENTORNEST_GATEWAY_SESSION_SECRET: ${MENTORNEST_GATEWAY_SESSION_SECRET}
+      MENTORNEST_SERVICE_AUTH_KEY: ${MENTORNEST_SERVICE_AUTH_KEY}
+      OPENCLAW_GATEWAY_ORIGIN: http://openclaw-learning:18789
+      OPENCLAW_GATEWAY_TOKEN: p07-deliberately-invalid-runtime-credential
+      OPENCLAW_EXPECTED_RUNTIME_VERSION: ${OPENCLAW_RUNTIME_VERSION}
+      OPENCLAW_EXPECTED_IMAGE_DIGEST: ${OPENCLAW_LEARNING_IMAGE}
+      OPENCLAW_EXPECTED_DATA_NAMESPACE: ${STAGING_DATA_NAMESPACE}
+    networks: [private]
+
+  tutor-contract-mismatch:
+    image: ${TUTOR_BACKEND_IMAGE:?P0.7 必須指定已驗證的 Tutor immutable image}
+    environment:
+      MENTORNEST_ENV: staging
+      PORT: "8787"
+      MENTORNEST_AUTH_MODE: production
+      MENTORNEST_GATEWAY_SESSION_SECRET: ${MENTORNEST_GATEWAY_SESSION_SECRET}
+      MENTORNEST_SERVICE_AUTH_KEY: ${MENTORNEST_SERVICE_AUTH_KEY}
+      OPENCLAW_GATEWAY_ORIGIN: http://openclaw-learning:18789
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_CAPABILITY_CONTRACT_VERSION: p07-deliberate-mismatch
+      OPENCLAW_EXPECTED_RUNTIME_VERSION: ${OPENCLAW_RUNTIME_VERSION}
+      OPENCLAW_EXPECTED_IMAGE_DIGEST: ${OPENCLAW_LEARNING_IMAGE}
+      OPENCLAW_EXPECTED_DATA_NAMESPACE: ${STAGING_DATA_NAMESPACE}
+    networks: [private]
+
+  tutor-missing-capability:
+    image: ${TUTOR_BACKEND_IMAGE:?P0.7 必須指定已驗證的 Tutor immutable image}
+    environment:
+      MENTORNEST_ENV: staging
+      PORT: "8787"
+      MENTORNEST_AUTH_MODE: production
+      MENTORNEST_GATEWAY_SESSION_SECRET: ${MENTORNEST_GATEWAY_SESSION_SECRET}
+      MENTORNEST_SERVICE_AUTH_KEY: ${MENTORNEST_SERVICE_AUTH_KEY}
+      OPENCLAW_GATEWAY_ORIGIN: http://openclaw-learning:18789
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_REQUIRED_CAPABILITIES: learning_director,assessment,learning_memory,verified_bank_read,p07.synthetic.missing
+      OPENCLAW_EXPECTED_RUNTIME_VERSION: ${OPENCLAW_RUNTIME_VERSION}
+      OPENCLAW_EXPECTED_IMAGE_DIGEST: ${OPENCLAW_LEARNING_IMAGE}
+      OPENCLAW_EXPECTED_DATA_NAMESPACE: ${STAGING_DATA_NAMESPACE}
+    networks: [private]

@@ -108,9 +108,10 @@ export function requireScope(scope) {
   };
 }
 
-export function createCsrfProtection({ mode, sessionSecret }) {
+export function createCsrfProtection({ mode, sessionSecret, methodResolver = (req) => req.method }) {
   return function csrf(req, res, next) {
-    if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next();
+    const method = methodResolver(req);
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) return next();
     if (mode === "test") {
       if (req.header("X-MentorNest-CSRF") === "test-csrf") return next();
     } else {

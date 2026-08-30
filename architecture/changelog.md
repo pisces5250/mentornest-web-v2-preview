@@ -1816,3 +1816,15 @@ Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PA
 - 本機 `verify:full` 通過：314/314 tests、strict typecheck、build、實際 Chrome、rendered axe 0 violations、keyboard-only baseline。
 
 本輪未新增教學功能、未讀寫 production student data、未 merge、未 deploy、未 cutover；production fallback 與所有 writer／privacy／security invariants 保留。
+
+---
+
+## 2026-08-30 — Phase P0.7 Runtime Evidence Closure
+
+- Voice sibling新增真container blocking workflow，涵蓋`/readyz`、service auth、model/privacy、`--network none`、synthetic TTS→STT與subject-bound audio；commit `270cc37841304d0d6a197542db5d070072019437`已push。因private Actions／Packages無read credential，run與digest仍UNVERIFIED。
+- OpenClaw provider repo、runtime、image、endpoint與registry target均無法定位；歷史snapshot未升格為runtime evidence，四capabilities與namespace isolation維持UNVERIFIED。
+- 新增四immutable-image cross-service harness；在provider images與staging-only secrets缺失時fail-closed，不以mock冒充真實smoke。
+- Security cross-review修正edge `auth_request`的mutation CSRF語意，STT／TTS不再因internal GET略過原始POST的CSRF驗證。
+- 本機`verify:full`通過：317/317 tests、strict typecheck、build、實際Chrome、rendered axe 0 violations與keyboard-only baseline。
+
+最終判定：`not_staging_ready_runtime_evidence_incomplete`。未新增教學功能、未使用production student data、未merge、未deploy、未cutover。

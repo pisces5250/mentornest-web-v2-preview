@@ -16,6 +16,8 @@ test("production candidate 將 Tutor、Voice、Learning 路由至不同 upstream
   assert.match(nginx, /GATEWAY_BACKEND_ORIGIN/);
   assert.doesNotMatch(nginx, /LEARNING_BACKEND_ORIGIN/);
   assert.match(nginx, /auth_request \/_auth\/session/);
+  assert.match(nginx, /proxy_set_header X-Original-Method \$request_method/);
+  assert.match(nginx, /proxy_set_header X-MentorNest-CSRF \$http_x_mentornest_csrf/);
 });
 
 test("staging 將 OpenClaw 留在內網且不把 runtime token 放進 Web Edge", () => {
