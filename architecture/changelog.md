@@ -1899,3 +1899,10 @@ Hard invariants：未讀寫或搬移 production student data；未修改 product
 - 首次 remote run `33285198222` 的 provider contract tests 通過，但 build 揭露舊 base-image manifest pin 已失效；依 Docker Hub 公開 OCI index metadata 更新同一 Node 22.22.0 Alpine 3.23 tag 的 immutable digest後重跑，未改 capability 或 readiness 規則。
 - 第二次 run `33285254793` 的 provider image 與 container guards 已通過；GHCR build-push 揭露 context-relative Dockerfile path 與 inline buildx attestation不相容。改用 context-relative `Dockerfile`，provenance由獨立 GitHub build attestation step簽發，避免重複 attestation backend。
 - 第三次 run `33285335654` 再次確認 provider build／container guards成功，但 `docker/build-push-action` 仍在 publish backend失敗且公開 API不提供完整step log；改用同runner已證實成功的原生 `docker build`／`docker push`，再由 registry manifest解析digest並交給獨立GitHub attestation。
+# 2026-08-31 — Phase 6.2 五科 Runtime 與 Voice Reliability
+
+- 五科新增經 Question Quality gate 的正式最小 specialist evaluator、各科 taxonomy／feedback／hint／representation 與 server-backed session start。
+- 正式 Web 不再默認 fixture；五科 browser session 由 Tutor 透過 Learning Director 與 Verified Bank 選題，公開 response 嚴格排除答案與私有 rubric。
+- Phase 6.1 Web／Tutor／OpenClaw 更新至 commit `be7d54be87abd884f054dbeb5657faaf3f52e911` immutable tags；五科 remote Assessment／Memory／Director／next-question loop 全數通過。
+- 五科 Chrome／Axe remote evidence 通過；Voice 連續三次 local-only TTS→STT 皆低於 30 秒，分別約 8.6、3.6、3.8 秒。
+- 依實證宣告 `CORE PHASE 6 STAGING READY`、`VOICE STAGING READY` 與 `FULL PHASE 6 STAGING READY`；不代表 production ready，未進行 production cutover。
