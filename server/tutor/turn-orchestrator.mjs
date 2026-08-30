@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { validateMathAnswer } from "../../src/foundation/math_validator.mjs";
 import { diagnoseEnglishResponse } from "./english/english_specialist.mjs";
+import { evaluateSubjectChoice } from "./subject-specialist-evaluator.mjs";
 
 const RESULTS = new Set(["correct", "incorrect", "partially_correct"]);
 
@@ -47,7 +48,12 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
         throw new TutorTurnError("verified_question_required", 404);
       }
 
-      const judgement = judgeAnswer(question, input.response);
+      const specialistEvaluation = evaluateSubjectChoice({
+        question, response: input.response, attemptIndex: input.attempt_index,
+      });
+      const judgement = specialistEvaluation.available
+        ? specialistEvaluation.judgement
+        : judgeAnswer(question, input.response);
       if (judgement.result === "unverifiable") {
         const result = Object.freeze({
           ok: true,
@@ -79,14 +85,19 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
         remember(responseCache, cacheKey, result, maxCachedResponses);
         return result;
       }
-      const diagnosis = diagnose(question, judgement, input.attempt_index, input.response);
-      const teaching = teach(question, judgement, diagnosis, input.attempt_index);
+      const diagnosis = specialistEvaluation.available
+        ? specialistEvaluation.diagnosis
+        : diagnose(question, judgement, input.attempt_index, input.response);
+      const teaching = specialistEvaluation.available
+        ? specialistEvaluation.teaching
+        : teach(question, judgement, diagnosis, input.attempt_index);
       const occurredAt = validIso(input.occurred_at) ? input.occurred_at : new Date().toISOString();
       if (!safeId(question.answer_key_version)) throw new TutorTurnError("answer_key_version_required", 503);
       const assessmentInput = {
         assessment_kind: "diagnostic",
         subject: question.subject,
         knowledge_point: question.knowledge_point,
+        subskill: diagnosis.subskill,
         instrument: {
           question_id: question.id,
           verification_status: "verified",
@@ -126,8 +137,9 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
             confidence: diagnosis.confidence,
             next_action: teaching.action,
           },
+          subject_payload: specialistEvaluation.available ? specialistEvaluation.evidence_payload : null,
           authority: {
-            judgement: "objective_validator",
+            judgement: judgement.authority,
             diagnosis: `${question.subject}-specialist`,
             assessment: "assessment_observer",
           },

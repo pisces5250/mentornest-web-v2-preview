@@ -5,8 +5,8 @@ import { verifyAndWriteStagingQuestion } from "./staging-question-quality-writer
 
 const config = loadConfig();
 if (config.seedStagingVerifiedFixture) {
-  const fixture = JSON.parse(await readFile(new URL("../fixtures/staging-question.json", import.meta.url), "utf8"));
-  await verifyAndWriteStagingQuestion(fixture, config);
+  const fixtures = JSON.parse(await readFile(new URL("../fixtures/staging-questions.json", import.meta.url), "utf8"));
+  for (const fixture of fixtures) await verifyAndWriteStagingQuestion(fixture, config);
 }
 const server = createProviderServer(config);
 server.listen(config.port, "0.0.0.0", () => {

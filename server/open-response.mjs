@@ -40,6 +40,7 @@ import {
 } from './gateway/openclaw-gateway.mjs';
 import { registerGatewayRoutes } from './gateway/routes.mjs';
 import { createTutorTurnOrchestrator, TutorTurnError } from './tutor/turn-orchestrator.mjs';
+import { createTutorSessionStartOrchestrator, TutorSessionStartError } from './tutor/session-start-orchestrator.mjs';
 
 // === Configuration ===
 const PORT = process.env.PORT || 8787;
@@ -94,6 +95,7 @@ const gateway = process.env.OPENCLAW_GATEWAY_ORIGIN
     })
   : createUnavailableGateway();
 const tutorTurnOrchestrator = createTutorTurnOrchestrator({ gateway });
+const tutorSessionStartOrchestrator = createTutorSessionStartOrchestrator({ gateway });
 
 await fs.mkdir(AUDIO_TMP, { recursive: true });
 
@@ -536,6 +538,21 @@ app.post('/api/tutor/turn', browserAuth, csrfProtection, requireScope('tutor:use
       ok: false,
       code,
       message: '老師暫時無法完成這次學習記錄，請稍後再試。',
+    });
+  }
+});
+
+app.post('/api/tutor/session/start', browserAuth, csrfProtection, requireScope('tutor:use'), async (req, res) => {
+  try {
+    return res.json(await tutorSessionStartOrchestrator.start(req.body ?? {}, {
+      subjectRef: req.auth.subjectRef,
+    }));
+  } catch (error) {
+    const status = error instanceof TutorSessionStartError ? error.status : 502;
+    return res.status(status).json({
+      ok: false,
+      code: error instanceof TutorSessionStartError ? error.code : 'session_start_unavailable',
+      message: '老師暫時無法準備這次練習，請稍後再試。',
     });
   }
 });

@@ -125,6 +125,7 @@ function recommendFromConfirmedMastery(input) {
     return { subject: row.subject, knowledge_point: row.knowledge_point, mastery: row.mastery };
   });
   const recent = normalizeRecentObservations(input.recent_observations);
+  const sessionRequest = normalizeSessionRequest(input.session_request);
   rows.sort((a, b) => a.mastery - b.mastery
     || a.subject.localeCompare(b.subject)
     || a.knowledge_point.localeCompare(b.knowledge_point));
@@ -151,6 +152,17 @@ function recommendFromConfirmedMastery(input) {
       authority: "learning_director_read_only",
     };
   }
+  if (sessionRequest && rows.length === 0) {
+    return {
+      recommendations: [{
+        subject: sessionRequest.subject,
+        knowledge_point: sessionRequest.knowledge_point,
+        reason: "session_request_no_mastery",
+      }],
+      evidence_basis: "no_mastery_session_request",
+      authority: "learning_director_read_only",
+    };
+  }
   return {
     recommendations: rows.slice(0, 3).map((row) => ({
       subject: row.subject,
@@ -160,6 +172,15 @@ function recommendFromConfirmedMastery(input) {
     evidence_basis: "confirmed_only",
     authority: "learning_director_read_only",
   };
+}
+
+function normalizeSessionRequest(value) {
+  if (value === undefined) return null;
+  if (!value || typeof value !== "object" || !["math", "english", "chinese", "science", "social_studies"].includes(value.subject)
+    || (value.knowledge_point !== null && (typeof value.knowledge_point !== "string" || value.knowledge_point.length > 100))) {
+    throw capabilityError("invalid_session_request", 400);
+  }
+  return { subject: value.subject, knowledge_point: value.knowledge_point };
 }
 
 function normalizeRecentObservations(value) {

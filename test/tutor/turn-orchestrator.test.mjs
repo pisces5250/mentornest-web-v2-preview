@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
 import { createTutorTurnOrchestrator, TutorTurnError } from "../../server/tutor/turn-orchestrator.mjs";
+
+const subjectFixtures = JSON.parse(await fs.readFile(new URL("../../provider/openclaw/fixtures/staging-questions.json", import.meta.url), "utf8"));
 
 function fixtureQuestion(overrides = {}) {
   return {
@@ -234,5 +237,39 @@ test("尚無正式 evaluator 的學科 fail-closed，不以字串相等冒充 ob
     assert.equal(result.verdict, "unverifiable");
     assert.equal(result.assessment_evidence, null);
     assert.deepEqual(gateway.calls.map((item) => item.capability), ["verified_bank.read"]);
+  }
+});
+
+test("五科正式 choice metadata 皆走 Assessment、Memory 與 Director，保留 subject evidence schema", async () => {
+  for (const question of subjectFixtures) {
+    const calls = [];
+    const gateway = {
+      async invoke(capability, request) {
+        calls.push({ capability, request });
+        if (capability === "verified_bank.read") return { questions: [{ ...question, verification_status: "verified" }] };
+        if (capability === "assessment.submit_observation") return {
+          observation_id: `aobs_${question.subject}`, evidence_status: "observed",
+          mastery_effect: "none", authority: "assessment_observation_only",
+        };
+        if (capability === "learning_memory.append_observation") return {
+          accepted: true, event_id: `lmem_${question.subject}`, authority: "learning_memory_writer",
+        };
+        if (capability === "learning_director.recommend") return {
+          recommendations: [{ subject: question.subject, knowledge_point: question.knowledge_point, reason: "recent_observed_practice" }],
+          evidence_basis: "confirmed_plus_observed_separated", authority: "learning_director_read_only",
+        };
+        throw new Error(`unexpected ${capability}`);
+      },
+    };
+    const wrong = question.choices.find((choice) => choice !== question.expected_answer);
+    const result = await createTutorTurnOrchestrator({ gateway }).submit(request({
+      question_id: question.id, response_id: `resp_${question.subject}`, response: wrong,
+    }), { subjectRef: "student_test_phase62" });
+    assert.equal(result.loop_completed, true, question.subject);
+    assert.equal(result.judgement.authority, `${question.subject}_specialist_verified_choice_evaluator`);
+    assert.equal(result.diagnosis.error_codes[0].startsWith({ math: "MATH-", english: "EN-", chinese: "ZH-", science: "SCI-", social_studies: "SS-" }[question.subject]), true);
+    const memoryCall = calls.find((call) => call.capability === "learning_memory.append_observation");
+    assert.equal(memoryCall.request.input.observation.evidence.subject_payload.schema_version, question.specialist.evidence_schema);
+    assert.equal(result.assessment_evidence.mastery_effect, "none");
   }
 });
