@@ -34,6 +34,7 @@ export function isKnownRepresentation(data: SpecialistRepresentationData): boole
 /** 僅呈現 specialist 已提供的內容；未知 kind 不推測、不補寫。 */
 export function SpecialistRepresentation({ data }: { data: SpecialistRepresentationData }) {
   if (!isKnownRepresentation(data)) return null;
+  const detail = subjectDetail(data);
   return (
     <section
       className={`mn-specialist-representation mn-specialist-representation--${data.subject}`}
@@ -42,9 +43,26 @@ export function SpecialistRepresentation({ data }: { data: SpecialistRepresentat
       aria-label={data.aria_label || SUBJECT_LABEL[data.subject]}
     >
       <h3>{data.title || SUBJECT_LABEL[data.subject]}</h3>
-      <p>{data.content}</p>
-      {data.items.length > 0 && <ol>{data.items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol>}
+      {detail}
     </section>
   );
 }
 
+function rows(data: SpecialistRepresentationData) {
+  return data.items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>);
+}
+
+function subjectDetail(data: SpecialistRepresentationData): React.ReactNode {
+  switch (data.subject) {
+    case "math":
+      return <><p className="mn-specialist-representation__math-expression">{data.content}</p>{data.items.length > 0 && <ol aria-label="解題步驟">{rows(data)}</ol>}</>;
+    case "english":
+      return <><blockquote lang="en">{data.content}</blockquote>{data.items.length > 0 && <ul aria-label="英文語言重點">{rows(data)}</ul>}</>;
+    case "chinese":
+      return <><blockquote lang="zh-Hant">{data.content}</blockquote>{data.items.length > 0 && <ul aria-label="文句線索">{rows(data)}</ul>}</>;
+    case "science":
+      return <dl><dt>觀察或證據</dt><dd>{data.content}</dd>{data.items.length > 0 && <><dt>檢查順序</dt><dd><ol>{rows(data)}</ol></dd></>}</dl>;
+    case "social_studies":
+      return <><p>{data.content}</p>{data.items.length > 0 && <ol aria-label="時間、地點或資料脈絡">{rows(data)}</ol>}</>;
+  }
+}

@@ -30,6 +30,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { SessionView } from "./SessionView";
 import { buildSessionFromLearningDirector } from "./learning-director-adapter.mjs";
 import type { SessionState } from "./session-types";
+import { startVerifiedSession } from "./VerifiedBankSessionClient";
 
 // Presentation-only KP → child-friendly phrase mapping.  Mirrors the
 // view-layer maps in QuestionRenderer / SessionSummaryView.  If a KP
@@ -90,6 +91,7 @@ export function ChildHome(props: ChildHomeProps) {
     chinese: "chinese.G5.READ.main-idea-multi",
     english: "english.G5.READ.read-aloud-story",
     science: "science.G5.SCI.observe-compare",
+    social_studies: "social.G5.HISTORY.taiwan-early",
   };
   const effectiveKnowledgePoint = subjectKp[effectiveSubject] ?? defaultKnowledgePoint;
   const SUBJECT_LABEL_ZH: Record<string, string> = {
@@ -97,6 +99,7 @@ export function ChildHome(props: ChildHomeProps) {
     chinese: "國語",
     english: "英文",
     science: "自然",
+    social_studies: "社會",
   };
 
   useEffect(() => {
@@ -144,14 +147,15 @@ export function ChildHome(props: ChildHomeProps) {
         student_id: string; age_band: string; subject: string; knowledge_point: string;
         target_steps: number; fixtureSteps?: ReadonlyArray<unknown>;
       }) => Promise<{ session: SessionState }>;
-      const { session: built } = await buildSession({
-        student_id: studentId,
-        age_band: ageBand,
-        subject: effectiveSubject,
-        knowledge_point: effectiveKnowledgePoint,
-        target_steps: 4,
-        fixtureSteps,
-      });
+      const built = useFixtures
+        ? (await buildSession({
+            student_id: studentId, age_band: ageBand, subject: effectiveSubject,
+            knowledge_point: effectiveKnowledgePoint, target_steps: 4, fixtureSteps,
+          })).session
+        : await startVerifiedSession({
+            subject: effectiveSubject, ageBand, knowledgePoint: effectiveKnowledgePoint, targetSteps: 4,
+            localStudentId: studentId,
+          });
       // Phase 5C-2 acceptance-only: if forcedStepId is set, swap the
       // session to a single-step session pinned to that fixture.
       let finalSession = built;
@@ -187,7 +191,7 @@ export function ChildHome(props: ChildHomeProps) {
     } finally {
       setLoading(false);
     }
-  }, [studentId, ageBand, defaultSubject, defaultKnowledgePoint, effectiveSubject, effectiveKnowledgePoint, resumeAvailable, sessionStorageKey]);
+  }, [studentId, ageBand, effectiveSubject, effectiveKnowledgePoint, resumeAvailable, sessionStorageKey, useFixtures, fixtureSteps, forcedStepId]);
 
   if (session) {
     return (
@@ -237,7 +241,7 @@ export function ChildHome(props: ChildHomeProps) {
             {`GRADE ${ageBand.replace("G", "")} · ${(effectiveSubject ?? "math").toUpperCase()}`}
           </span>
           <div className="mn-home__subject-switch" role="group" aria-label="切換科目">
-            {(["math", "chinese", "english", "science"] as const).map((s) => (
+            {(["math", "chinese", "english", "science", "social_studies"] as const).map((s) => (
               <button
                 key={s}
                 type="button"

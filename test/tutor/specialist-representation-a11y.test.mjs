@@ -11,6 +11,11 @@ const axeSource = readFileSync(new URL("../../node_modules/axe-core/axe.min.js",
 test("五科 representation 各自使用 subject-discriminated allowlist", () => {
   for (const subject of subjects) assert.match(source, new RegExp(`${subject}: new Set`));
   assert.match(source, /if \(!isKnownRepresentation\(data\)\) return null/);
+  assert.match(source, /case "math"[\s\S]*解題步驟/);
+  assert.match(source, /case "english"[\s\S]*blockquote lang="en"/);
+  assert.match(source, /case "chinese"[\s\S]*blockquote lang="zh-Hant"/);
+  assert.match(source, /case "science"[\s\S]*<dl>/);
+  assert.match(source, /case "social_studies"[\s\S]*時間、地點或資料脈絡/);
 });
 
 test("representation transport 不接受 judgement、rubric 或 answer key", () => {
