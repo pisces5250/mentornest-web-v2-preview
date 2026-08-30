@@ -31,16 +31,21 @@ jobs:
           docker build --file Dockerfile.backend --tag mentornest-tutor-backend:ci .
       - name: 驗證 Web 與 Tutor container liveness contract
         run: |
-          docker run --detach --name mentornest-web-ci --publish 18080:80 mentornest-web-v2:ci
-          docker run --detach --name mentornest-tutor-ci --publish 18787:8787 \
+          docker network create mentornest-ci
+          docker run --detach --name mentornest-tutor-ci --network mentornest-ci \
+            --network-alias tutor-backend --publish 18787:8787 \
             --env MENTORNEST_GATEWAY_SESSION_SECRET=ci-session-secret-at-least-32-characters \
             --env MENTORNEST_SERVICE_AUTH_KEY=ci-service-auth-key-at-least-32-characters \
             mentornest-tutor-backend:ci
+          docker run --detach --name mentornest-web-ci --network mentornest-ci \
+            --env VOICE_BACKEND_ORIGIN=http://tutor-backend:8787 \
+            --publish 18080:80 mentornest-web-v2:ci
 
           cleanup() {
             docker logs mentornest-web-ci || true
             docker logs mentornest-tutor-ci || true
             docker rm --force mentornest-web-ci mentornest-tutor-ci || true
+            docker network rm mentornest-ci || true
           }
           trap cleanup EXIT
 
