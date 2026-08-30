@@ -11,7 +11,8 @@ const required = [
   "OPENCLAW_RUNTIME_VERSION",
   "MENTORNEST_GATEWAY_SESSION_SECRET",
   "MENTORNEST_SERVICE_AUTH_KEY",
-  "OPENCLAW_GATEWAY_TOKEN",
+  "OPENCLAW_SERVICE_AUTH_KEY",
+  "STAGING_OPENCLAW_VOLUME_NAME",
 ];
 
 const errors = [];
@@ -21,7 +22,7 @@ for (const name of required) {
   if (!value || /replace-with|inject-from|registry\.example/.test(value)) errors.push(`${name} 尚未安全設定`);
   if (name.endsWith("IMAGE") && !/@sha256:[a-f0-9]{64}$/i.test(value)) errors.push(`${name} 必須鎖定完整 immutable sha256 digest`);
 }
-for (const name of ["MENTORNEST_GATEWAY_SESSION_SECRET", "MENTORNEST_SERVICE_AUTH_KEY", "OPENCLAW_GATEWAY_TOKEN"]) {
+for (const name of ["MENTORNEST_GATEWAY_SESSION_SECRET", "MENTORNEST_SERVICE_AUTH_KEY", "OPENCLAW_SERVICE_AUTH_KEY"]) {
   if ((process.env[name] ?? "").length < 32) errors.push(`${name} 至少需要 32 個字元`);
 }
 if (process.env.STAGING_DEPLOYMENT_ID && process.env.STAGING_DEPLOYMENT_ID === process.env.PRODUCTION_FALLBACK_SERVICE_ID) {

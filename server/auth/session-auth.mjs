@@ -38,13 +38,15 @@ export function verifySessionToken(token, secret, now = Date.now()) {
 
 export function createServiceToken({ subjectRef, audience, ttlSeconds = 60 }, secret) {
   if (!secret || secret.length < 32) throw new Error("service auth key 至少需要 32 個字元");
+  const issuedAt = Math.floor(Date.now() / 1000);
   const payload = encode(JSON.stringify({
     ver: 1,
     iss: "mentornest-gateway",
     subject_ref: subjectRef,
     scopes: ["service:invoke"],
     aud: audience,
-    exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+    iat: issuedAt,
+    exp: issuedAt + ttlSeconds,
   }));
   return `${payload}.${sign(payload, secret)}`;
 }
@@ -61,7 +63,10 @@ export function verifyServiceToken(token, { secret, audience, now = Date.now() }
     const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (claims.ver !== 1 || claims.iss !== "mentornest-gateway" || claims.aud !== audience) return null;
     if (typeof claims.subject_ref !== "string" || !claims.subject_ref) return null;
-    if (!Number.isFinite(claims.exp) || claims.exp * 1000 <= now) return null;
+    const nowSeconds = Math.floor(now / 1000);
+    if (!Number.isFinite(claims.iat) || !Number.isFinite(claims.exp)) return null;
+    if (claims.iat > nowSeconds + 5 || claims.exp <= nowSeconds) return null;
+    if (claims.exp - claims.iat > 120 || claims.exp <= claims.iat) return null;
     if (!Array.isArray(claims.scopes) || !claims.scopes.includes("service:invoke")) return null;
     return claims;
   } catch {

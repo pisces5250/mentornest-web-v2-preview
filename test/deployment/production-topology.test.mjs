@@ -25,13 +25,13 @@ test("staging 將 OpenClaw 留在內網且不把 runtime token 放進 Web Edge",
   const dockerfile = read("Dockerfile");
   assert.match(compose, /openclaw-learning:/);
   assert.match(compose, /internal: true/);
-  assert.match(compose, /OPENCLAW_GATEWAY_TOKEN/);
-  assert.match(compose, /OPENCLAW_REQUIRED_CAPABILITIES: learning_director,assessment,learning_memory,verified_bank_read/);
+  assert.match(compose, /OPENCLAW_SERVICE_AUTH_KEY/);
+  assert.match(compose, /OPENCLAW_REQUIRED_CAPABILITIES: learning_director\.recommend,assessment\.submit_observation,learning_memory\.append_observation,verified_bank\.read/);
   assert.match(compose, /OPENCLAW_CAPABILITY_CONTRACT_VERSION: "1"/);
   const webEdge = compose.split("  tutor-backend:")[0];
-  assert.doesNotMatch(webEdge, /OPENCLAW_GATEWAY_TOKEN/);
+  assert.doesNotMatch(webEdge, /OPENCLAW_SERVICE_AUTH_KEY/);
   assert.doesNotMatch(webEdge, /MENTORNEST_SERVICE_AUTH_KEY/);
-  assert.doesNotMatch(dockerfile, /OPENCLAW_GATEWAY_TOKEN/);
+  assert.doesNotMatch(dockerfile, /OPENCLAW_SERVICE_AUTH_KEY/);
   assert.doesNotMatch(dockerfile, /MENTORNEST_SERVICE_AUTH_KEY/);
 });
 
@@ -65,7 +65,8 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
     OPENCLAW_RUNTIME_VERSION: "openclaw-test-1.0.0",
     MENTORNEST_GATEWAY_SESSION_SECRET: "test-only-session-secret-at-least-32-chars",
     MENTORNEST_SERVICE_AUTH_KEY: "test-only-service-key-at-least-32-chars",
-    OPENCLAW_GATEWAY_TOKEN: "test-only-openclaw-token-at-least-32-chars",
+    OPENCLAW_SERVICE_AUTH_KEY: "test-only-openclaw-key-at-least-32-chars",
+    STAGING_OPENCLAW_VOLUME_NAME: "mentornest-openclaw-p09-staging-only",
   };
   const rejected = spawnSync(process.execPath, [script], {
     encoding: "utf8",

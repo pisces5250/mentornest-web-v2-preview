@@ -1828,3 +1828,15 @@ Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PA
 - 本機`verify:full`通過：317/317 tests、strict typecheck、build、實際Chrome、rendered axe 0 violations與keyboard-only baseline。
 
 最終判定：`not_staging_ready_runtime_evidence_incomplete`。未新增教學功能、未使用production student data、未merge、未deploy、未cutover。
+
+---
+
+## 2026-08-30 — P0.9 OpenClaw Provider Candidate
+
+- 以歷史 OpenClaw snapshot 的可稽核 source hashes 建立最小版本化 provider package；未複製 workspace、學生資料、session、Voice、Tutor、Web、mastery writer 或 Verified Bank writer。
+- 新增 authenticated `/readyz`、capability discovery 與 versioned invocation API；service credential 驗 signature、issuer、audience、scope、expiry 與最長 120 秒 lifetime。
+- Learning Director、Learning Memory writer、Verified Bank read 明列為 `adapter`；Assessment observation 因無 runtime evidence 保持 `unavailable`，所以 candidate readiness 刻意回 503。
+- Staging namespace、data root、歷史 production path、traversal、synthetic subject 與 verified-only read 均 fail-closed；compose 使用獨立 staging volume 與 server-only auth key。
+- Dockerfile 鎖定 base image digest、以 non-root 執行，CI 使用 commit SHA tag 並記錄 registry digest。實際 remote CI、registry digest 與真實 staging `/readyz` 在產生前維持 UNVERIFIED。
+
+Hard invariants：未讀寫或搬移 production student data；未修改 production runtime；未 deploy、cutover 或移除 OpenClaw；Learning Memory single-writer、Verified Bank writer/read、confirmed/inferred 與 browser token 邊界保持。

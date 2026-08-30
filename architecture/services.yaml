@@ -71,6 +71,18 @@ services:
       voice_backend: "required_but_image_and_readiness_not_verified_in_this_repository"
       openclaw_learning: "required_but_image_capabilities_and_platform_deployment_not_verified_in_this_repository"
 
+  openclaw-provider-p09-candidate:
+    role:
+      - versioned-openclaw-learning-provider-adapter
+    repository: "mentornest-web-v2/provider/openclaw"
+    historical_source_service_id: "6a8e84ce9ec391c39ae7a996"
+    production: false
+    port: 18789
+    lifecycle: "staging_candidate_not_deployed_assessment_unavailable"
+    contract: "architecture/openclaw-provider-mapping-p09.md"
+    build_metadata: "provider/openclaw/BUILD-METADATA.json"
+    production_fallback_allowed: false
+
 cross_service_rules:
   - >
     Before modifying any service, verify ZEABUR_SERVICE_ID against the target

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createServiceToken } from "../auth/session-auth.mjs";
 
 const CAPABILITIES = new Set([
   "learning_director.recommend",
@@ -17,7 +18,7 @@ export class GatewayError extends Error {
 
 export function createOpenClawGateway({
   baseUrl,
-  token,
+  serviceAuthKey,
   fetchImpl = fetch,
   timeoutMs = 8000,
   requiredCapabilities = [...CAPABILITIES],
@@ -28,7 +29,11 @@ export function createOpenClawGateway({
   requireProductionDataIsolation = false,
 }) {
   if (!baseUrl || !/^https?:\/\//.test(baseUrl)) throw new Error("MENTORNEST_GATEWAY_URL 無效");
-  if (!token || token.length < 24) throw new Error("MENTORNEST_GATEWAY_TOKEN 未設定或過短");
+  if (!serviceAuthKey || serviceAuthKey.length < 32) throw new Error("OPENCLAW_SERVICE_AUTH_KEY 未設定或過短");
+
+  function credential(subjectRef) {
+    return createServiceToken({ subjectRef, audience: "openclaw-learning", ttlSeconds: 60 }, serviceAuthKey);
+  }
 
   async function invoke(capability, { subjectRef, input = {}, requestId } = {}) {
     if (!CAPABILITIES.has(capability)) throw new GatewayError("capability_not_allowed", 403);
@@ -39,11 +44,11 @@ export function createOpenClawGateway({
       const response = await fetchImpl(new URL("/v1/capabilities/invoke", baseUrl), {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${credential(subjectRef)}`,
           "Content-Type": "application/json",
           "X-Request-Id": requestId || randomUUID(),
         },
-        body: JSON.stringify({ capability, subject_ref: subjectRef, input }),
+        body: JSON.stringify({ contract_version: contractVersion, capability, subject_ref: subjectRef, input }),
         signal: controller.signal,
       });
       const data = await response.json().catch(() => null);
@@ -60,7 +65,7 @@ export function createOpenClawGateway({
   async function ready() {
     try {
       const response = await fetchImpl(new URL("/readyz", baseUrl), {
-        headers: { "Authorization": `Bearer ${token}` },
+        headers: { "Authorization": `Bearer ${credential("service_readiness")}` },
         signal: AbortSignal.timeout(Math.min(timeoutMs, 3000)),
       });
       const body = await response.json().catch(() => null);

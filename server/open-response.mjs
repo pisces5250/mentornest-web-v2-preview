@@ -59,7 +59,7 @@ const REQUIRED_CAPABILITY_ALIASES = {
   verified_bank_read: 'verified_bank.read',
 };
 const requiredCapabilities = (process.env.OPENCLAW_REQUIRED_CAPABILITIES ||
-  'learning_director,assessment,learning_memory,verified_bank_read')
+  'learning_director.recommend,assessment.submit_observation,learning_memory.append_observation,verified_bank.read')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean)
@@ -83,7 +83,7 @@ const edgeCsrfProtection = createCsrfProtection({
 const gateway = process.env.OPENCLAW_GATEWAY_ORIGIN
   ? createOpenClawGateway({
       baseUrl: process.env.OPENCLAW_GATEWAY_ORIGIN,
-      token: process.env.OPENCLAW_GATEWAY_TOKEN,
+      serviceAuthKey: process.env.OPENCLAW_SERVICE_AUTH_KEY,
       requiredCapabilities,
       contractVersion: process.env.OPENCLAW_CAPABILITY_CONTRACT_VERSION || '1',
       expectedRuntimeVersion: process.env.OPENCLAW_EXPECTED_RUNTIME_VERSION,

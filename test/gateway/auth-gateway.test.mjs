@@ -101,7 +101,7 @@ test("Gateway allowlist、server token 與最小 subject contract", async () => 
   let captured;
   const gateway = createOpenClawGateway({
     baseUrl: "http://openclaw.test",
-    token: "server-only-token-with-24-characters",
+    serviceAuthKey: "server-only-auth-key-with-at-least-32-characters",
     fetchImpl: async (_url, init) => {
       captured = init;
       return { ok: true, async json() { return { ok: true, result: { accepted: true } }; } };
@@ -112,9 +112,10 @@ test("Gateway allowlist、server token 與最小 subject contract", async () => 
     input: { observation: { kind: "test" } },
   });
   assert.equal(result.accepted, true);
-  assert.match(captured.headers.Authorization, /^Bearer server-only/);
+  assert.match(captured.headers.Authorization, /^Bearer [^.]+\.[^.]+$/);
   const body = JSON.parse(captured.body);
   assert.equal(body.subject_ref, "student_test_gateway");
+  assert.equal(body.contract_version, "1");
   await assert.rejects(
     gateway.invoke("mastery.write", { subjectRef: "student_test_gateway" }),
     (error) => error instanceof GatewayError && error.code === "capability_not_allowed",
@@ -124,7 +125,7 @@ test("Gateway allowlist、server token 與最小 subject contract", async () => 
 test("Gateway 不向 caller 洩漏 upstream body", async () => {
   const gateway = createOpenClawGateway({
     baseUrl: "http://openclaw.test",
-    token: "server-only-token-with-24-characters",
+    serviceAuthKey: "server-only-auth-key-with-at-least-32-characters",
     fetchImpl: async () => ({
       ok: false,
       status: 401,
@@ -141,7 +142,7 @@ test("readiness 驗證 contract version 與完整 capability 宣告", async () =
   const required = ["learning_director.recommend", "assessment.submit_observation"];
   const make = (body) => createOpenClawGateway({
     baseUrl: "http://openclaw.test",
-    token: "server-only-token-with-24-characters",
+    serviceAuthKey: "server-only-auth-key-with-at-least-32-characters",
     requiredCapabilities: required,
     contractVersion: "1",
     fetchImpl: async () => ({ ok: true, async json() { return body; } }),
@@ -166,7 +167,7 @@ test("staging readiness 綁定 runtime、image identity、namespace 與 producti
   };
   const make = (override = {}) => createOpenClawGateway({
     baseUrl: "http://openclaw.test",
-    token: "server-only-token-with-24-characters",
+    serviceAuthKey: "server-only-auth-key-with-at-least-32-characters",
     requiredCapabilities: ["learning_memory.append_observation"],
     contractVersion: "1",
     expectedRuntimeVersion: "openclaw-test-1.0.0",

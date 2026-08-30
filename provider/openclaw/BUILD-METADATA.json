@@ -1,0 +1,27 @@
+{
+  "schema_version": "1",
+  "provider_version": "0.1.0",
+  "contract_version": "1",
+  "source_kind": "historical_openclaw_snapshot_derived_adapters",
+  "historical_service_id": "6a8e84ce9ec391c39ae7a996",
+  "historical_workspace": "/home/node/.openclaw/workspace",
+  "historical_plugin": "/home/node/.openclaw/plugins/mentornest-learning",
+  "snapshot_root": "architecture/_backups/20260827T0840Z",
+  "audited_source_sha256": {
+    "learning_director.mjs": "66aecac24249dd39c91dcfc37d2b33f3aa0af1ce4e9bb0d08856f591677c3d01",
+    "verified_bank_lookup.mjs": "626e17dcb1b89af3edc36e159a8d88c62fcdba29d2900b4263d3b81e285d339e",
+    "question_store.mjs": "9fea3e5c584a7aacfcf30fe7f71b7def6fac8daf9c9d761fc5a082307eb18fcf",
+    "index.ts": "4ffaceaf9ae49db34f3c5dc63aee676016d5dcfa540cc77385a23a8554eb160a",
+    "openclaw.plugin.json": "9c9b355358e4499225fb5e52cd57023fca10424e9fd18d0c0bb7a067a9519244"
+  },
+  "excluded": [
+    "historical workspace data",
+    "student records",
+    "OpenClaw sessions",
+    "Voice runtime",
+    "Tutor runtime",
+    "Web runtime",
+    "question-bank writers",
+    "mastery writers"
+  ]
+}

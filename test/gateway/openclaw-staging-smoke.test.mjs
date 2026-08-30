@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { createOpenClawGateway } from "../../server/gateway/openclaw-gateway.mjs";
+import { verifyServiceToken } from "../../server/auth/session-auth.mjs";
 
-const TOKEN = "isolated-staging-runtime-token-32-characters";
+const SERVICE_AUTH_KEY = "isolated-staging-runtime-auth-key-32-characters";
 const NAMESPACE = "mentornest-staging-contract-test";
 const DIGEST = `registry.example/openclaw@sha256:${"c".repeat(64)}`;
 const CAPABILITIES = [
@@ -18,7 +19,8 @@ async function startRuntime({ missingCapability, rejectMemory = false } = {}) {
   const calls = [];
   const server = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json");
-    if (req.headers.authorization !== `Bearer ${TOKEN}`) {
+    const credential = req.headers.authorization?.replace(/^Bearer /, "");
+    if (!verifyServiceToken(credential, { secret: SERVICE_AUTH_KEY, audience: "openclaw-learning" })) {
       res.statusCode = 401;
       return res.end(JSON.stringify({ ok: false }));
     }
@@ -57,10 +59,10 @@ async function startRuntime({ missingCapability, rejectMemory = false } = {}) {
   return { server, calls, baseUrl: `http://127.0.0.1:${port}` };
 }
 
-function gateway(baseUrl, token = TOKEN) {
+function gateway(baseUrl, serviceAuthKey = SERVICE_AUTH_KEY) {
   return createOpenClawGateway({
     baseUrl,
-    token,
+    serviceAuthKey,
     requiredCapabilities: CAPABILITIES,
     contractVersion: "1",
     expectedRuntimeVersion: "openclaw-contract-harness-1.0.0",
