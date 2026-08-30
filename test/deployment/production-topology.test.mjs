@@ -146,6 +146,12 @@ test("Web image 有 SPA fallback 與 healthcheck，且不包含 Node backend", (
   assert.match(nginx, /location = \/healthz/);
 });
 
+test("Tutor image 包含 server-side answer validator runtime dependency", () => {
+  const dockerfile = read("Dockerfile.backend");
+  assert.match(dockerfile, /COPY src\/tutor \.\/src\/tutor/);
+  assert.match(dockerfile, /COPY src\/foundation \.\/src\/foundation/);
+});
+
 test("production 文件明定 fallback、同源 auth 與 writer boundaries", () => {
   const architecture = read("architecture/production-integration-p0.md");
   assert.match(architecture, /candidate_not_cut_over/);

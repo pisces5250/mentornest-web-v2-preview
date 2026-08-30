@@ -8,6 +8,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY server ./server
 COPY src/tutor ./src/tutor
+COPY src/foundation ./src/foundation
 
 USER node
 EXPOSE 8787
