@@ -218,16 +218,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 建置並發布 OpenClaw provider candidate image
         id: openclaw-provider-image
-        uses: docker/build-push-action@v6
-        with:
-          context: provider/openclaw
-          file: Dockerfile
-          push: true
-          tags: ghcr.io/pisces5250/mentornest-web-v2-preview-openclaw-provider:${{ github.sha }}
-          build-args: VCS_REVISION=${{ github.sha }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+        env:
+          PROVIDER_TAG: ghcr.io/pisces5250/mentornest-web-v2-preview-openclaw-provider:${{ github.sha }}
+        run: |
+          docker build --build-arg "VCS_REVISION=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --tag "${PROVIDER_TAG}" provider/openclaw
+          docker push "${PROVIDER_TAG}"
+          digest="$(docker buildx imagetools inspect "${PROVIDER_TAG}" | awk '/^Digest:/ {print $2; exit}')"
+          test "${digest#sha256:}" != "${digest}"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
       - name: 簽發 build provenance attestation
         uses: actions/attest-build-provenance@v2
         with:
