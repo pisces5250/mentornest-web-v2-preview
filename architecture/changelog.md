@@ -1,5 +1,12 @@
 # MentorNest Architecture Changelog
 
+## 2026-08-31 — Phase 6.1 remote runtime closure
+
+- 修復Voice runtime identity格式，使`/readyz`回200；Provider/Tutor部署commit `607e0e8` images。
+- Learning Memory writer新增持久化`event_id` receipt，Tutor不再以trace ID替代；public response移除Assessment answer-key metadata。
+- 輪替一次CLI非預期輸出的全部Phase 6.1 staging app secrets後，authenticated readiness與真實Math remote loop再次通過。
+- Voice TTS成功但local STT 45秒逾時；五科Verified Bank驅動browser flow尚未完成，故維持`PHASE 6 STAGING READY = false`。未觸及production或啟用production fallback。
+
 ## 2026-08-30 — Phase 6 AI Tutor learning loop staging candidate
 
 - 新增單一 authenticated／CSRF-protected `POST /api/tutor/turn`，由 Tutor server 掌握 verified question、answer key 與完整權責鏈。

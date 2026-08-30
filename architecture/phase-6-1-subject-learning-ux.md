@@ -118,3 +118,67 @@ staging failure 不 fallback production。Secret 只可存在 Zeabur encrypted s
 - Provider／Voice readiness、Question Quality writer receipt、remote learning-loop、五科 remote UI
   與 Voice path 尚未形成 evidence。
 - 本文件在 remote evidence 補齊前不宣稱 `PHASE 6 STAGING READY`。
+
+### 2026-08-31 remote runtime closure（commit `607e0e8`）
+
+Phase 6.1 四個隔離 services 最終皆為 `RUNNING`，private port forwarding 全部恢復
+`DISABLED`。Web TLS `GET /healthz` 回 200。Voice `/readyz` 回 200並驗證contract `1`、
+runtime `mentornest-voice-0.2.0`、Voice source commit
+`65613c80ea69bc2452fe71c2b592ff835ae150d4`、指定immutable digest、STT/TTS models ready，
+且`cloud_fallback=false`、raw audio default retention `none`、
+`learning_memory_write=false`。
+
+Provider與Tutor更新至commit-SHA tag
+`607e0e8decdec81f507dc82bdc833fdc457e57ca`。GHCR manifest解析為：
+
+- Provider：`sha256:8a879deccb98560b6cc1568d3fcaf195c47f2e20767101c30a8011a99efe0f87`
+- Tutor：`sha256:64bc24ec54bd6e345166b607d0188138094a6a6e37b472cbc13fa688dcdee5bf`
+
+Tutor private `/api/ready` 回200；authenticated Provider readiness證明runtime
+`mentornest-openclaw-provider-0.3.0`、上述Provider digest、namespace
+`student_test_phase61_staging`、`production_data_allowed=false`、四項capability完整，
+且無missing capability或identity mismatch。
+
+以synthetic subject `student_test_phase61_1788111112532`經公開Web Edge實測真實server loop：
+
+- 未帶session的Tutor turn回401。
+- Question Quality writer建立的`q.synthetic.math.g5.frac.add.001`經capability-scoped
+  Verified Bank read-back確認`verification_status=verified`、authority
+  `question_quality_agent_verify`、gate `staging-synthetic-v1`；structure、provenance、
+  answer-key、choice-dedupe、staging-isolation五關皆通過。
+- Tutor turn回200且`loop_completed=true`；Assessment receipt
+  `aobs_e71699086656fe12c16e7b03`，authority `assessment_observation_only`，
+  `mastery_effect=none`。
+- Learning Memory append receipt
+  `lmem_70f0b44f-12dd-4eb1-b0a2-4f2141f8ffe7`由writer寫入並原值回傳，authority
+  `learning_memory_writer`；不再以Tutor trace ID冒充receipt。
+- Learning Director authority為`learning_director_read_only`，evidence basis為
+  `confirmed_plus_observed_separated`；next step
+  `q.synthetic.math.g5.frac.add.001`由Verified Bank選回。
+- 相同response ID replay為idempotent，trace與Assessment ID一致；public response未出現
+  `expected_answer`、`answer_key`或`rubric`欄位。
+
+Voice TTS與短效audio retrieval均回200且`cloud_fallback=false`；但兩次本地SenseVoice STT
+inference都在45秒runtime timeout（HTTP 503），因此Voice完整TTS→STT path仍未通過。
+沒有改用cloud fallback或放寬readiness。
+
+一次Zeabur CLI variable操作在成功輸出中非預期顯示既有Phase 6.1 staging app secrets；
+GHCR image credential未被讀取。受影響的staging-only session、service-auth、OpenClaw與
+template password已立即全部輪替，四服務依賴序重啟，並以輪替後credential重跑上述
+readiness與remote loop成功。文件、repo、image與browser皆未保存secret value。
+
+本輪production resources、production student data、production credential與production
+cutover均未觸及；staging failure沒有fallback至production。既有P0.11 Provider/Tutor/Web
+metadata仍為RUNNING；舊P0.11 Voice目前平台metadata為PULL_FAILED，本輪未修改或修復它。
+
+仍為`UNVERIFIED`：
+
+- Voice local STT須在staging resource envelope內完成且不逾時，並重跑TTS→STT。
+- Remote browser目前仍使用fixture session question與mocked Tutor route的既有UI gate；尚未有
+  Verified Bank驅動的真server browser session evidence。
+- 只有Math synthetic Verified Bank item與objective evaluator形成完整server loop。English、
+  Chinese、Science、Social Studies尚未各有正式writer建立的verified item與server-backed UI
+  evidence；Chinese、Science、Social Studies evaluator未完成前必須維持`unverifiable`，不得
+  冒充Assessment evidence。
+
+因此本次判定仍為：**尚未達到 PHASE 6 STAGING READY**。
