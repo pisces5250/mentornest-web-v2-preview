@@ -287,18 +287,36 @@ function publicResponse({ traceId, judgement, diagnosis, teaching, assessment, m
     hint: teaching.action === "retry_same" ? teaching.utterance : null,
     recommended_action: recommendedAction,
     assessment_evidence_id: assessment?.observation_id ?? null,
-    learning_memory_receipt_id: memory?.accepted === true ? (memory.event_id ?? traceId) : null,
+    learning_memory_receipt_id: memory?.accepted === true && safeReceiptId(memory.event_id) ? memory.event_id : null,
     next_step_id: nextQuestion?.id ?? null,
     selection_reason: director?.recommendations?.[0]?.reason ?? null,
     judgement,
     diagnosis,
     teaching,
-    assessment_evidence: assessment,
-    memory_write: memory,
+    assessment_evidence: sanitizeAssessment(assessment),
+    memory_write: sanitizeMemoryReceipt(memory),
     director_decision: director,
     next_step: nextQuestion ? sanitizeQuestion(nextQuestion) : null,
     idempotent_replay: false,
   });
+}
+
+function sanitizeAssessment(assessment) {
+  if (!assessment || typeof assessment !== "object") return null;
+  const safe = {};
+  for (const key of ["schema_version", "observation_id", "evidence_status", "mastery_effect", "authority"]) {
+    if (assessment[key] !== undefined) safe[key] = assessment[key];
+  }
+  return Object.freeze(safe);
+}
+
+function sanitizeMemoryReceipt(memory) {
+  if (!memory || typeof memory !== "object") return null;
+  const safe = {};
+  for (const key of ["accepted", "authority", "event_id", "code"]) {
+    if (memory[key] !== undefined) safe[key] = memory[key];
+  }
+  return Object.freeze(safe);
 }
 
 function sanitizeQuestion(question) {
@@ -317,6 +335,7 @@ function normalize(value) {
 }
 
 function safeId(value) { return typeof value === "string" && /^[a-z0-9_.-]{3,100}$/i.test(value); }
+function safeReceiptId(value) { return typeof value === "string" && /^lmem_[a-f0-9-]{36}$/i.test(value); }
 function validIso(value) { return typeof value === "string" && Number.isFinite(Date.parse(value)); }
 function remember(cache, key, value, max) {
   cache.set(key, value);

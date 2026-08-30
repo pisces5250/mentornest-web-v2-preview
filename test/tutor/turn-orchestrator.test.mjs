@@ -40,7 +40,7 @@ function fakeGateway({ memoryAccepted = true } = {}) {
       }
       if (capability === "learning_memory.append_observation") {
         return memoryAccepted
-          ? { accepted: true, authority: "learning_memory_writer", event_id: "evt_1" }
+          ? { accepted: true, authority: "learning_memory_writer", event_id: "lmem_00000000-0000-4000-8000-000000000001" }
           : { accepted: false, code: "learning_memory_unavailable" };
       }
       if (capability === "learning_director.recommend") {
@@ -78,7 +78,10 @@ test("完整 loop 依序產生 Assessment、正式 Memory、Director 與 verifie
   assert.equal(result.judgement.authority, "objective_math_validator");
   assert.equal(result.diagnosis.evidence_status, "inferred");
   assert.equal(result.assessment_evidence.mastery_effect, "none");
+  assert.equal("instrument" in result.assessment_evidence, false);
+  assert.doesNotMatch(JSON.stringify(result), /answer_key_version|expected_answer|rubric/);
   assert.equal(result.memory_write.accepted, true);
+  assert.equal(result.learning_memory_receipt_id, "lmem_00000000-0000-4000-8000-000000000001");
   assert.equal(result.director_decision.evidence_basis, "confirmed_plus_observed_separated");
   assert.equal(result.next_step.id, "q_math_002");
   assert.equal("expected_answer" in result.next_step, false);

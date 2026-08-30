@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { assessObservation } from "./assessment.mjs";
 
 const SUBJECT_PATTERN = /^student_test_[a-z0-9_]{1,80}$/;
@@ -42,8 +43,10 @@ export function createCapabilityRegistry(config, {
         const directory = path.join(config.dataRoot, config.namespace, "learning-memory");
         await mkdir(directory, { recursive: true });
         await assertContainedDirectory(config.dataRoot, directory, realpath);
+        const eventId = `lmem_${randomUUID()}`;
         const record = {
           schema_version: "1",
+          event_id: eventId,
           subject_ref: subjectRef,
           observation,
           recorded_at: new Date().toISOString(),
@@ -53,7 +56,7 @@ export function createCapabilityRegistry(config, {
           flag: "a",
           mode: 0o600,
         });
-        return { accepted: true, authority: "learning_memory_writer" };
+        return { accepted: true, authority: "learning_memory_writer", event_id: eventId };
       },
     }],
     ["verified_bank.read", {

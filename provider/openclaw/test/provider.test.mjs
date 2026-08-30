@@ -224,11 +224,15 @@ test("Learning Memory writer只接受synthetic subject並寫入隔離namespace",
     },
   });
   assert.equal((await invoke("real-student-id")).status, 400);
-  assert.equal((await invoke("student_test_p09")).status, 200);
+  const accepted = await invoke("student_test_p09");
+  assert.equal(accepted.status, 200);
+  const acceptedBody = await accepted.json();
+  assert.match(acceptedBody.result.event_id, /^lmem_[a-f0-9-]{36}$/i);
 
   const target = path.join(root, "student-test-staging-p09", "learning-memory", "student_test_p09.jsonl");
   const records = (await fs.readFile(target, "utf8")).trim().split("\n").map(JSON.parse);
   assert.equal(records.length, 1);
+  assert.equal(records[0].event_id, acceptedBody.result.event_id);
   assert.equal(records[0].subject_ref, "student_test_p09");
   assert.equal(records[0].observation.mastery_candidate_kps[0], "fake-kp");
 
