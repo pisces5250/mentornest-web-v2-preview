@@ -28,7 +28,7 @@ trap cleanup EXIT INT TERM
 docker compose -p "$project_name" $compose_files pull
 docker compose -p "$project_name" $compose_files up --detach --no-build --wait
 
-network_internal="$(docker network inspect "${project_name}_private" --format '{{.Internal}}')"
+network_internal="$(docker network inspect "$STAGING_PRIVATE_NETWORK_NAME" --format '{{.Internal}}')"
 test "$network_internal" = "true" || {
   echo "P0.7_UNVERIFIED: runtime private network 並非 internal，no-cloud topology 未成立" >&2
   exit 1
@@ -45,7 +45,7 @@ done
 
 # Runner 只帶合成 subject 與短效測試 secret；不掛載或讀取任何 student data volume。
 docker run --rm \
-  --network "${project_name}_private" \
+  --network "$STAGING_PRIVATE_NETWORK_NAME" \
   --volume "$PWD/test/staging/runtime-evidence-smoke.mjs:/workspace/test/staging/runtime-evidence-smoke.mjs:ro" \
   --volume "$PWD/server/auth/session-auth.mjs:/workspace/server/auth/session-auth.mjs:ro" \
   --workdir /workspace \

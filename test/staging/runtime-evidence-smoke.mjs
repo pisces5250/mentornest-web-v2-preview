@@ -276,7 +276,12 @@ async function main() {
   const validVoice = createServiceToken({ subjectRef, audience: "voice-backend", ttlSeconds: 120 }, serviceKey);
   const wrongAudience = createServiceToken({ subjectRef, audience: "tutor-backend", ttlSeconds: 120 }, serviceKey);
   const expired = createServiceToken({ subjectRef, audience: "voice-backend", ttlSeconds: -1 }, serviceKey);
-  for (const [label, token] of [["wrong audience", wrongAudience], ["expired", expired], ["bad signature", `${validVoice}x`]]) {
+  for (const [label, token] of [
+    ["wrong audience", wrongAudience],
+    ["expired", expired],
+    ["bad signature", `${validVoice}x`],
+    ["browser session", session],
+  ]) {
     const rejected = await json(new URL("/api/tts/synthesize", voice), {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-MentorNest-Service-Authorization": `Bearer ${token}` },

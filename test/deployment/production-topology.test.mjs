@@ -45,6 +45,13 @@ test("staging Voice 是獨立且 fail-closed 的跨 repo image", () => {
   assert.match(architecture, /不承載 Tutor、Assessment、Learning Memory 或 mastery 邏輯/);
 });
 
+test("runtime evidence runner 使用契約指定的 private network 名稱", () => {
+  const runner = read("deployment/staging/run-runtime-evidence.sh");
+  assert.match(runner, /docker network inspect "\$STAGING_PRIVATE_NETWORK_NAME"/);
+  assert.match(runner, /--network "\$STAGING_PRIVATE_NETWORK_NAME"/);
+  assert.doesNotMatch(runner, /\$\{project_name\}_private/);
+});
+
 test("staging 契約保留 production fallback 並禁止自動 cutover", () => {
   const architecture = read("architecture/staging-topology-p05.md");
   assert.match(architecture, /必須保留為 fallback/);
