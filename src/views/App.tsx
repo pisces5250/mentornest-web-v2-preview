@@ -20,7 +20,10 @@ import { ColorModeController } from "../components/ColorMode";
 import { SettingsDialog, type ColorMode } from "../components/SettingsDialog";
 import { GridBackground } from "../components/GridBackground";
 
-const USE_FIXTURES = true;
+// Fixture 必須明確 opt-in；正式 candidate build 不得默默使用假題目或假學生資料。
+const USE_FIXTURES =
+  (import.meta as any).env?.DEV === true ||
+  (import.meta as any).env?.VITE_USE_FIXTURES === "true";
 const ALL_FIXTURES = [...FIXTURE_G5_FRAC, ...FIXTURE_P5C2];
 
 // Phase 5C-2 acceptance: ?qtype=open_response|voice_response|english

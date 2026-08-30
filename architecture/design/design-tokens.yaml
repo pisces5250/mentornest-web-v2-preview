@@ -137,7 +137,7 @@ semantic_colors:
   roles:
     primary:        "#4A90E2"  # brand, primary CTAs
     primary_hover:  "#357ABD"
-    primary_pressed:"#2A5F94"
+    primary_pressed: "#2A5F94"
     secondary:      "#7B61FF"  # accent for streaks, highlights
     neutral_900:    "#1F2933"
     neutral_700:    "#3E4C59"

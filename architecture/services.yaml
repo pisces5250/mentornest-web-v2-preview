@@ -1,4 +1,12 @@
-version: "1.0"
+version: "1.1"
+
+registry_status:
+  reconciled_at: "2026-08-29"
+  current_state: architecture/current-state.yaml
+  note: >
+    `mentornest-web` below describes the retained production fallback observed
+    in historical deployment evidence.  This repository is the separate Web v2
+    production-replacement candidate and has not been cut over.
 
 services:
 
@@ -34,6 +42,46 @@ services:
     port: 3000
     public_domain: "mentornest-web.zeabur.app"
     production: true
+    lifecycle: retained_production_fallback
+    evidence_status: historical_deployment_evidence_not_reverified_in_this_workspace
+
+  mentornest-web-v2-candidate:
+    role:
+      - next-generation-child-web-ui
+      - tutor-ui-candidate
+      - interactive-practice-preview
+    repository: "mentornest-web-v2"
+    production: false
+    lifecycle: production_replacement_candidate_no_cutover
+    current_container:
+      frontend: "nginx static dist on port 80"
+      tutor_backend_included: false
+      api_reverse_proxy_included: true
+      route_contract: "Tutor、Voice、OpenClaw Learning 使用不同 upstream；見 deployment/nginx/default.conf.template"
+    development_runtime:
+      frontend: "Vite on port 5173"
+      tutor_backend: "server/open-response.mjs on port 8787"
+      api_proxy: "/api -> http://localhost:8787"
+    deployment_readiness: staging_composition_defined_not_deployed_or_cut_over
+    staging_contract: "architecture/staging-topology-p05.md"
+    staging_artifacts:
+      compose: "deployment/staging/compose.yaml"
+      environment_guard: "deployment/staging/validate-env.mjs"
+    cross_repo_dependencies:
+      voice_backend: "required_but_image_and_readiness_not_verified_in_this_repository"
+      openclaw_learning: "required_but_image_capabilities_and_platform_deployment_not_verified_in_this_repository"
+
+  openclaw-provider-p09-candidate:
+    role:
+      - versioned-openclaw-learning-provider-adapter
+    repository: "mentornest-web-v2/provider/openclaw"
+    historical_source_service_id: "6a8e84ce9ec391c39ae7a996"
+    production: false
+    port: 18789
+    lifecycle: "staging_candidate_not_deployed_remote_runtime_evidence_pending"
+    contract: "architecture/openclaw-provider-mapping-p09.md"
+    build_metadata: "provider/openclaw/BUILD-METADATA.json"
+    production_fallback_allowed: false
 
 cross_service_rules:
   - >

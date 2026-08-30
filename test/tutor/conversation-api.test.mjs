@@ -10,9 +10,23 @@ import { spawn } from "node:child_process";
 import { setTimeout as wait } from "node:timers/promises";
 import { rmSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { shortHash } from "../../server/tutor/conversation-state.mjs";
 
 const SANDBOX_DIR = resolve("/tmp/mentornest-api-test-" + Date.now());
 const PORT = 8787 + Math.floor(Math.random() * 200);
+let serverOutput = "";
+
+function ledgerPath(studentId) {
+  return resolve(SANDBOX_DIR, `${shortHash(studentId)}.jsonl`);
+}
+
+function authHeaders(subjectRef) {
+  return {
+    "Content-Type": "application/json",
+    "X-MentorNest-Test-Subject": subjectRef,
+    "X-MentorNest-CSRF": "test-csrf",
+  };
+}
 
 function startServer() {
   const child = spawn(
@@ -24,10 +38,13 @@ function startServer() {
         ...process.env,
         PORT: String(PORT),
         MENTORNEST_LEARNING_RECORDS_DIR: SANDBOX_DIR,
+        MENTORNEST_AUTH_MODE: "test",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
+  child.stdout.on("data", (chunk) => { serverOutput += chunk; });
+  child.stderr.on("data", (chunk) => { serverOutput += chunk; });
   return child;
 }
 
@@ -41,7 +58,7 @@ async function waitForServer() {
     }
     await wait(100);
   }
-  throw new Error("server did not become ready");
+  throw new Error(`server did not become ready: ${serverOutput.trim() || "沒有 server output"}`);
 }
 
 const server = startServer();
@@ -50,7 +67,7 @@ await waitForServer();
 test("AC1 start -> ok with greeting", async () => {
   const r = await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api"),
     body: JSON.stringify({
       student_id: "student_test_api",
       knowledge_point: "english.G5.CONV.free-conversation",
@@ -67,7 +84,7 @@ test("AC1 start -> ok with greeting", async () => {
 test("AC2 turn -> ok with decision + tts_text", async () => {
   const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api"),
     body: JSON.stringify({
       student_id: "student_test_api",
       knowledge_point: "english.G5.CONV.free-conversation",
@@ -76,7 +93,7 @@ test("AC2 turn -> ok with decision + tts_text", async () => {
   })).json();
   const r = await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/turn`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api"),
     body: JSON.stringify({
       session_id: s.session.session_id,
       transcript: "Hello teacher how are you",
@@ -94,7 +111,7 @@ test("AC2 turn -> ok with decision + tts_text", async () => {
 test("AC3 multiple turns -> increment turn_index", async () => {
   const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api"),
     body: JSON.stringify({
       student_id: "student_test_api",
       knowledge_point: "english.G5.CONV.free-conversation",
@@ -104,7 +121,7 @@ test("AC3 multiple turns -> increment turn_index", async () => {
   for (let i = 1; i <= 3; i++) {
     const r = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/turn`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders("student_test_api"),
       body: JSON.stringify({
         session_id: s.session.session_id,
         transcript: `turn ${i} text`,
@@ -114,25 +131,43 @@ test("AC3 multiple turns -> increment turn_index", async () => {
     assert.equal(r.ok, true);
     assert.equal(r.turn_index, i);
   }
-  await endAndForget(s.session.session_id);
+  await endAndForget(s.session.session_id, "student_test_api");
 });
 
 test("AC4 invalid payload -> 400 with envelope", async () => {
   const r = await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_invalid"),
     body: JSON.stringify({ student_id: "", age_band: "G5-G6" }),
   });
   assert.equal(r.status, 400);
   const data = await r.json();
   assert.equal(data.ok, false);
-  assert.equal(data.code, "student_required");
+  assert.equal(data.code, "kp_required");
+});
+
+test("安全：body student_id 不得覆寫 authenticated subject", async () => {
+  const authenticated = "student_test_authenticated";
+  const spoofed = "student_test_spoofed";
+  const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
+    method: "POST",
+    headers: authHeaders(authenticated),
+    body: JSON.stringify({
+      student_id: spoofed,
+      knowledge_point: "english.G5.CONV.free-conversation",
+      age_band: "G5-G6",
+    }),
+  })).json();
+  assert.equal(s.ok, true);
+  await endAndForget(s.session.session_id, authenticated);
+  assert.ok(existsSync(ledgerPath(authenticated)));
+  assert.equal(existsSync(ledgerPath(spoofed)), false);
 });
 
 test("AC5 end -> summary written to sandbox, not to production", async () => {
   const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api_summary"),
     body: JSON.stringify({
       student_id: "student_test_api_summary",
       knowledge_point: "english.G5.CONV.free-conversation",
@@ -141,7 +176,7 @@ test("AC5 end -> summary written to sandbox, not to production", async () => {
   })).json();
   await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/turn`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api_summary"),
     body: JSON.stringify({
       session_id: s.session.session_id,
       transcript: "I see a cat",
@@ -150,28 +185,29 @@ test("AC5 end -> summary written to sandbox, not to production", async () => {
   })).json();
   const e = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/end`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_api_summary"),
     body: JSON.stringify({ session_id: s.session.session_id }),
   })).json();
   assert.equal(e.ok, true);
   assert.equal(e.summary.turn_count, 1);
-  assert.ok(existsSync(resolve(SANDBOX_DIR, "student_test_api_summary.jsonl")));
+  assert.equal(e.memory_write?.accepted, true);
+  assert.ok(existsSync(ledgerPath("student_test_api_summary")));
 });
 
 test("AC6 transcript never appears in summary (privacy)", async () => {
   const secret = "qwerty_secret_phrase_zxcvbn";
   const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_privacy_check"),
     body: JSON.stringify({
-      student_id: "student_privacy_check",
+      student_id: "student_test_privacy_check",
       knowledge_point: "english.G5.CONV.free-conversation",
       age_band: "G5-G6",
     }),
   })).json();
   await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/turn`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_privacy_check"),
     body: JSON.stringify({
       session_id: s.session.session_id,
       transcript: secret,
@@ -180,13 +216,13 @@ test("AC6 transcript never appears in summary (privacy)", async () => {
   })).json();
   await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/end`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_privacy_check"),
     body: JSON.stringify({ session_id: s.session.session_id }),
   })).json();
 
   const { readFileSync } = await import("node:fs");
   const contents = readFileSync(
-    resolve(SANDBOX_DIR, "student_privacy_check.jsonl"),
+    ledgerPath("student_test_privacy_check"),
     "utf8",
   );
   assert.ok(!contents.includes(secret), "transcript leaked into learning record");
@@ -195,9 +231,9 @@ test("AC6 transcript never appears in summary (privacy)", async () => {
 test("AC7 ring buffer depth: 5-turn session evicts oldest", async () => {
   const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_ring_buffer"),
     body: JSON.stringify({
-      student_id: "ring_buffer_test",
+      student_id: "student_test_ring_buffer",
       knowledge_point: "english.G5.CONV.free-conversation",
       age_band: "G5-G6",
     }),
@@ -205,7 +241,7 @@ test("AC7 ring buffer depth: 5-turn session evicts oldest", async () => {
   for (let i = 1; i <= 7; i++) {
     const r = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/turn`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders("student_test_ring_buffer"),
       body: JSON.stringify({
         session_id: s.session.session_id,
         transcript: `turn ${i}`,
@@ -214,23 +250,23 @@ test("AC7 ring buffer depth: 5-turn session evicts oldest", async () => {
     })).json();
     assert.equal(r.ok, true);
   }
-  await endAndForget(s.session.session_id);
+  await endAndForget(s.session.session_id, "student_test_ring_buffer");
 });
 
 test("AC8 turn_after_end -> session_ended 410", async () => {
   const s = await (await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_ended_session"),
     body: JSON.stringify({
-      student_id: "ended_session_test",
+      student_id: "student_test_ended_session",
       knowledge_point: "english.G5.CONV.free-conversation",
       age_band: "G5-G6",
     }),
   })).json();
-  await endAndForget(s.session.session_id);
+  await endAndForget(s.session.session_id, "student_test_ended_session");
   const r = await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/turn`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders("student_test_ended_session"),
     body: JSON.stringify({
       session_id: s.session.session_id,
       transcript: "late",
@@ -243,10 +279,10 @@ test("AC8 turn_after_end -> session_ended 410", async () => {
   assert.equal(data.code, "session_ended");
 });
 
-async function endAndForget(sid) {
+async function endAndForget(sid, subjectRef) {
   await fetch(`http://localhost:${PORT}/api/tutor/english-conversation/end`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(subjectRef),
     body: JSON.stringify({ session_id: sid }),
   });
 }

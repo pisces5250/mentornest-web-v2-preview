@@ -461,7 +461,7 @@ phase_4b_kp_classifier_license_pdf_pipeline:
       forbidden_from_shared_verified_bank: [UNKNOWN, COMMERCIAL_RESTRICTED]
       writes_to_disk: false
     - name: raw_question_ingest_full_pipeline
-      purpose: End-to-end Raw → Verified pipeline: ingest → segment → KP classify → license extract → license review → quality verify
+      purpose: "End-to-end Raw → Verified pipeline: ingest → segment → KP classify → license extract → license review → quality verify"
       disposition_enum: [accepted_into_verified_bank, rejected_by_kp, rejected_by_license, rejected_by_quality, unsupported_pdf]
       writes_to_disk: "via single verified-bank writer only (question_quality_agent_verify)"
   invariants:
@@ -985,3 +985,19 @@ phase_4_child_learning_experience_designer:
     - actual UI redesign
     - subject_specialist pedagogy changes
 
+# Current-state reconciliation overlay.  All earlier phase blocks above are
+# retained as historical delivery evidence and may not describe present
+# reproducibility or production deployment.
+p0_registry_reconciliation_20260829:
+  status: active_current_overlay
+  source_of_current_status: architecture/current-state.yaml
+  truth_precedence:
+    - current_runtime_and_source_code_plus_current_reproducible_tests
+    - deployment_evidence
+    - changelog_and_capabilities
+    - roadmap_and_stale_matrix
+  phase_6a: implemented_with_tests_production_integration_pending
+  phase_6b: prototype_implemented_boundary_remediation_and_production_acceptance_pending
+  web_v2: production_replacement_candidate_no_cutover
+  retained_fallback: mentornest-web
+  historical_status_rule: "Earlier `shipped` labels remain evidence of that batch, not a current production-readiness claim."

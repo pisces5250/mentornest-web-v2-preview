@@ -36,7 +36,7 @@ export type QuestionType =
   | "drag_drop"
   | "explain_thinking";
 
-export type RepresentationType = "text" | "number_line" | "fraction_bar" | "area_model" | "table" | "diagram" | "none";
+export type RepresentationType = "text" | "number_line" | "fraction_bar" | "area_model" | "bar_model" | "table" | "diagram" | "none";
 
 export type InteractionRequired = "single_tap" | "type" | "voice" | "drag" | "draw" | "explain";
 
@@ -80,14 +80,18 @@ const VALID_QUESTION_TYPES: ReadonlyArray<QuestionType> = [
   "matching", "ordering", "drag_drop", "explain_thinking",
 ];
 const VALID_REPRESENTATION: ReadonlyArray<RepresentationType> = [
-  "text", "number_line", "fraction_bar", "area_model", "table", "diagram", "none",
+  "text", "number_line", "fraction_bar", "area_model", "bar_model", "table", "diagram", "none",
 ];
 const VALID_INTERACTIONS: ReadonlyArray<InteractionRequired> = [
   "single_tap", "type", "voice", "drag", "draw", "explain",
 ];
 
 function isOneOf<T extends string>(value: unknown, allowed: ReadonlyArray<T>): value is T {
-  return typeof value === "string" && (allowed).includes(value);
+  return typeof value === "string" && allowed.some((candidate) => candidate === value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +111,7 @@ export function buildPresentationRequest(input: unknown): {
 } {
   const trace: string[] = [];
 
-  if (!input || typeof input !== "object") {
+  if (!isRecord(input)) {
     return { ok: false, error: { code: "BAD_INPUT", message: "input must be an object" } };
   }
   const r = input;

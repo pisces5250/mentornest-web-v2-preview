@@ -1,5 +1,36 @@
 # MentorNest Architecture Changelog
 
+## 2026-08-30 — P0.11 部分 staging runtime evidence
+
+- 新建獨立 Zeabur project `mentornest-p0-11-staging` 與 `staging` environment；未修改現有 production project、service、domain 或 secret。
+- 以 immutable digest 部署 OpenClaw Provider、Tutor Backend 與 Web Edge；OpenClaw 只掛載 staging-only volume，所有新產生的 staging secrets 皆為 `exposed=false`。
+- GitHub Actions `33298531468` 提供 Web／Tutor／OpenClaw GHCR digest evidence；Voice `33298323873` 已發布 digest image，但 private-package pull 需要 credential。
+- 遵守 credential 不落盤邊界，未將 `GH_TOKEN` 寫入 Zeabur image credential，故 Voice service 未建立。Web Edge 因 Voice DNS 不存在而 fail-closed，TLS 與 cross-service smoke 尚未完成。
+- 後續取得專用 Voice GHCR pull credential，但 Zeabur API 僅提供持久化 service `imageCredential`；依 credential 不持久化要求未送出 mutation，部署狀態不變。
+- 修正 runtime evidence runner 的 Compose private-network 名稱不一致，改用 `STAGING_PRIVATE_NETWORK_NAME`；新增 regression 與 Voice browser-session-token rejection smoke。
+- 完整 Node regression 319/319、typecheck 與 production build 通過；上述結果不冒充尚未完成的真實 Voice／TLS／cross-service runtime evidence。
+- 人類授權 Zeabur encrypted `imageCredential` 後建立 private Voice staging service `6a93e9b18eb2f64ed5f19f71`；GHCR OCI pull 與 resolved digest 驗證成功，無 public domain且 port forwarding disabled。
+- Voice `/healthz` 與 STT/TTS model/privacy checks 通過；`/readyz` 因 runtime identity/app env 缺口維持 503。Zeabur variable replace semantics 導致 Voice app env 待重建；同步 Tutor/Voice staging auth key 與重啟仍待額外人類授權，未觸及 production。
+- 後續取得完整 staging-only授權後已恢復Voice app env、同步Tutor/Voice auth key並重啟；四服務皆RUNNING，Voice與Tutor/OpenClaw readiness均為200。
+- Web Edge新generated domain完成TLS：HTTPS health 200、HTTP→HTTPS 302、certificate SAN/chain驗證通過；三個backend維持無public domain。
+- 真實public synthetic flow涵蓋Tutor、四個OpenClaw capabilities、Voice TTS/audio/STT round-trip並全數200；invalid session與四種Voice credential負向案例正確401。
+- Remote unavailable／contract mismatch／missing capability fault topology仍缺Tutor private-package scoped pull credential，故狀態維持 `DEPLOYED BUT NOT STAGING READY`，不以isolated tests冒充platform evidence。
+- 取得專用Tutor GHCR read-only credential後建立三個private fault services；remote contract mismatch 503、missing capability 503、Provider unavailable 503均命中精確fail-closed原因。
+- 短暫suspend Voice的remote unavailable drill經Web Edge回504且`ok:false`；Voice恢復後`/readyz`與public TTS皆200。
+- 三個fault services已送出delete並進入Zeabur suspended retention；無domain且不再運行。四個主staging services維持RUNNING。
+- Final gate偵測並修復早期serial drill殘留的主Tutor contract mismatch；恢復contract v1後Tutor/OpenClaw readiness 200，並重跑public Tutor、四capabilities與Voice TTS全數200。
+- 四項剩餘remote fault cases與既有主流程、TLS、auth、privacy、namespace及production-isolation evidence全數通過，P0.11升級為`STAGING READY`；此結論不授權production cutover。
+- Prebuilt immutable image deployment 以 service ID、immutable image digest 與 runtime readiness evidence 共同識別；Zeabur 未提供獨立 revision ID 時據實記錄 `platform_revision_id: unavailable`，不偽造 revision，也不否定既有 immutable deployment evidence。
+- 初始部分部署階段曾維持 `DEPLOYED BUT NOT STAGING READY`；本節後續條目已記錄完整gates與最終 `STAGING READY` 判定。
+
+## 2026-08-30 — P0.11 staging deployment evidence gates
+
+- Staging compose 改為 Web、Tutor、Voice、OpenClaw 四個 immutable digest image，並補上 OpenClaw authenticated `/readyz` healthcheck。
+- 新增 production Web／OpenClaw service ID、staging-only network／volume 與 namespace fail-closed guards；不允許 production fallback、volume 或 secret reuse。
+- Cross-service smoke 改用四項 capability 正式 typed schema，新增 Assessment `mastery_effect: none`、Memory writer authority、Verified Bank verified-only，以及 Provider／Voice unavailable 負向路徑。
+- GitHub Actions 新增目前 HEAD 的 Web／Tutor SHA-tag image publish、digest pull smoke 與 OCI provenance；真實 digest 需待 remote run 成功後記錄。
+- 真實平台 service ID、DNS、TLS、secret injection、mount、deploy revision 與 runtime smoke 尚未產生，狀態維持 `PREPARING_DEPLOYMENT`，不得宣告 `STAGING READY`。
+
 ## 20260827T045354Z — Project Registry v1
 
 Created baseline architecture registry.
@@ -1737,3 +1768,119 @@ synthesis.
   - Learning Memory Agent（summary only, no transcript / audio）
 - Lead: English Specialist（English teaching 屬於其權限）
 - Orchestrator: 確認 Lead + 守住 Hard Invariants，不介入專業內容
+
+---
+
+## 2026-08-29 — Phase P0 Registry Reconciliation
+
+**Lead:** Architecture / Runtime Lead
+
+**Participants:** System Orchestrator、Runtime Engineering、QA、Infrastructure
+
+**Execution Owner:** Architecture / Runtime Lead
+
+**Verification Owner:** QA
+
+依 current runtime/source code、可重現測試、deployment evidence、歷史
+registry 的優先序完成現況對齊：
+
+- 新增 `architecture/current-state.yaml` 作為薄的現況 overlay；既有 phase
+  記錄保留為 historical evidence。
+- Phase 6A 標為「已實作且有測試，production integration pending」。
+- Phase 6B 標為「prototype 已實作，writer boundary 與 production
+  acceptance pending」。
+- 區分現行 production `mentornest-web` fallback 與本 repo 的 Web v2
+  production-replacement candidate；未授權 cutover。
+- 修正 Design System、visual-theme ownership 與 append-only live-data 規則
+  的矛盾；舊說法以 superseded historical note 保留。
+- 清除 `AGENTS.md` 語言段落中的重複目錄清單污染，治理內容不變。
+
+Hard invariants：未讀寫 production student data、未 deploy、未 cutover、
+未改 mastery／Verified Bank authority。
+
+Acceptance evidence：`git diff --check`、所有非 backup architecture YAML
+解析、source／tests／Docker／Vite／Git history 對照；完整 P0 測試與 build
+證據由 reproducible-baseline 工作流統一產出。
+
+---
+
+## 2026-08-29 — Phase P0 基線、writer boundary 與 production candidate topology
+
+- Leads：Learning Memory／Assessment／Security、Infrastructure／QA、Frontend；System Orchestrator 負責整合與 hard invariants。
+- Conversation Manager 改用可注入 `LearningMemoryWriter`，未配置正式 writer 時 fail-closed；production code 不再直接 append JSONL。
+- 測試 writer 僅接受 `/tmp` 與 fake student ID，ledger 檔名只使用 hash；transcript／audio 不得落盤。
+- Browser `mastered_kps` 降級為 deprecated 相容 alias；權威語意改為 `mastery_candidate_kps`／本次觀察，不產生正式 mastery。
+- Phase 6A transcript 改由 React state／props 傳遞，移除 one-shot window event race。
+- TTS backend 加入 form parser；ConversationTutor 統一使用 Voice API resolver。
+- Production fixture 改為明確 opt-in，production build 若設定 `VITE_USE_FIXTURES=true` 會拒絕建置。
+- 定義 Web edge、Tutor、Voice、OpenClaw Learning 四個 deployment units；既有 production Web 保留 fallback，未 cutover。
+- 新增 Node 22 baseline、CI、Web／Tutor candidate Docker artifacts、nginx 同源 routing、health／SPA fallback、deployment contract tests。
+
+Acceptance evidence：`npm ci` 完成；`npm test` 299/299 PASS；`npm run build` PASS；production fixture guard 實際拒絕 build；`npm audit` 0 vulnerabilities（Vite 升至 6.4.3 修補線）；`git diff --check` PASS。Strict `npm run typecheck` 仍揭露既存 JS／TS 型別債，明列 blocker，不宣稱通過。未讀寫 production student data、未 deploy、未 push、未 cutover。
+
+---
+
+## 2026-08-30 — Phase P0.5 Production Bridge & Staging Readiness
+
+- Track A Lead：Frontend Engineering；Participants：QA、Accessibility；Execution Owner：Frontend Engineering；Verification Owner：QA。
+- Track B Lead：Backend／Security；Participants：Learning Director、Assessment、Learning Memory、Question Quality；Execution Owner：Backend；Verification Owner：Security／QA。
+- Track C Lead：Infrastructure；Participants：Backend、Frontend、Security、UX；Execution Owner：Infrastructure；Verification Owner：QA／Security cross-review。
+- `verify:full` 現為 blocking gate：保留 TypeScript `strict`，依序執行 typecheck、311 項 unit／integration、production build、實際 browser Playwright、rendered React axe 與 keyboard-only 驗收。
+- Browser 僅使用同源 session；Tutor／Gateway 從 auth context 取得 subject，透過 server-only token 與 capability allowlist 呼叫 OpenClaw。Session 與 service-token keys 已分離。
+- Gateway 只開放 Learning Director、Assessment observation、Learning Memory observation writer、Verified Bank read；不提供 mastery 或 Verified Bank writer shortcut。
+- Staging topology 落實 Web Edge、Tutor Backend、獨立 Voice Backend、私網 OpenClaw Learning Backend；readiness 驗證 capability contract version 與完整 capability 宣告。
+- Phase 6A 保持 React state transcript contract；Phase 6B production writer 使用 Gateway Learning Memory writer，失敗時 fail-closed。
+- production `mentornest-web` fallback 保留；沒有 production cutover、deploy、production data 操作或 child privacy policy 變更。
+
+Hard invariants：child privacy／security、production data integrity、mastery writer boundary、Verified Bank writer boundary、confirmed／inferred separation、accessibility。
+
+Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PASS；實際 Google Chrome Playwright PASS；axe critical／serious 0（總 violations 0）；keyboard settings dialog／focus return／start session PASS；staging guard targeted tests 7/7 PASS；`git diff --check` PASS。Voice 與 OpenClaw image 仍為跨 repo staging 驗證依賴，本 repo 不宣稱已驗證或已部署。
+
+---
+
+## 2026-08-30 — Phase P0.6 Remote Evidence & Staging Readiness
+
+- CI gate 擴充至 `feature/**`，並加入 Web／Tutor container 啟動、liveness、privacy 與 Docker health 驗證。Run `33282611761` 全綠，並發布只含 commit SHA tag 的 GHCR Web／Tutor candidate images；registry manifest digest 已外部讀回驗證。
+- OpenClaw Gateway readiness 增加 runtime version、immutable image identity、staging namespace 與 `production_data_allowed=false` 比對；隔離 HTTP harness 驗證四 capability、錯誤 bearer、missing capability 與 Learning Memory fail-closed。
+- Voice sibling repo 完成 provider remediation candidate：branch `feature/p0-6-staging-contract`、commit `0104abc`；本機 contract tests 4/4，但 remote CI、image digest 與 image inference 仍 UNVERIFIED。
+- 新增 `architecture/staging-evidence-p06.md`、`architecture/openclaw-runtime-contract-p06.md` 與 `architecture/voice-backend-contract-p06.md`，明確分開 consumer、source candidate、provider image 與 deployment evidence。
+- 本機 `verify:full` 通過：314/314 tests、strict typecheck、build、實際 Chrome、rendered axe 0 violations、keyboard-only baseline。
+
+本輪未新增教學功能、未讀寫 production student data、未 merge、未 deploy、未 cutover；production fallback 與所有 writer／privacy／security invariants 保留。
+
+---
+
+## 2026-08-30 — Phase P0.7 Runtime Evidence Closure
+
+- Voice sibling新增真container blocking workflow，涵蓋`/readyz`、service auth、model/privacy、`--network none`、synthetic TTS→STT與subject-bound audio；commit `270cc37841304d0d6a197542db5d070072019437`已push。因private Actions／Packages無read credential，run與digest仍UNVERIFIED。
+- OpenClaw provider repo、runtime、image、endpoint與registry target均無法定位；歷史snapshot未升格為runtime evidence，四capabilities與namespace isolation維持UNVERIFIED。
+- 新增四immutable-image cross-service harness；在provider images與staging-only secrets缺失時fail-closed，不以mock冒充真實smoke。
+- Security cross-review修正edge `auth_request`的mutation CSRF語意，STT／TTS不再因internal GET略過原始POST的CSRF驗證。
+- 本機`verify:full`通過：317/317 tests、strict typecheck、build、實際Chrome、rendered axe 0 violations與keyboard-only baseline。
+
+最終判定：`not_staging_ready_runtime_evidence_incomplete`。未新增教學功能、未使用production student data、未merge、未deploy、未cutover。
+
+---
+
+## 2026-08-30 — P0.9 OpenClaw Provider Candidate
+
+- 以歷史 OpenClaw snapshot 的可稽核 source hashes 建立最小版本化 provider package；未複製 workspace、學生資料、session、Voice、Tutor、Web、mastery writer 或 Verified Bank writer。
+- 新增 authenticated `/readyz`、capability discovery 與 versioned invocation API；service credential 驗 signature、issuer、audience、scope、expiry 與最長 120 秒 lifetime。
+- Learning Director、Learning Memory writer、Verified Bank read 明列為 `adapter`；Assessment observation 因無 runtime evidence 保持 `unavailable`，所以 candidate readiness 刻意回 503。
+- Staging namespace、data root、歷史 production path、traversal、synthetic subject 與 verified-only read 均 fail-closed；compose 使用獨立 staging volume 與 server-only auth key。
+- Dockerfile 鎖定 base image digest、以 non-root 執行，CI 使用 commit SHA tag 並記錄 registry digest。實際 remote CI、registry digest 與真實 staging `/readyz` 在產生前維持 UNVERIFIED。
+
+Hard invariants：未讀寫或搬移 production student data；未修改 production runtime；未 deploy、cutover 或移除 OpenClaw；Learning Memory single-writer、Verified Bank writer/read、confirmed/inferred 與 browser token 邊界保持。
+
+---
+
+## 2026-08-30 — P0.10 Assessment Capability & Remote Image Evidence
+
+- Assessment 專業審計確認歷史 OpenClaw snapshot 沒有合法 `assessment.submit_observation`；Mastery Engine、browser validator、Tutor feedback 與 subject heuristic 均不得冒充 Assessment authority。
+- 新增 native `assessment-observation-v1`：verified instrument only、strict schema、deterministic observation ID、capability-specific scope；輸出固定 `mastery_effect: none`，不寫 Learning Memory、mastery 或 evidence ledger。
+- 四項 capability 與 staging data-root dependency 皆 ready 時 `/readyz` 才回 200，未放寬 readiness 規則。
+- Provider remote workflow 改為 commit-SHA-only GHCR publish、max provenance、SBOM、GitHub build attestation，並以 registry digest 重拉執行 authenticated readiness、discovery、auth negative 與 missing-namespace smoke。
+- Remote push、GitHub Actions run、immutable digest、attestation 與 digest container result 必須以實際 run evidence 更新；workflow 定義本身不升格為成功證據。
+- 首次 remote run `33285198222` 的 provider contract tests 通過，但 build 揭露舊 base-image manifest pin 已失效；依 Docker Hub 公開 OCI index metadata 更新同一 Node 22.22.0 Alpine 3.23 tag 的 immutable digest後重跑，未改 capability 或 readiness 規則。
+- 第二次 run `33285254793` 的 provider image 與 container guards 已通過；GHCR build-push 揭露 context-relative Dockerfile path 與 inline buildx attestation不相容。改用 context-relative `Dockerfile`，provenance由獨立 GitHub build attestation step簽發，避免重複 attestation backend。
+- 第三次 run `33285335654` 再次確認 provider build／container guards成功，但 `docker/build-push-action` 仍在 publish backend失敗且公開 API不提供完整step log；改用同runner已證實成功的原生 `docker build`／`docker push`，再由 registry manifest解析digest並交給獨立GitHub attestation。

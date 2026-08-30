@@ -153,6 +153,15 @@ test("session: weak_kp identified when final_verdict incorrect", () => {
   assert.equal(s.status, SESSION_STATUS.COMPLETED);
   assert.equal(s.summary.weak_kps.length, 1);
   assert.equal(s.summary.mastered_kps.length, 0);
+  assert.deepEqual(s.summary.mastery_candidate_kps, []);
+});
+
+test("session: 一次答對只產生非權威 mastery candidate", () => {
+  let s = sessionInitial({ student_id: "student_t_phase5c_candidate", steps: [fakeStep()] });
+  s = sessionReduce(s, { type: "submit", verdict: STEP_VERDICT.CORRECT });
+  s = sessionReduce(s, { type: "advance" });
+  assert.deepEqual(s.summary.mastery_candidate_kps, ["math.G5.FRAC.add-unlike-denom"]);
+  assert.deepEqual(s.summary.mastered_kps, s.summary.mastery_candidate_kps);
 });
 
 test("session: weak_kp identified when 3+ attempts even if finally correct", () => {

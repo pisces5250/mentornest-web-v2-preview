@@ -1,0 +1,59 @@
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  location = /healthz {
+    access_log off;
+    add_header Content-Type text/plain;
+    return 200 "ok\n";
+  }
+
+  # 所有 child-facing API 先由 MentorNest Gateway 驗證 HttpOnly session。
+  # Gateway 可回傳短效、audience-bound credential；瀏覽器永遠看不到它。
+  location = /_auth/session {
+    internal;
+    proxy_pass ${GATEWAY_BACKEND_ORIGIN}/api/auth/session/verify;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Cookie $http_cookie;
+    proxy_set_header X-Original-URI $request_uri;
+    proxy_set_header X-Original-Method $request_method;
+    proxy_set_header X-MentorNest-CSRF $http_x_mentornest_csrf;
+    proxy_set_header X-Request-Id $request_id;
+  }
+
+  # 同源 edge 負責路由；瀏覽器不直接取得內部 service 位址。
+  location /api/tutor/ {
+    auth_request /_auth/session;
+    auth_request_set $service_authorization $upstream_http_x_mentornest_service_authorization;
+    proxy_pass ${TUTOR_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+    proxy_set_header X-MentorNest-Service-Authorization $service_authorization;
+  }
+
+  location ~ ^/api/(stt|tts|audio)/ {
+    auth_request /_auth/session;
+    auth_request_set $service_authorization $upstream_http_x_mentornest_service_authorization;
+    proxy_pass ${VOICE_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+    proxy_set_header X-MentorNest-Service-Authorization $service_authorization;
+    client_max_body_size 10m;
+  }
+
+  location /api/learning/ {
+    auth_request /_auth/session;
+    proxy_pass ${GATEWAY_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}

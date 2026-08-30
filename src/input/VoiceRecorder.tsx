@@ -197,17 +197,10 @@ export function VoiceRecorder(props: VoiceRecorderProps) {
 
   const handleSubmit = useCallback(() => {
     if (!transcript.trim()) return;
-    // Phase 6A — fire a one-shot event so EnglishSpecialistFeedback
-    // can pick up the latest transcript.  We never persist the audio
-    // or the transcript; this is purely a parent-tree signal that
-    // mirrors what we already pass to onSubmit().
-    try {
-      window.dispatchEvent(new CustomEvent("mentornest:voice-transcript", {
-        detail: { stepId, transcript: transcript.trim(), confidence: null },
-      }));
-    } catch {}
+    // Transcript 只透過 component callback 傳遞；不使用可能在 consumer
+    // 掛載前遺失的一次性 window event，也不寫入任何 browser storage。
     onSubmit(transcript.trim());
-  }, [transcript, onSubmit, stepId]);
+  }, [transcript, onSubmit]);
 
   const handleCancel = useCallback(() => {
     setTranscript("");

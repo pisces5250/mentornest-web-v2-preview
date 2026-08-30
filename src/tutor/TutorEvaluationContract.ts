@@ -319,7 +319,7 @@ export interface ConversationEndResponse {
   summary: ConversationSessionSummary;
 }
 
-/** What gets written to data/learning-records/<id>.jsonl at end. */
+/** Session-end observation submitted to the authoritative Learning Memory writer. */
 export interface ConversationSessionSummary {
   student_id_hash: string;            // FNV-1a, 8 hex chars
   knowledge_point: string;

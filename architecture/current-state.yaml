@@ -1,0 +1,101 @@
+version: "1.0"
+as_of: "2026-08-29"
+owner: system-orchestrator
+purpose: "MentorNest current-state overlay after Phase P0 registry reconciliation"
+
+truth_precedence:
+  - current_runtime_and_source_code_plus_current_reproducible_tests
+  - deployment_evidence
+  - changelog_and_capabilities
+  - roadmap_and_stale_matrix
+
+historical_registry_policy:
+  rule: >
+    Existing phase records and changelog entries remain historical evidence.
+    A historical `shipped` label does not prove current reproducibility,
+    production wiring, or deployment readiness.
+  current_status_source: architecture/current-state.yaml
+
+system_topology:
+  production_fallback:
+    service: mentornest-web
+    status: retained_no_cutover_authorised
+    evidence: architecture/services.yaml
+  replacement_candidate:
+    repository: mentornest-web-v2
+    status: production_topology_candidate_not_cut_over
+    frontend: "React 18 + Vite + TypeScript; nginx 同源 edge 分流 Tutor、Voice、Learning API"
+    tutor_backend: "Node/Express candidate image；production auth 與正式 Memory adapter 尚待接入"
+    voice_backend: "獨立 deployment unit；本 repo 不把模型或 inference 塞入 Web image"
+    learning_runtime: "OpenClaw learning/runtime backend；production gateway adapter 尚未接入"
+
+capability_status:
+  web_v2_session:
+    status: implemented_fixture_driven_production_adapter_pending
+    authority_note: "Browser session state is not authoritative mastery state."
+  phase_6a_read_aloud:
+    status: implemented_with_tests_production_integration_pending
+    commits: [cddc585, 3108654]
+    not_claimed:
+      - production_deployed
+      - mastery_assessment
+      - clean_environment_acceptance
+  phase_6b_conversation:
+    status: prototype_implemented_writer_boundary_remediated_production_acceptance_pending
+    commits: [4cba5bb]
+    not_claimed:
+      - production_ready_learning_memory_write
+      - horizontally_scalable_session_storage
+      - production_authentication
+  design_system:
+    status: partially_implemented_production_acceptance_pending
+  handwriting_and_vision_input:
+    status: planned
+
+known_blockers:
+  - production_backend_adapter_not_implemented
+  - production_authentication_and_session_not_implemented
+  - production_learning_memory_gateway_adapter_not_implemented
+  - strict_typescript_gate_has_existing_debt
+  - voice_service_image_and_runtime_evidence_live_outside_this_repository
+  - staging_and_cutover_evidence_not_available
+
+openclaw_dependencies:
+  - agent_runtime_and_specialist_authority
+  - learning_director_and_verified_bank_tools
+  - assessment_mastery_and_learning_memory_authorities
+  - production_question_authoring
+  - workspace_models_and_local_voice_runtime
+
+hard_invariants:
+  - child_safety_privacy_and_security
+  - production_data_integrity_and_append_only_raw_records
+  - no_sibling_comparison
+  - confirmed_and_inferred_separation
+  - mastery_writer_boundary
+  - verified_question_bank_single_writer_boundary
+  - licensing_and_commercial_use_provenance
+  - accessibility
+  - destructive_production_actions_require_human_approval
+
+reconciliation_record:
+  lead: architecture_runtime_lead
+  participants:
+    - system_orchestrator
+    - runtime_engineering
+    - quality_assurance
+    - infrastructure
+  decision: >
+    Keep historical registries, introduce this thin authoritative current-state
+    overlay, distinguish retained production fallback from Web v2 candidate,
+    and downgrade Phase 6A/6B to evidence-backed non-production statuses.
+  execution_owner: architecture_runtime_lead
+  verification_owner: quality_assurance
+  acceptance_evidence:
+    - "source inspection: src/, server/, test/, Dockerfile, vite.config.ts, package.json"
+    - "Git history: cddc585, 3108654, 4cba5bb"
+    - "npm ci completed from package-lock; Node 22 is the declared CI/container baseline"
+    - "npm test: 299/299 pass with loopback-enabled sandbox"
+    - "npm run build: pass; production VITE_USE_FIXTURES=true guard rejects the build"
+    - "git diff --check: pass"
+    - "npm run typecheck: known existing debt, not represented as green"

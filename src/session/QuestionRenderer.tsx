@@ -25,10 +25,10 @@
 //   revealed only after hintsUsed >= 1 OR review_needed.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.mjs";
-import { resolveAgeProfile } from "../foundation/age_profile_engine.mjs";
-import { useCoarseViewport } from "../foundation/use_coarse_viewport.ts";
-import { useKeypadVisibility } from "../foundation/use_keypad_visibility.ts";
+import { buildPresentationRequest } from "../foundation/presentation_request_orchestrator.js";
+import { resolveAgeProfile } from "../foundation/age_profile_engine.js";
+import { useCoarseViewport } from "../foundation/use_coarse_viewport.js";
+import { useKeypadVisibility } from "../foundation/use_keypad_visibility.js";
 import { NativeMathKeypad, type KeypadValue } from "../input/NativeMathKeypad";
 import { MathVisualRenderer } from "../math-rendering/MathVisualRenderer";
 import { validateKeypadAnswer } from "../input/answer-validator.mjs";
@@ -84,7 +84,7 @@ export interface SessionStep {
   knowledge_point: string;
   subject: string;
   question_type: QuestionType;
-  representation_type: "text" | "fraction_bar" | "number_line" | "area_model";
+  representation_type: "text" | "fraction_bar" | "number_line" | "area_model" | "bar_model";
   stem: string;
   choices?: ReadonlyArray<string>;
   expected_answer: string | number;
@@ -153,7 +153,7 @@ function buildMathVisual(step: SessionStep): null | {
         denominator: denominator_a,
         label: `${numerator_a}/${denominator_a}`,
       });
-      if (desc?.constraints_check?.violations?.length) return null;
+      if (desc?.constraints_check && !desc.constraints_check.ok) return null;
       const svgResult = generateFractionBarSVG({
         numerator: numerator_a,
         denominator: denominator_a,
@@ -173,7 +173,7 @@ function buildMathVisual(step: SessionStep): null | {
       const a = parseInt(an, 10);
       const c = parseInt(cn, 10);
       const desc = renderBarModel({ rows: Math.max(1, Math.min(10, a)), cols: Math.max(1, Math.min(10, c)) });
-      if (desc?.constraints_check?.violations?.length) return null;
+      if (desc?.constraints_check && !desc.constraints_check.ok) return null;
       const svgResult = generateAreaModelSVG({
         rows: Math.max(1, Math.min(10, a)),
         cols: Math.max(1, Math.min(10, c)),
@@ -643,7 +643,7 @@ function InputSubtree(props: {
     const result = validateKeypadAnswer({
       keypad_value: value,
       expected: step.expected_answer,
-    });
+    }) as { verdict: "correct" | "incorrect" | "unverifiable" };
     onSubmit({
       verdict: result.verdict,
       error_type: result.verdict === "incorrect" ? "wrong_value" : null,
@@ -825,7 +825,7 @@ function InputSubtree(props: {
 function OpenResponseSubtree(props: {
   step: SessionStep;
   spec: any;
-  ageBand: string;
+  ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
   studentId: string;
   lastVerdict: string | null;
   phase: string;
@@ -844,6 +844,7 @@ function OpenResponseSubtree(props: {
   const [mode, setMode] = useState<"text" | "voice">(
     step.question_type === "voice_response" ? "voice" : "text"
   );
+  const [submittedTranscript, setSubmittedTranscript] = useState("");
 
   // Phase 6A — English Specialist (Layer B) feedback state.
   // For voice_response steps we run the deterministic reading
@@ -874,6 +875,7 @@ function OpenResponseSubtree(props: {
   }, [onSubmit]);
 
   const handleVoiceSubmit = useCallback((transcript: string) => {
+    setSubmittedTranscript(transcript);
     onSubmit({
       verdict: "unverifiable",
       error_type: null,
@@ -883,6 +885,11 @@ function OpenResponseSubtree(props: {
       transcript_hash: null,
     });
   }, [onSubmit]);
+
+  const handleRetry = useCallback(() => {
+    setSubmittedTranscript("");
+    onRetry();
+  }, [onRetry]);
 
   // Open response is rubric-graded; we never claim correct/incorrect.
   // We surface a "received" verdict that drives hint row / advance flow.
@@ -1014,7 +1021,8 @@ function OpenResponseSubtree(props: {
             ageBand={props.ageBand}
             knowledgePoint={step.knowledge_point}
             expectedText={expectedPassage}
-            onReread={onRetry}
+            transcript={submittedTranscript}
+            onReread={handleRetry}
             onAdvance={onAdvance}
             isVoiceReadAloud={isVoiceReadAloud}
           />
@@ -1025,7 +1033,7 @@ function OpenResponseSubtree(props: {
         <button
           type="button"
           className="mn-action mn-action--ghost"
-          onClick={onRetry}
+          onClick={handleRetry}
           data-testid="reset-question"
           disabled={!submitted}
         >
@@ -1051,14 +1059,9 @@ function OpenResponseSubtree(props: {
 // Phase 6A — Layer A (deterministic, browser) + Layer B (server
 // English Specialist).  This subtree does the full feedback loop:
 //
-//   1. On mount, runs Layer A (readingComparison) over the
-//      expected_text + the latest submitted transcript.  We use
-//      window.sessionStorage to read the most recent transcript
-//      committed by VoiceRecorder — VoiceRecorder keeps it in
-//      component state, and we don't want to thread it through the
-//      reducer just for one evaluator call.  If we can't find a
-//      transcript (e.g. text-mode fallback) we still ask the server
-//      specialist, which gracefully returns "unclear".
+//   1. On mount, runs Layer A (readingComparison) over expected_text
+//      and the transcript passed through React state. Transcript is
+//      never persisted to browser storage or the session reducer.
 //
 //   2. While the specialist runs, show the evaluating placeholder.
 //
@@ -1076,6 +1079,7 @@ function EnglishSpecialistFeedback(props: {
   ageBand: "G1-G2" | "G3-G4" | "G5-G6" | "G7+";
   knowledgePoint: string;
   expectedText: string;
+  transcript: string;
   onReread: () => void;
   onAdvance?: () => void;
   isVoiceReadAloud: boolean;
@@ -1086,6 +1090,7 @@ function EnglishSpecialistFeedback(props: {
     ageBand,
     knowledgePoint,
     expectedText,
+    transcript,
     onReread,
     onAdvance,
     isVoiceReadAloud,
@@ -1095,29 +1100,6 @@ function EnglishSpecialistFeedback(props: {
     kind: "evaluating",
   });
 
-  // Pull the most recent transcript out of the parent tree.  We rely
-  // on a custom event dispatched by OpenResponseComposer's text
-  // submit path (text → voice mode switch) OR we ask VoiceRecorder
-  // for it via a ref-attr window event.  To keep things explicit and
-  // observable, VoiceRecorder dispatches a
-  // `mentornest:voice-transcript` CustomEvent with the transcript
-  // string on submit.  We listen for it here.
-  const transcriptRef = React.useRef<string>("");
-  const transcriptConfidenceRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    function onTranscript(ev: Event) {
-      const ce = ev as CustomEvent<{ stepId: string; transcript: string; confidence?: number | null }>;
-      if (ce.detail?.stepId !== stepId) return;
-      transcriptRef.current = ce.detail.transcript;
-      transcriptConfidenceRef.current = ce.detail.confidence ?? null;
-    }
-    window.addEventListener("mentornest:voice-transcript", onTranscript as EventListener);
-    return () => {
-      window.removeEventListener("mentornest:voice-transcript", onTranscript as EventListener);
-    };
-  }, [stepId]);
-
   React.useEffect(() => {
     if (!isVoiceReadAloud) {
       setState({
@@ -1126,13 +1108,13 @@ function EnglishSpecialistFeedback(props: {
       });
       return;
     }
-    const transcript = transcriptRef.current;
+    const transcriptConfidence = null;
     // Run Layer A synchronously (no IO) and capture the comparison so
     // we can attach it to the request payload.
     const layerA: ReadingComparison = compareReading({
       expected: expectedText,
       transcript,
-      sttConfidence: transcriptConfidenceRef.current,
+      sttConfidence: transcriptConfidence,
     });
 
     let cancelled = false;
@@ -1143,7 +1125,7 @@ function EnglishSpecialistFeedback(props: {
         age_band: ageBand,
         expected_text: expectedText,
         transcript,
-        transcript_confidence: transcriptConfidenceRef.current,
+        transcript_confidence: transcriptConfidence,
         reading_comparison: layerA,
       });
       if (cancelled) return;
@@ -1163,7 +1145,7 @@ function EnglishSpecialistFeedback(props: {
                 age_band: ageBand,
                 expected_text: expectedText,
                 transcript,
-                transcript_confidence: transcriptConfidenceRef.current,
+                transcript_confidence: transcriptConfidence,
                 reading_comparison: layerA,
               });
               if (cancelled) return;
@@ -1181,6 +1163,7 @@ function EnglishSpecialistFeedback(props: {
     studentId,
     ageBand,
     knowledgePoint,
+    transcript,
   ]);
 
   // No "advance" → wrap to a no-op so the button still feels pressable.

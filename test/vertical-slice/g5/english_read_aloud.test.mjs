@@ -272,6 +272,34 @@ test("vertical: listening button never autoplays (aria-label + autoPlay flag in 
   }
 });
 
+test("vertical: transcript 透過 React state 傳遞，不依賴 one-shot window event", () => {
+  const renderer = readFileSync(
+    resolve(__dirname, "../../../src/session/QuestionRenderer.tsx"),
+    "utf8",
+  );
+  const recorder = readFileSync(
+    resolve(__dirname, "../../../src/input/VoiceRecorder.tsx"),
+    "utf8",
+  );
+  assert.match(renderer, /transcript=\{submittedTranscript\}/);
+  assert.match(renderer, /setSubmittedTranscript\(transcript\)/);
+  assert.doesNotMatch(renderer, /mentornest:voice-transcript/);
+  assert.doesNotMatch(recorder, /dispatchEvent\(/);
+});
+
+test("vertical: TTS form request 與 backend parser contract 一致", () => {
+  const player = readFileSync(
+    resolve(__dirname, "../../../src/input/TTSPlayer.tsx"),
+    "utf8",
+  );
+  const backend = readFileSync(
+    resolve(__dirname, "../../../server/open-response.mjs"),
+    "utf8",
+  );
+  assert.match(player, /application\/x-www-form-urlencoded/);
+  assert.match(backend, /express\.urlencoded\(\{ extended: false/);
+});
+
 test("vertical: 1-step vertical — english_voice produces valid TutorEvaluation, no mastery write, no transcript persistence", () => {
   // We re-import session-state just to verify the verdict contract
   // is still "unverifiable" (we do NOT change the verdict type).

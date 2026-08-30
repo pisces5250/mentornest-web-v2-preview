@@ -1,5 +1,5 @@
 version: "1.0"
-status: locked_pending_implementation
+status: partially_implemented_production_acceptance_pending
 owner_agent: child-learning-experience-designer
 created: 2026-08-27T1239Z
 updated: 2026-08-27T1252Z
@@ -39,8 +39,9 @@ purpose: >
   the entry point: it describes how design tokens, age profiles,
   components, interaction patterns, and accessibility constraints
   compose into one consistent system.  Implementation (the actual CSS,
-  React/Vue components, or design tokens JSON) is deferred to Phase 5
-  (mentornest-web v2).
+  React components and CSS tokens) has partially landed in mentornest-web-v2.
+  This registry remains the design authority; complete production acceptance
+  and coverage of every registered component are still pending.
 
 scope:
   in_scope:
@@ -151,7 +152,7 @@ change_protocol:
     change proposal referencing one or more files under
     architecture/design/.
   review: child-learning-experience-designer (when implemented) + system-orchestrator.
-  ratify: human decision required for: age-profile policy changes, accessibility invariants, or any rule listed under invariants.
+  ratify: "human decision required for: age-profile policy changes, accessibility invariants, or any rule listed under invariants."
 
 audit:
   files:

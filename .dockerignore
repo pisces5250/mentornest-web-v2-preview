@@ -1,0 +1,11 @@
+.git
+.github
+.agents
+.phase5c2
+architecture/_backups
+node_modules
+dist
+test
+*.log
+*.tar.gz
+*.bundle

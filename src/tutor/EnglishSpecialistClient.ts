@@ -145,9 +145,13 @@ export async function evaluateReadingWithSpecialist(
   }
 
   try {
+    const { browserCsrfToken } = await import("../foundation/browser_security");
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-MentorNest-CSRF": browserCsrfToken(),
+      },
       body: JSON.stringify({
         student_id: req.student_id,
         knowledge_point: req.knowledge_point,

@@ -251,7 +251,7 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
         setNumeratorBuf(nextBuf);
         // Combine both buffers into a real fraction value if denominator
         // is already entered; otherwise leave as fraction_partial.
-        const newValue = denominatorBuf === ""
+        const newValue: KeypadValue = denominatorBuf === ""
           ? { kind: "fraction_partial", numerator: parseInt(nextBuf, 10), denominator: null }
           : parseFractionBuffer(nextBuf, denominatorBuf);
         return { ...prev, buffer: nextBuf, value: newValue };
@@ -261,13 +261,13 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
         setDenominatorBuf(nextBuf);
         // Combine both buffers into a real fraction value so submit enables
         // and the validator receives a complete value.
-        const newValue = parseFractionBuffer(numeratorBuf, nextBuf);
+        const newValue: KeypadValue = parseFractionBuffer(numeratorBuf, nextBuf);
         return { ...prev, buffer: nextBuf, value: newValue };
       }
       if (prev.active_field === "numerator" && action.type === "backspace") {
         const nextBuf = numeratorBuf.slice(0, -1);
         setNumeratorBuf(nextBuf);
-        const newValue = denominatorBuf === ""
+        const newValue: KeypadValue = denominatorBuf === ""
           ? (nextBuf === "" ? { kind: "empty" } : { kind: "fraction_partial", numerator: parseInt(nextBuf, 10), denominator: null })
           : parseFractionBuffer(nextBuf, denominatorBuf);
         return { ...prev, buffer: nextBuf, value: newValue };
@@ -277,7 +277,7 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
         setDenominatorBuf(nextBuf);
         // If numerator is empty, backspace leaves us with a partial
         // denominator; otherwise keep full fraction.
-        const newValue = numeratorBuf === ""
+        const newValue: KeypadValue = numeratorBuf === ""
           ? (nextBuf === "" ? { kind: "empty" } : { kind: "fraction_partial", numerator: null, denominator: parseInt(nextBuf, 10) })
           : parseFractionBuffer(numeratorBuf, nextBuf);
         return { ...prev, buffer: nextBuf, value: newValue };
@@ -341,6 +341,9 @@ export function NativeMathKeypad(props: NativeMathKeypadProps) {
     }
     if (state.value.kind === "empty") {
       return "0";
+    }
+    if (state.value.kind === "mixed") {
+      return `${state.value.integer_part} ${state.value.numerator}/${state.value.denominator}`;
     }
     return String(state.value.n);
   };

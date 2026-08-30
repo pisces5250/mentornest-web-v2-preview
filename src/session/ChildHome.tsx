@@ -29,7 +29,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { SessionView } from "./SessionView";
 import { buildSessionFromLearningDirector } from "./learning-director-adapter.mjs";
-import { type SessionState } from "./session-state.mjs";
+import type { SessionState } from "./session-types";
 
 // Presentation-only KP → child-friendly phrase mapping.  Mirrors the
 // view-layer maps in QuestionRenderer / SessionSummaryView.  If a KP
@@ -140,7 +140,11 @@ export function ChildHome(props: ChildHomeProps) {
           // fall through
         }
       }
-      const { session: built } = await buildSessionFromLearningDirector({
+      const buildSession = buildSessionFromLearningDirector as unknown as (request: {
+        student_id: string; age_band: string; subject: string; knowledge_point: string;
+        target_steps: number; fixtureSteps?: ReadonlyArray<unknown>;
+      }) => Promise<{ session: SessionState }>;
+      const { session: built } = await buildSession({
         student_id: studentId,
         age_band: ageBand,
         subject: effectiveSubject,
@@ -163,7 +167,10 @@ export function ChildHome(props: ChildHomeProps) {
           };
           try {
             const { sessionInitial } = await import("./session-state.mjs");
-            finalSession = sessionInitial({
+            const initialize = sessionInitial as unknown as (request: {
+              student_id: string; age_band: string; session_id: string; steps: ReadonlyArray<unknown>;
+            }) => SessionState;
+            finalSession = initialize({
               student_id: studentId,
               age_band: ageBand,
               session_id: built.session_id,

@@ -1,8 +1,14 @@
 # MentorNest Agent Capability Matrix
 
-Status: Phase 1 — System foundation (active)
+Status: historical cumulative matrix; current overlay is `architecture/current-state.yaml`
 Owner: system-orchestrator
 Method: Project Registry v1 + live inspection of `/home/node/.openclaw/workspace/`, `/home/node/.openclaw/plugins/`, `/app/skills/`. No production changes.
+
+> Reconciliation notice (2026-08-29): the early master table below is a
+> historical Phase 1 snapshot and is not the current readiness verdict.  Later
+> phase entries are retained as historical acceptance evidence.  Use
+> `architecture/current-state.yaml` for current status; a historical “shipped”
+> label does not imply current reproducibility or production deployment.
 
 ## Legend
 
@@ -876,4 +882,3 @@ autonomy.
 
 ### Snapshot
 - `architecture/_backups/20260828T165128Z_agent_autonomy_refactor/` (agents.yaml + policies.yaml + capability-matrix.md + changelog.md pre-edit snapshots)
-
