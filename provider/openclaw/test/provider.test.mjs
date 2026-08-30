@@ -32,9 +32,17 @@ async function start(config) {
   return { server, baseUrl };
 }
 
-function credential({ subjectRef = "service_readiness", audience = "openclaw-learning", ttlSeconds = 60 } = {}) {
-  return createServiceToken({ subjectRef, audience, ttlSeconds }, SERVICE_AUTH_KEY);
+function credential({ subjectRef = "service_readiness", audience = "openclaw-learning", ttlSeconds = 60, scopes } = {}) {
+  return createServiceToken({ subjectRef, audience, ttlSeconds, scopes }, SERVICE_AUTH_KEY);
 }
+
+const assessmentInput = Object.freeze({
+  assessment_kind: "diagnostic",
+  subject: "math",
+  knowledge_point: "fake-kp",
+  instrument: { question_id: "q.fake.verified", verification_status: "verified", answer_key_version: "key-v1" },
+  attempt: { response_id: "response.fake.001", result: "correct", hints_used: 0, first_attempt: true, occurred_at: "2026-08-30T00:00:00Z" },
+});
 
 async function request(baseUrl, route, { token = credential(), method = "GET", body } = {}) {
   return fetch(`${baseUrl}${route}`, {
@@ -55,35 +63,37 @@ test("啟動設定對缺少namespace、production path與mutable image fail-clos
   assert.throws(() => loadConfig(environment({ MENTORNEST_ALLOW_PRODUCTION_STUDENT_DATA: "true" })), /必須明確設為 false/);
 });
 
-test("readiness與discovery誠實標示Assessment unavailable，因此candidate fail-closed", async (t) => {
+test("四項capability與dependency成立時readiness才成功", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mentornest-provider-ready-p09-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const runtime = await start(loadConfig(environment({ MENTORNEST_DATA_ROOT: root })));
   t.after(() => runtime.server.close());
 
   const readiness = await request(runtime.baseUrl, "/readyz");
-  assert.equal(readiness.status, 503);
+  assert.equal(readiness.status, 200);
   const body = await readiness.json();
-  assert.equal(body.ok, false);
+  assert.equal(body.ok, true);
   assert.deepEqual(body.capabilities, [
     "learning_director.recommend",
+    "assessment.submit_observation",
     "learning_memory.append_observation",
     "verified_bank.read",
   ]);
   assert.equal(body.production_data_allowed, false);
   assert.equal(body.data_namespace, "student-test-staging-p09");
-  assert.deepEqual(body.missing_capabilities, ["assessment.submit_observation"]);
+  assert.deepEqual(body.missing_capabilities, []);
   assert.deepEqual(body.dependencies, [{ name: "staging_data_root", ready: true }]);
 
   const discovery = await request(runtime.baseUrl, "/v1/capabilities");
   const discovered = await discovery.json();
   assert.equal(discovered.capabilities.length, 4);
-  assert.equal(discovered.capabilities.find((item) => item.name === "assessment.submit_observation").status, "unavailable");
+  assert.equal(discovered.capabilities.find((item) => item.name === "assessment.submit_observation").status, "available");
+  assert.equal(discovered.capabilities.find((item) => item.name === "assessment.submit_observation").implementation, "native");
   assert.equal(discovered.capabilities.find((item) => item.name === "verified_bank.read").implementation, "adapter");
   assert.ok(discovered.capabilities.every((item) => item.contract_version === "1"));
 });
 
-test("錯誤credential、contract mismatch、unknown及unavailable capability皆拒絕", async (t) => {
+test("錯誤credential、contract mismatch、unknown及Assessment缺scope皆拒絕", async (t) => {
   const runtime = await start(loadConfig(environment()));
   t.after(() => runtime.server.close());
 
@@ -101,8 +111,39 @@ test("錯誤credential、contract mismatch、unknown及unavailable capability皆
     token: credential({ subjectRef: "student_test_p09" }), method: "POST", body: { ...base, capability: "not.registered" },
   })).status, 404);
   assert.equal((await request(runtime.baseUrl, "/v1/capabilities/invoke", {
-    token: credential({ subjectRef: "student_test_p09" }), method: "POST", body: { ...base, capability: "assessment.submit_observation" },
-  })).status, 503);
+    token: credential({ subjectRef: "student_test_p09" }), method: "POST",
+    body: { ...base, capability: "assessment.submit_observation", input: assessmentInput },
+  })).status, 403);
+});
+
+test("Assessment observation是verified-only、deterministic且不寫mastery", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mentornest-assessment-p010-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const runtime = await start(loadConfig(environment({ MENTORNEST_DATA_ROOT: root })));
+  t.after(() => runtime.server.close());
+  const token = credential({
+    subjectRef: "student_test_p010",
+    scopes: ["service:invoke", "assessment:submit_observation"],
+  });
+  const invoke = (input) => request(runtime.baseUrl, "/v1/capabilities/invoke", {
+    token, method: "POST", body: {
+      contract_version: "1", capability: "assessment.submit_observation",
+      subject_ref: "student_test_p010", input,
+    },
+  });
+  const first = await invoke(assessmentInput);
+  const second = await invoke(assessmentInput);
+  assert.equal(first.status, 200);
+  const firstBody = await first.json();
+  const secondBody = await second.json();
+  assert.equal(firstBody.result.schema_version, "assessment-observation-v1");
+  assert.equal(firstBody.result.observation_id, secondBody.result.observation_id);
+  assert.equal(firstBody.result.mastery_effect, "none");
+  assert.equal(firstBody.result.authority, "assessment_observation_only");
+  assert.equal((await invoke({ ...assessmentInput, instrument: { ...assessmentInput.instrument, verification_status: "raw" } })).status, 400);
+  assert.equal((await invoke({ ...assessmentInput, mastery_verdict: "mastered" })).status, 400);
+  assert.equal((await invoke({ ...assessmentInput, tutor_feedback: { result: "correct" } })).status, 400);
+  assert.deepEqual(await fs.readdir(root), []);
 });
 
 test("Learning Director adapter只接受confirmed mastery，Verified Bank只讀verified staging資料", async (t) => {

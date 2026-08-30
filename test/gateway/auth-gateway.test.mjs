@@ -122,6 +122,23 @@ test("Gateway allowlist、server token 與最小 subject contract", async () => 
   );
 });
 
+test("Gateway只為Assessment invocation簽發capability-specific scope", async () => {
+  let captured;
+  const gateway = createOpenClawGateway({
+    baseUrl: "http://openclaw.test",
+    serviceAuthKey: "server-only-auth-key-with-at-least-32-characters",
+    fetchImpl: async (_url, init) => {
+      captured = init;
+      return { ok: true, async json() { return { ok: true, result: { accepted: true } }; } };
+    },
+  });
+  await gateway.invoke("assessment.submit_observation", { subjectRef: "student_test_gateway", input: {} });
+  const token = captured.headers.Authorization.slice("Bearer ".length);
+  const claims = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
+  assert.ok(claims.scopes.includes("service:invoke"));
+  assert.ok(claims.scopes.includes("assessment:submit_observation"));
+});
+
 test("Gateway 不向 caller 洩漏 upstream body", async () => {
   const gateway = createOpenClawGateway({
     baseUrl: "http://openclaw.test",

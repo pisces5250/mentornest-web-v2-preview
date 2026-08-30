@@ -15,5 +15,5 @@ const signature = createHmac("sha256", secret).update(payload).digest("base64url
 const response = await fetch(`http://127.0.0.1:${process.env.PORT || 18789}/readyz`, {
   headers: { Authorization: `Bearer ${payload}.${signature}` },
 }).catch(() => null);
-// Provider缺必要capability時503是正確的not-ready，不可把liveness誤認為readiness。
+// 任一必要capability或dependency缺失時503是正確的not-ready。
 process.exit(response?.status === 200 ? 0 : 1);

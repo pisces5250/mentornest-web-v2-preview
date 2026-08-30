@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { assessObservation } from "./assessment.mjs";
 
 const SUBJECT_PATTERN = /^student_test_[a-z0-9_]{1,80}$/;
 
@@ -25,7 +26,15 @@ export function createCapabilityRegistry(config, {
       authority: "learning_director_read_only",
       invoke: async ({ input }) => recommendFromConfirmedMastery(input),
     }],
-    ["assessment.submit_observation", unavailable("歷史 provider 未發現此 capability")],
+    ["assessment.submit_observation", {
+      status: "available",
+      implementation: "native",
+      authority: "assessment_observer",
+      invoke: async ({ input, claims }) => {
+        if (!claims.scopes.includes("assessment:submit_observation")) throw capabilityError("insufficient_scope", 403);
+        return assessObservation(input);
+      },
+    }],
     ["learning_memory.append_observation", {
       status: "available",
       implementation: "adapter",

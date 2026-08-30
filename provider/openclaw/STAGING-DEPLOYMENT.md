@@ -22,8 +22,8 @@
    contract、runtime、digest、namespace 與部署設定逐項比對。
 3. 驗證 invalid signature、wrong audience、expired token、missing namespace、production
    path、traversal、synthetic subject fence 與 Learning Memory fail-closed。
-4. 本版 Assessment observation 為 `unavailable`，所以 `/readyz` 正確結果是 503；在真實
-   Assessment adapter 與 runtime evidence 完成前，不得把 service 納入健康流量。
+4. `/readyz` 只有在四項 capability 與 staging dependency 全部 ready 時才應回 200；任何
+   capability、digest、namespace 或 data-root dependency 缺失都必須 fail-closed。
 5. Rollback 只需停止 candidate 並卸除其 staging-only volume；不得操作 production
    service、DNS、route 或 volume。若刪除 staging volume，仍需人類明確核准。
 

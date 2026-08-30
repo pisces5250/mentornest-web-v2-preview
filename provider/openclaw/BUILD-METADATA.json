@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
-  "provider_version": "0.1.0",
+  "provider_version": "0.2.0",
   "contract_version": "1",
-  "source_kind": "historical_openclaw_snapshot_derived_adapters",
+  "source_kind": "historical_openclaw_snapshot_derived_adapters_plus_p010_native_assessment",
   "historical_service_id": "6a8e84ce9ec391c39ae7a996",
   "historical_workspace": "/home/node/.openclaw/workspace",
   "historical_plugin": "/home/node/.openclaw/plugins/mentornest-learning",

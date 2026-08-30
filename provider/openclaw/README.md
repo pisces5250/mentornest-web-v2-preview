@@ -12,10 +12,10 @@ workspace，也不讀取或掛載 production learning data。
 所有端點都要求短效service credential；issuer為`mentornest-gateway`、audience為
 `openclaw-learning`，並要求`service:invoke`scope。Browser不得取得signing key。
 
-目前 Learning Director、Learning Memory writer 與 Verified Bank read 為 candidate
-`adapter`；Assessment observation 因無歷史 runtime evidence 保持 `unavailable`，因此
-`/readyz` 回 503。這是刻意的 fail-closed 狀態，不得解讀為完整
-staging runtime。
+Learning Director、Learning Memory writer 與 Verified Bank read 為 candidate `adapter`。
+歷史 runtime 沒有合法 Assessment 對應能力，因此 P0.10 由 Assessment authority 新建
+`assessment-observation-v1` native capability：只接受 verified instrument、只產生 observation，
+不寫 mastery 或 ledger。四項 capability 與 dependency 都 ready 時 `/readyz` 才回 200。
 
 ## Build與test
 

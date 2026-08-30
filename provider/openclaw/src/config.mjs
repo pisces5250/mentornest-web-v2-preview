@@ -30,7 +30,7 @@ export function loadConfig(env = process.env) {
     dataRoot,
     verifiedBankRoot: path.join(dataRoot, namespace, "verified-bank"),
     contractVersion: "1",
-    runtimeVersion: "mentornest-openclaw-provider-0.1.0",
+    runtimeVersion: "mentornest-openclaw-provider-0.2.0",
   });
 }
 

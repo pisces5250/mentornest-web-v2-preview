@@ -31,8 +31,10 @@ export function createOpenClawGateway({
   if (!baseUrl || !/^https?:\/\//.test(baseUrl)) throw new Error("MENTORNEST_GATEWAY_URL 無效");
   if (!serviceAuthKey || serviceAuthKey.length < 32) throw new Error("OPENCLAW_SERVICE_AUTH_KEY 未設定或過短");
 
-  function credential(subjectRef) {
-    return createServiceToken({ subjectRef, audience: "openclaw-learning", ttlSeconds: 60 }, serviceAuthKey);
+  function credential(subjectRef, capability) {
+    const scopes = ["service:invoke"];
+    if (capability === "assessment.submit_observation") scopes.push("assessment:submit_observation");
+    return createServiceToken({ subjectRef, audience: "openclaw-learning", ttlSeconds: 60, scopes }, serviceAuthKey);
   }
 
   async function invoke(capability, { subjectRef, input = {}, requestId } = {}) {
@@ -44,7 +46,7 @@ export function createOpenClawGateway({
       const response = await fetchImpl(new URL("/v1/capabilities/invoke", baseUrl), {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${credential(subjectRef)}`,
+          "Authorization": `Bearer ${credential(subjectRef, capability)}`,
           "Content-Type": "application/json",
           "X-Request-Id": requestId || randomUUID(),
         },

@@ -1,6 +1,6 @@
 # P0.9 OpenClaw Provider capability mapping
 
-狀態：`versioned_provider_candidate_assessment_unavailable_runtime_evidence_pending`
+狀態：`p010_four_capabilities_available_remote_runtime_evidence_pending`
 
 本文件只記錄歷史 OpenClaw plugin snapshot 到 P0.5 Gateway domain contract 的
 可證明映射。它不是目前 Zeabur runtime、container image 或 staging deployment 的證據。
@@ -22,16 +22,13 @@ workspace、學生資料、runtime session 或 production filesystem layout。
 | Domain capability | 歷史 source evidence | Candidate 狀態 | Authority boundary |
 |---|---|---|---|
 | `learning_director.recommend` | `learning_director.mjs` 有 read-only weakness、prerequisite、weekly strategy functions；candidate 只接受 confirmed mastery envelope | `adapter`／`available` | 只能提出策略，不得直接寫 mastery 或 Learning Memory |
-| `assessment.submit_observation` | 未找到等價、可執行的 assessment observation capability | `UNAVAILABLE` | 不得以 mastery writer、Learning Memory append 或 UI candidate 冒充 Assessment verdict |
+| `assessment.submit_observation` | 歷史 runtime 無合法對應；P0.10 由 Assessment authority 建立 `assessment-observation-v1` | `native`／`available` | verified instrument only；只產生 observation；不得寫 mastery 或 ledger |
 | `learning_memory.append_observation` | `index.ts` 的 `learning_record_append` 對單一學生 JSONL append | `adapter`／`available` | 唯一正式 writer；只 append；upstream 失敗不得 fallback 寫 production JSONL |
 | `verified_bank.read` | `verified_bank_lookup.mjs` 透過 `question_store.mjs` 只讀 `questions/verified/` | `adapter`／`available` | 只讀；candidate 額外要求 `verification_status=verified`，不得提供 Verified Bank writer |
 
-API discovery 的 `available` 只代表 candidate adapter 可呼叫，不等於真實 staging runtime
-已驗證。只有 image runtime 與部署證據通過後才能宣告 staging ready。`assessment.submit_observation` 在正式 Assessment implementation
-存在以前必須回傳 `capability_unavailable`。
-
-若 consumer readiness 要求完整四項 capability，Assessment 仍 unavailable 時 provider
-readiness 必須 fail-closed；不得為了讓 staging gate 變綠而把名稱列入 capability 清單。
+API discovery 的 `available` 只代表 candidate implementation 可呼叫，不等於真實 staging
+runtime 已驗證。只有 image runtime 與部署證據通過後才能宣告 staging ready。四項 capability
+任一缺失時 readiness 必須 fail-closed；不得為了讓 staging gate 變綠而放寬規則。
 
 ## 最小版本化 API
 
@@ -106,9 +103,9 @@ Provider process 必須在啟動前驗證：
 - 經審計的 Learning Director read-only implementation。
 - Learning Memory single-writer adapter。
 - Verified Bank verified-only reader adapter。
-- Assessment unavailable adapter（穩定 fail-closed response）。
+- Assessment native observation implementation（verified instrument only、無 persistence）。
 - synthetic fixtures、unit／container contract tests、Dockerfile 與 build metadata。
 
 它不得包含歷史學生資料、production configuration、OpenClaw session state、Voice、Tutor、
-Web 或未使用的 plugin tools。Assessment 真實能力應由 Assessment authority另行實作與驗證，
-再以可逆 commit 加入；不可在本輪以相近工具補假 implementation。
+Web 或未使用的 plugin tools。Assessment implementation 由 Assessment authority 定義；不得以
+Mastery Engine、Tutor feedback、browser validator 或相近 heuristic 取代。

@@ -54,6 +54,10 @@ jobs:
             import { createServiceToken } from "./server/auth/session-auth.mjs";
             process.stdout.write(createServiceToken({ subjectRef: "student_test_p09_ci", audience: "openclaw-learning", ttlSeconds: -1 }, process.env.PROVIDER_TEST_AUTH_KEY));
           ')"
+          PROVIDER_ASSESSMENT_CREDENTIAL="$(node --input-type=module --eval '
+            import { createServiceToken } from "./server/auth/session-auth.mjs";
+            process.stdout.write(createServiceToken({ subjectRef: "student_test_p09_ci", audience: "openclaw-learning", scopes: ["service:invoke", "assessment:submit_observation"] }, process.env.PROVIDER_TEST_AUTH_KEY));
+          ')"
 
           docker run --detach --name mentornest-openclaw-provider-ci \
             --publish 18789:18789 \
@@ -88,23 +92,23 @@ jobs:
             http://127.0.0.1:18789/readyz)" = 401
           test "$(curl --silent --output /tmp/provider-ready.json --write-out '%{http_code}' \
             --header "Authorization: Bearer ${PROVIDER_TEST_CREDENTIAL}" \
-            http://127.0.0.1:18789/readyz)" = 503
-          grep --fixed-strings '"ok":false' /tmp/provider-ready.json
+            http://127.0.0.1:18789/readyz)" = 200
+          grep --fixed-strings '"ok":true' /tmp/provider-ready.json
           grep --fixed-strings '"production_data_allowed":false' /tmp/provider-ready.json
           grep --fixed-strings '"learning_memory.append_observation"' /tmp/provider-ready.json
           grep --fixed-strings '"assessment.submit_observation"' /tmp/provider-ready.json
           test "$(curl --silent --output /tmp/provider-capabilities.json --write-out '%{http_code}' \
             --header "Authorization: Bearer ${PROVIDER_TEST_CREDENTIAL}" \
             http://127.0.0.1:18789/v1/capabilities)" = 200
-          grep --fixed-strings '"status":"unavailable"' /tmp/provider-capabilities.json
+          test "$(grep --only-matching '"status":"available"' /tmp/provider-capabilities.json | wc -l | tr -d ' ')" = 4
 
-          test "$(curl --silent --output /tmp/provider-unavailable.json --write-out '%{http_code}' \
+          test "$(curl --silent --output /tmp/provider-assessment.json --write-out '%{http_code}' \
             --request POST \
-            --header "Authorization: Bearer ${PROVIDER_TEST_CREDENTIAL}" \
+            --header "Authorization: Bearer ${PROVIDER_ASSESSMENT_CREDENTIAL}" \
             --header 'Content-Type: application/json' \
-            --data '{"contract_version":"1","capability":"assessment.submit_observation","subject_ref":"student_test_p09_ci","input":{}}' \
-            http://127.0.0.1:18789/v1/capabilities/invoke)" = 503
-          grep --fixed-strings '"error":"capability_unavailable"' /tmp/provider-unavailable.json
+            --data '{"contract_version":"1","capability":"assessment.submit_observation","subject_ref":"student_test_p09_ci","input":{"assessment_kind":"diagnostic","subject":"math","knowledge_point":"fake-kp","instrument":{"question_id":"q.fake.verified","verification_status":"verified","answer_key_version":"key-v1"},"attempt":{"response_id":"response.fake.ci","result":"correct","hints_used":0,"first_attempt":true,"occurred_at":"2026-08-30T00:00:00Z"}}}' \
+            http://127.0.0.1:18789/v1/capabilities/invoke)" = 200
+          grep --fixed-strings '"mastery_effect":"none"' /tmp/provider-assessment.json
 
           test "$(curl --silent --output /tmp/provider-invoke.json --write-out '%{http_code}' \
             --request POST \
@@ -193,15 +197,17 @@ jobs:
           test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-web-ci)" != unhealthy
           test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-tutor-ci)" != unhealthy
 
-  publish-candidate-images:
-    name: 發布 commit-bound staging candidate images
+  publish-openclaw-provider:
+    name: 發布並驗證 OpenClaw provider immutable image
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
-    needs: [verify, verify-openclaw-provider]
+    needs: verify-openclaw-provider
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
       - name: 登入 GHCR
@@ -210,22 +216,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: 建置並發布 Web candidate image
-        id: web-image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: ghcr.io/pisces5250/mentornest-web-v2-preview-web:${{ github.sha }}
-      - name: 建置並發布 Tutor candidate image
-        id: tutor-image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.backend
-          push: true
-          tags: ghcr.io/pisces5250/mentornest-web-v2-preview-tutor:${{ github.sha }}
       - name: 建置並發布 OpenClaw provider candidate image
         id: openclaw-provider-image
         uses: docker/build-push-action@v6
@@ -234,17 +224,84 @@ jobs:
           file: provider/openclaw/Dockerfile
           push: true
           tags: ghcr.io/pisces5250/mentornest-web-v2-preview-openclaw-provider:${{ github.sha }}
+          build-args: VCS_REVISION=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+      - name: 簽發 build provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/pisces5250/mentornest-web-v2-preview-openclaw-provider
+          subject-digest: ${{ steps.openclaw-provider-image.outputs.digest }}
+          push-to-registry: true
+      - name: 以 registry digest 重拉並驗證 container runtime
+        env:
+          PROVIDER_IMAGE: ghcr.io/pisces5250/mentornest-web-v2-preview-openclaw-provider@${{ steps.openclaw-provider-image.outputs.digest }}
+          PROVIDER_TEST_AUTH_KEY: p010-synthetic-service-auth-key-at-least-32-characters
+        run: |
+          docker pull "${PROVIDER_IMAGE}"
+          CREDENTIAL="$(node --input-type=module --eval '
+            import { createServiceToken } from "./server/auth/session-auth.mjs";
+            process.stdout.write(createServiceToken({ subjectRef: "service_readiness", audience: "openclaw-learning" }, process.env.PROVIDER_TEST_AUTH_KEY));
+          ')"
+          WRONG_AUDIENCE="$(node --input-type=module --eval '
+            import { createServiceToken } from "./server/auth/session-auth.mjs";
+            process.stdout.write(createServiceToken({ subjectRef: "service_readiness", audience: "voice-backend" }, process.env.PROVIDER_TEST_AUTH_KEY));
+          ')"
+          EXPIRED="$(node --input-type=module --eval '
+            import { createServiceToken } from "./server/auth/session-auth.mjs";
+            process.stdout.write(createServiceToken({ subjectRef: "service_readiness", audience: "openclaw-learning", ttlSeconds: -1 }, process.env.PROVIDER_TEST_AUTH_KEY));
+          ')"
+          INVALID_SIGNATURE="${CREDENTIAL%?}x"
+          cleanup() { docker logs mentornest-openclaw-provider-evidence || true; docker rm --force mentornest-openclaw-provider-evidence || true; }
+          trap cleanup EXIT
+          docker run --detach --name mentornest-openclaw-provider-evidence --publish 18789:18789 \
+            --tmpfs /var/lib/mentornest-staging:rw,noexec,nosuid,size=16m,mode=1777 \
+            --env MENTORNEST_ENV=staging --env MENTORNEST_DATA_NAMESPACE=student_test_p010_staging \
+            --env MENTORNEST_DATA_ROOT=/var/lib/mentornest-staging \
+            --env MENTORNEST_ALLOW_PRODUCTION_STUDENT_DATA=false \
+            --env OPENCLAW_SERVICE_AUTH_KEY="${PROVIDER_TEST_AUTH_KEY}" \
+            --env OPENCLAW_IMAGE_DIGEST="${PROVIDER_IMAGE}" "${PROVIDER_IMAGE}"
+          for attempt in $(seq 1 30); do
+            status="$(curl --silent --output provider-ready.json --write-out '%{http_code}' --header "Authorization: Bearer ${CREDENTIAL}" http://127.0.0.1:18789/readyz || true)"
+            if [ "${status}" = 200 ]; then break; fi
+            if [ "${attempt}" = 30 ]; then exit 1; fi
+            sleep 1
+          done
+          curl --fail --silent --header "Authorization: Bearer ${CREDENTIAL}" http://127.0.0.1:18789/v1/capabilities > provider-capabilities.json
+          test "$(grep --only-matching '"status":"available"' provider-capabilities.json | wc -l | tr -d ' ')" = 4
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18789/readyz)" = 401
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --header "Authorization: Bearer ${WRONG_AUDIENCE}" http://127.0.0.1:18789/readyz)" = 401
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --header "Authorization: Bearer ${EXPIRED}" http://127.0.0.1:18789/readyz)" = 401
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --header "Authorization: Bearer ${INVALID_SIGNATURE}" http://127.0.0.1:18789/readyz)" = 401
+          test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-openclaw-provider-evidence)" != unhealthy
+          docker inspect "${PROVIDER_IMAGE}" > provider-image-inspect.json
+          if docker run --rm --env MENTORNEST_ENV=staging \
+            --env MENTORNEST_DATA_ROOT=/var/lib/mentornest-staging \
+            --env MENTORNEST_ALLOW_PRODUCTION_STUDENT_DATA=false \
+            --env OPENCLAW_SERVICE_AUTH_KEY="${PROVIDER_TEST_AUTH_KEY}" \
+            --env OPENCLAW_IMAGE_DIGEST="${PROVIDER_IMAGE}" "${PROVIDER_IMAGE}"; then
+            echo "缺少 staging namespace 時不得啟動" >&2
+            exit 1
+          fi
+      - name: 保存 runtime evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-provider-runtime-evidence-${{ github.sha }}
+          path: |
+            provider-ready.json
+            provider-capabilities.json
+            provider-image-inspect.json
+          if-no-files-found: error
       - name: 記錄 immutable image evidence
         run: |
           {
-            echo '## P0.6 GHCR candidate evidence'
+            echo '## P0.10 OpenClaw provider evidence'
             echo ''
             echo '僅發布 commit SHA tag；未建立 latest 或 production tag。'
             echo ''
-            echo '- Web digest：`${{ steps.web-image.outputs.digest }}`'
-            echo '- Tutor digest：`${{ steps.tutor-image.outputs.digest }}`'
             echo '- OpenClaw provider digest：`${{ steps.openclaw-provider-image.outputs.digest }}`'
+            echo '- Runtime evidence artifact：`openclaw-provider-runtime-evidence-${{ github.sha }}`'
           } >> "$GITHUB_STEP_SUMMARY"

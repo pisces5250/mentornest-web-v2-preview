@@ -1840,3 +1840,13 @@ Acceptance evidence：`npm run verify:full` PASS；311/311 tests PASS；build PA
 - Dockerfile 鎖定 base image digest、以 non-root 執行，CI 使用 commit SHA tag 並記錄 registry digest。實際 remote CI、registry digest 與真實 staging `/readyz` 在產生前維持 UNVERIFIED。
 
 Hard invariants：未讀寫或搬移 production student data；未修改 production runtime；未 deploy、cutover 或移除 OpenClaw；Learning Memory single-writer、Verified Bank writer/read、confirmed/inferred 與 browser token 邊界保持。
+
+---
+
+## 2026-08-30 — P0.10 Assessment Capability & Remote Image Evidence
+
+- Assessment 專業審計確認歷史 OpenClaw snapshot 沒有合法 `assessment.submit_observation`；Mastery Engine、browser validator、Tutor feedback 與 subject heuristic 均不得冒充 Assessment authority。
+- 新增 native `assessment-observation-v1`：verified instrument only、strict schema、deterministic observation ID、capability-specific scope；輸出固定 `mastery_effect: none`，不寫 Learning Memory、mastery 或 evidence ledger。
+- 四項 capability 與 staging data-root dependency 皆 ready 時 `/readyz` 才回 200，未放寬 readiness 規則。
+- Provider remote workflow 改為 commit-SHA-only GHCR publish、max provenance、SBOM、GitHub build attestation，並以 registry digest 重拉執行 authenticated readiness、discovery、auth negative 與 missing-namespace smoke。
+- Remote push、GitHub Actions run、immutable digest、attestation 與 digest container result 必須以實際 run evidence 更新；workflow 定義本身不升格為成功證據。

@@ -36,14 +36,14 @@ export function verifySessionToken(token, secret, now = Date.now()) {
   }
 }
 
-export function createServiceToken({ subjectRef, audience, ttlSeconds = 60 }, secret) {
+export function createServiceToken({ subjectRef, audience, ttlSeconds = 60, scopes = ["service:invoke"] }, secret) {
   if (!secret || secret.length < 32) throw new Error("service auth key 至少需要 32 個字元");
   const issuedAt = Math.floor(Date.now() / 1000);
   const payload = encode(JSON.stringify({
     ver: 1,
     iss: "mentornest-gateway",
     subject_ref: subjectRef,
-    scopes: ["service:invoke"],
+    scopes,
     aud: audience,
     iat: issuedAt,
     exp: issuedAt + ttlSeconds,

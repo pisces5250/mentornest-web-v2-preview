@@ -78,7 +78,7 @@ services:
     historical_source_service_id: "6a8e84ce9ec391c39ae7a996"
     production: false
     port: 18789
-    lifecycle: "staging_candidate_not_deployed_assessment_unavailable"
+    lifecycle: "staging_candidate_not_deployed_remote_runtime_evidence_pending"
     contract: "architecture/openclaw-provider-mapping-p09.md"
     build_metadata: "provider/openclaw/BUILD-METADATA.json"
     production_fallback_allowed: false

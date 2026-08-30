@@ -2,7 +2,7 @@ FROM node:22.22.0-alpine3.23@sha256:fb79eb7e85a363500938daef295b4f7f423bc487f643
 
 ARG VCS_REVISION=unknown
 LABEL org.opencontainers.image.title="MentorNest OpenClaw Provider Candidate" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.version="0.2.0" \
       org.opencontainers.image.revision="${VCS_REVISION}" \
       org.opencontainers.image.source="https://github.com/pisces5250/mentornest-web-v2-preview"
 
