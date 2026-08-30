@@ -1,5 +1,6 @@
 export type TutorVerdict = "correct" | "incorrect" | "unverifiable";
 export type TutorRecommendedAction = "retry" | "hint" | "explain" | "next" | "review";
+import type { SpecialistRepresentationData, TutorSubject } from "./SpecialistRepresentation";
 
 export interface TutorTurnRequest {
   question_id: string;
@@ -11,6 +12,7 @@ export interface TutorTurnRequest {
 }
 
 export interface TutorTurnResponse {
+  subject: TutorSubject | null;
   verdict: TutorVerdict;
   summary: string;
   diagnosis: string | null;
@@ -23,4 +25,5 @@ export interface TutorTurnResponse {
   selection_reason: string | null;
   loop_completed: boolean;
   trace_id: string;
+  representation: SpecialistRepresentationData | null;
 }

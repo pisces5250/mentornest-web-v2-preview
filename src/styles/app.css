@@ -176,6 +176,14 @@ a { color: inherit; }
 .mn-teacher-turn p { max-width: 68ch; }
 .mn-teacher-turn__actions { display: flex; justify-content: flex-end; margin-top: 16px; }
 .mn-teacher-turn--error { border-inline-start-color: var(--mn-qg-amber); }
+.mn-specialist-representation { margin-block: 16px; padding: 12px 16px; border: 1px solid currentColor; }
+.mn-specialist-representation h3 { margin-block: 0 8px; font-size: 1rem; }
+.mn-specialist-representation p, .mn-specialist-representation ol { margin-block: 8px 0; }
+.mn-specialist-representation--math { border-inline-start: 4px solid var(--mn-qg-moss); }
+.mn-specialist-representation--english { border-inline-start: 4px solid #4a69bd; }
+.mn-specialist-representation--chinese { border-inline-start: 4px solid #8b5e3c; }
+.mn-specialist-representation--science { border-inline-start: 4px solid #317873; }
+.mn-specialist-representation--social_studies { border-inline-start: 4px solid #6f5a8a; }
 
 /* ─── Grid background (decorative, behind content) ────────────────────── */
 

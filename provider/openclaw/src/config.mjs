@@ -29,8 +29,11 @@ export function loadConfig(env = process.env) {
     imageDigest,
     dataRoot,
     verifiedBankRoot: path.join(dataRoot, namespace, "verified-bank"),
+    environment: env.MENTORNEST_ENV,
+    productionDataAllowed: false,
+    seedStagingVerifiedFixture: env.MENTORNEST_SEED_VERIFIED_FIXTURE === "true",
     contractVersion: "1",
-    runtimeVersion: "mentornest-openclaw-provider-0.2.0",
+    runtimeVersion: "mentornest-openclaw-provider-0.3.0",
   });
 }
 

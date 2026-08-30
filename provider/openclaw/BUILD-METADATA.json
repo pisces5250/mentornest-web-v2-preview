@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "provider_version": "0.2.0",
+  "provider_version": "0.3.0",
   "contract_version": "1",
   "source_kind": "historical_openclaw_snapshot_derived_adapters_plus_p010_native_assessment",
   "historical_service_id": "6a8e84ce9ec391c39ae7a996",
@@ -14,6 +14,11 @@
     "index.ts": "4ffaceaf9ae49db34f3c5dc63aee676016d5dcfa540cc77385a23a8554eb160a",
     "openclaw.plugin.json": "9c9b355358e4499225fb5e52cd57023fca10424e9fd18d0c0bb7a067a9519244"
   },
+  "staging_extensions": {
+    "question_quality_writer": "src/staging-question-quality-writer.mjs",
+    "fixture": "fixtures/staging-question.json",
+    "scope": "staging_synthetic_only_no_http_route"
+  },
   "excluded": [
     "historical workspace data",
     "student records",
@@ -21,7 +26,7 @@
     "Voice runtime",
     "Tutor runtime",
     "Web runtime",
-    "question-bank writers",
+    "production question-bank writers",
     "mastery writers"
   ]
 }

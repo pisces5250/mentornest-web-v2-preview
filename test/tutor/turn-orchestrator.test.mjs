@@ -213,3 +213,23 @@ test("無法客觀判斷時不產生負向 Assessment 或 Memory evidence", asyn
   assert.equal(result.memory_write.code, "unverifiable_not_recorded");
   assert.deepEqual(gateway.calls.map((item) => item.capability), ["verified_bank.read"]);
 });
+
+test("尚無正式 evaluator 的學科 fail-closed，不以字串相等冒充 observed evidence", async () => {
+  for (const subject of ["chinese", "science", "social_studies"]) {
+    const gateway = fakeGateway();
+    const original = gateway.invoke.bind(gateway);
+    gateway.invoke = async (capability, input) => {
+      if (capability === "verified_bank.read") {
+        gateway.calls.push({ capability, request: input });
+        return { questions: [fixtureQuestion({ subject, expected_answer: "相同答案" })] };
+      }
+      return original(capability, input);
+    };
+    const result = await createTutorTurnOrchestrator({ gateway }).submit(request({
+      response_id: `resp_${subject}`, response: "相同答案",
+    }), { subjectRef: "student_test_phase6" });
+    assert.equal(result.verdict, "unverifiable");
+    assert.equal(result.assessment_evidence, null);
+    assert.deepEqual(gateway.calls.map((item) => item.capability), ["verified_bank.read"]);
+  }
+});

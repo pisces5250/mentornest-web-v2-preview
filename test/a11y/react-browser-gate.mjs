@@ -25,12 +25,22 @@ try {
         contract_version: "phase6.tutor-turn.v1",
         trace_id: correct ? "trace_browser_correct" : "trace_browser_retry",
         loop_completed: true,
+        subject: "math",
         judgement: { result: correct ? "correct" : "incorrect" },
         diagnosis: correct
           ? { error_code: null, evidence_status: "observed" }
           : { error_code: "MATH-WRONG-CHOICE", evidence_status: "inferred" },
         teaching: correct
-          ? { action: "advance", utterance: "答對了，你抓到這題的重點了。" }
+          ? {
+            action: "advance",
+            utterance: "答對了，你抓到這題的重點了。",
+            representation: {
+              kind: "worked_example",
+              title: "數量關係",
+              content: "先看每組有幾個，再看一共有幾組。",
+              items: ["找每組數量", "找組數"],
+            },
+          }
           : { action: "retry_same", utterance: "差一點。先找出題目真正要問的量，再試一次。" },
         assessment_evidence: { observation_id: correct ? "obs_correct" : "obs_retry" },
         memory_write: { accepted: true, event_id: correct ? "mem_correct" : "mem_retry" },
@@ -102,6 +112,8 @@ try {
   const correctFeedback = page.getByTestId("teacher-turn-result");
   await correctFeedback.waitFor();
   assert.equal(await correctFeedback.getAttribute("data-verdict"), "correct");
+  await page.getByTestId("specialist-representation-math").waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "teacher-turn-title", "Tutor 回饋完成後應移動焦點至標題");
   assert.equal(await page.getByTestId("next-question").isVisible(), true);
   assert.equal(tutorRequests.length, 2, "再答應形成兩筆 append-only response");
   assert.notEqual(tutorRequests[0].response_id, tutorRequests[1].response_id);
@@ -118,7 +130,8 @@ try {
 
   process.stdout.write(`${JSON.stringify({
     axe: { criticalOrSerious: 0, totalViolations: axeResult.violations.length },
-    keyboard: { settingsDialog: "通過", startSession: "通過" },
+    keyboard: { settingsDialog: "通過", startSession: "通過", tutorFeedbackFocus: "通過" },
+    tutor: { specialistRepresentation: "math", dynamicAxe: "通過" },
     phase6TutorFlow: {
       firstIncorrectDiagnosis: "通過",
       retryThenCorrect: "通過",

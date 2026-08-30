@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import type { TutorTurnResponse } from "./TutorTurnContract";
+import { SpecialistRepresentation } from "./SpecialistRepresentation";
 
 export interface TeacherTurnPanelProps {
   state: { kind: "idle" } | { kind: "evaluating" } | { kind: "error"; message: string } | { kind: "result"; turn: TutorTurnResponse };
@@ -29,6 +30,7 @@ export function TeacherTurnPanel({ state, onRetry, onHint, onAdvance }: TeacherT
       {turn.diagnosis && <p><strong>我看到的關鍵：</strong>{turn.diagnosis}</p>}
       {turn.teaching_point && <p><strong>一起想：</strong>{turn.teaching_point}</p>}
       {turn.hint && <p className="mn-teacher-turn__hint"><strong>提示：</strong>{turn.hint}</p>}
+      {turn.representation && <SpecialistRepresentation data={turn.representation} />}
       <div className="mn-teacher-turn__actions">
         {(action === "retry" || action === "explain") && <button type="button" className="mn-button mn-button--primary" data-testid="teacher-retry" onClick={onRetry}>再答一次</button>}
         {action === "hint" && <button type="button" className="mn-button mn-button--primary" data-testid="teacher-hint" onClick={onHint}>看一個提示</button>}

@@ -1,5 +1,6 @@
 import type { TutorTurnRequest, TutorTurnResponse } from "./TutorTurnContract";
 import { browserCsrfToken } from "../foundation/browser_security";
+import type { SpecialistRepresentationData, TutorSubject } from "./SpecialistRepresentation";
 
 export type TutorTurnEvaluator = (request: TutorTurnRequest) => Promise<TutorTurnResponse>;
 
@@ -29,6 +30,28 @@ export function parsePublicNextStep(value: unknown): Record<string, unknown> | n
   return result;
 }
 
+const SUBJECTS = new Set<TutorSubject>(["math", "english", "chinese", "science", "social_studies"]);
+
+export function parseSpecialistRepresentation(subjectValue: unknown, value: unknown): SpecialistRepresentationData | null {
+  if (typeof subjectValue !== "string" || !SUBJECTS.has(subjectValue as TutorSubject)) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = record(value);
+  for (const forbidden of ["expected_answer", "answer_key", "rubric", "judgement"]) {
+    if (forbidden in raw) throw new Error("Specialist representation 含非呈現欄位");
+  }
+  if (typeof raw.kind !== "string" || typeof raw.content !== "string" || raw.content.trim() === "") return null;
+  const items = raw.items === undefined ? [] : raw.items;
+  if (!Array.isArray(items) || items.some((item) => typeof item !== "string")) return null;
+  return {
+    subject: subjectValue as TutorSubject,
+    kind: raw.kind,
+    title: typeof raw.title === "string" ? raw.title : null,
+    content: raw.content,
+    items: items.slice(0, 6) as string[],
+    aria_label: typeof raw.aria_label === "string" ? raw.aria_label : null,
+  };
+}
+
 export function parseTutorTurnResponse(value: unknown): TutorTurnResponse {
   if (!value || typeof value !== "object") throw new Error("Tutor turn response 格式錯誤");
   const data = value as Record<string, unknown>;
@@ -43,11 +66,13 @@ export function parseTutorTurnResponse(value: unknown): TutorTurnResponse {
   if (!["correct", "incorrect", "unverifiable"].includes(verdict)) throw new Error("Tutor turn verdict 無效");
   const rawAction = String(teaching.action);
   const writerFailed = memory.accepted === false && rawVerdict !== "unverifiable";
+  const subjectValue = data.subject ?? teaching.subject;
   const action = writerFailed ? "retry"
     : rawAction === "advance" ? "next"
     : rawAction === "retry_same" ? "retry"
     : rawAction === "practice_similar" ? "review" : "explain";
   return {
+    subject: typeof subjectValue === "string" && SUBJECTS.has(subjectValue as TutorSubject) ? subjectValue as TutorSubject : null,
     verdict: verdict as TutorTurnResponse["verdict"],
     summary: writerFailed ? "老師已看完，但學習紀錄還沒有安全存好，請再送一次。" : String(teaching.utterance || "老師已看完你的回答。"),
     diagnosis: typeof diagnosis.error_code === "string" ? diagnosis.error_code : null,
@@ -60,6 +85,7 @@ export function parseTutorTurnResponse(value: unknown): TutorTurnResponse {
     selection_reason: data.director_decision ? "依照這次學習狀態安排" : null,
     loop_completed: data.loop_completed === true,
     trace_id: typeof data.trace_id === "string" ? data.trace_id : "unavailable",
+    representation: parseSpecialistRepresentation(subjectValue, data.representation ?? teaching.representation),
   };
 }
 

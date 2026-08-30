@@ -122,6 +122,7 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
           },
           inferred: {
             error_code: diagnosis.error_code,
+            error_codes: diagnosis.error_codes,
             confidence: diagnosis.confidence,
             next_action: teaching.action,
           },
@@ -219,6 +220,9 @@ function judgeAnswer(question, response) {
     });
     return Object.freeze({ result: result.verdict, authority: "objective_math_validator" });
   }
+  if (question.subject !== "english") {
+    return Object.freeze({ result: "unverifiable", authority: "specialist_evaluator_required" });
+  }
   const expected = normalize(question.expected_answer);
   const actual = normalize(response);
   const result = expected === actual ? "correct" : "incorrect";
@@ -227,7 +231,7 @@ function judgeAnswer(question, response) {
 }
 
 function diagnose(question, judgement, attemptIndex, studentResponse) {
-  if (judgement.result === "correct") return Object.freeze({ error_code: null, confidence: 1, evidence_status: "observed" });
+  if (judgement.result === "correct") return Object.freeze({ error_code: null, error_codes: [], confidence: 1, evidence_status: "observed" });
   if (question.subject === "english") {
     const result = diagnoseEnglishResponse({
       student_id: "student_scoped",
@@ -239,6 +243,7 @@ function diagnose(question, judgement, attemptIndex, studentResponse) {
     });
     return Object.freeze({
       error_code: result.error_codes[0] || "EN-UNKNOWN",
+      error_codes: result.error_codes.length > 0 ? result.error_codes : ["EN-UNKNOWN"],
       confidence: attemptIndex > 1 ? 0.75 : 0.55,
       evidence_status: "inferred",
     });
@@ -246,6 +251,7 @@ function diagnose(question, judgement, attemptIndex, studentResponse) {
   const suffix = question.type === "multiple_choice" ? "WRONG-CHOICE" : "WRONG-VALUE";
   return Object.freeze({
     error_code: `${String(question.subject).toUpperCase()}-${suffix}`,
+    error_codes: [`${String(question.subject).toUpperCase()}-${suffix}`],
     confidence: attemptIndex > 1 ? 0.75 : 0.55,
     evidence_status: "inferred",
   });
