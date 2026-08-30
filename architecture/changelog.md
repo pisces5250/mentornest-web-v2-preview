@@ -1,5 +1,28 @@
 # MentorNest Architecture Changelog
 
+## 2026-08-30 — P0.11 部分 staging runtime evidence
+
+- 新建獨立 Zeabur project `mentornest-p0-11-staging` 與 `staging` environment；未修改現有 production project、service、domain 或 secret。
+- 以 immutable digest 部署 OpenClaw Provider、Tutor Backend 與 Web Edge；OpenClaw 只掛載 staging-only volume，所有新產生的 staging secrets 皆為 `exposed=false`。
+- GitHub Actions `33298531468` 提供 Web／Tutor／OpenClaw GHCR digest evidence；Voice `33298323873` 已發布 digest image，但 private-package pull 需要 credential。
+- 遵守 credential 不落盤邊界，未將 `GH_TOKEN` 寫入 Zeabur image credential，故 Voice service 未建立。Web Edge 因 Voice DNS 不存在而 fail-closed，TLS 與 cross-service smoke 尚未完成。
+- 後續取得專用 Voice GHCR pull credential，但 Zeabur API 僅提供持久化 service `imageCredential`；依 credential 不持久化要求未送出 mutation，部署狀態不變。
+- 修正 runtime evidence runner 的 Compose private-network 名稱不一致，改用 `STAGING_PRIVATE_NETWORK_NAME`；新增 regression 與 Voice browser-session-token rejection smoke。
+- 完整 Node regression 319/319、typecheck 與 production build 通過；上述結果不冒充尚未完成的真實 Voice／TLS／cross-service runtime evidence。
+- 人類授權 Zeabur encrypted `imageCredential` 後建立 private Voice staging service `6a93e9b18eb2f64ed5f19f71`；GHCR OCI pull 與 resolved digest 驗證成功，無 public domain且 port forwarding disabled。
+- Voice `/healthz` 與 STT/TTS model/privacy checks 通過；`/readyz` 因 runtime identity/app env 缺口維持 503。Zeabur variable replace semantics 導致 Voice app env 待重建；同步 Tutor/Voice staging auth key 與重啟仍待額外人類授權，未觸及 production。
+- 後續取得完整 staging-only授權後已恢復Voice app env、同步Tutor/Voice auth key並重啟；四服務皆RUNNING，Voice與Tutor/OpenClaw readiness均為200。
+- Web Edge新generated domain完成TLS：HTTPS health 200、HTTP→HTTPS 302、certificate SAN/chain驗證通過；三個backend維持無public domain。
+- 真實public synthetic flow涵蓋Tutor、四個OpenClaw capabilities、Voice TTS/audio/STT round-trip並全數200；invalid session與四種Voice credential負向案例正確401。
+- Remote unavailable／contract mismatch／missing capability fault topology仍缺Tutor private-package scoped pull credential，故狀態維持 `DEPLOYED BUT NOT STAGING READY`，不以isolated tests冒充platform evidence。
+- 取得專用Tutor GHCR read-only credential後建立三個private fault services；remote contract mismatch 503、missing capability 503、Provider unavailable 503均命中精確fail-closed原因。
+- 短暫suspend Voice的remote unavailable drill經Web Edge回504且`ok:false`；Voice恢復後`/readyz`與public TTS皆200。
+- 三個fault services已送出delete並進入Zeabur suspended retention；無domain且不再運行。四個主staging services維持RUNNING。
+- Final gate偵測並修復早期serial drill殘留的主Tutor contract mismatch；恢復contract v1後Tutor/OpenClaw readiness 200，並重跑public Tutor、四capabilities與Voice TTS全數200。
+- 四項剩餘remote fault cases與既有主流程、TLS、auth、privacy、namespace及production-isolation evidence全數通過，P0.11升級為`STAGING READY`；此結論不授權production cutover。
+- Prebuilt immutable image deployment 以 service ID、immutable image digest 與 runtime readiness evidence 共同識別；Zeabur 未提供獨立 revision ID 時據實記錄 `platform_revision_id: unavailable`，不偽造 revision，也不否定既有 immutable deployment evidence。
+- 初始部分部署階段曾維持 `DEPLOYED BUT NOT STAGING READY`；本節後續條目已記錄完整gates與最終 `STAGING READY` 判定。
+
 ## 2026-08-30 — P0.11 staging deployment evidence gates
 
 - Staging compose 改為 Web、Tutor、Voice、OpenClaw 四個 immutable digest image，並補上 OpenClaw authenticated `/readyz` healthcheck。
