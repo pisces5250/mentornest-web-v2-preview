@@ -75,6 +75,32 @@ Zeabur metadata 保留 `SUSPENDED` tombstone。既有 P0.11 staging baseline 全
 本次沒有形成 Provider／Voice readiness、Question Quality writer receipt、remote learning-loop 或
 remote 五科／Voice browser evidence，因此不能據此宣稱 `PHASE 6 STAGING READY`。
 
+### 2026-08-31 commit-SHA deployment model
+
+依平台實際 semantics，Zeabur source 使用完整 commit-SHA tag，deployment identity 定義為
+`service_id + commit_sha_tag + resolved_ghcr_digest + runtime_build_identity + readiness_evidence`。
+GHCR manifest 已證明 `f0af273d96e1150edf6ad7d039f89cc7686c5a5c` 對應本文件前述唯一 digests；
+不使用 `latest` 或 human-readable mutable tag。
+
+新隔離 services：
+
+- Web `6a945464f58fe6cbb975bbac`：commit-SHA tag pull 成功；HTTPS domain
+  `mentornest-phase61-f0af273.zeabur.app` 可用。
+- Tutor `6a945464f58fe6cbb975bbad`：commit-SHA tag pull 成功並啟動。
+- Provider `6a945464f58fe6cbb975bbae`：commit-SHA tag pull 成功，runtime log 回報
+  `mentornest-openclaw-provider-0.3.0`。
+- Voice `6a945464f58fe6cbb975bbaf`：原生 credential 未繼承至新 service，GHCR anonymous pull
+  `401 Unauthorized`，狀態 `PULL_FAILED`。
+
+Remote HTTPS bundle 的 Playwright gate 通過：初始與動態畫面 axe critical／serious 皆 0，鍵盤
+dialog、開始學習、Tutor feedback focus 通過，Math representation、先錯再答、兩筆 append-only
+request 與 browser answer-key exposure 0 均通過。Tutor response 在 browser 層使用 canonical mock，
+只證明 deployed UI contract，不冒充 remote server learning-loop。
+
+Zeabur 對新 services 的 container exec 回 `FORBIDDEN`，因此目前沒有 server-side readiness body、
+Question Quality writer receipt、Learning Memory receipt 或 Director decision evidence。Voice 尚未啟動，
+故 Web 依賴 topology 也不能宣告完整 ready。
+
 ## Production isolation
 
 本階段不修改 production resource、不讀寫 production student data、不使用 production credential，
