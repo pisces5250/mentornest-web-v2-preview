@@ -374,17 +374,23 @@ jobs:
           }
           trap cleanup EXIT
           docker run --detach --name mentornest-p011-tutor --network mentornest-p011-publish \
-            --network-alias tutor-backend --env MENTORNEST_ENV=staging \
+            --network-alias tutor-backend --publish 18787:8787 \
             --env MENTORNEST_GATEWAY_SESSION_SECRET=p011-synthetic-session-secret-at-least-32-characters \
             --env MENTORNEST_SERVICE_AUTH_KEY=p011-synthetic-service-key-at-least-32-characters \
             "${TUTOR_IMAGE}"
           docker run --detach --name mentornest-p011-web --network mentornest-p011-publish \
+            --env VOICE_BACKEND_ORIGIN=http://tutor-backend:8787 \
             --publish 18080:80 "${WEB_IMAGE}"
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null; then break; fi
+            if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null && \
+               curl --fail --silent http://127.0.0.1:18787/api/health >/tmp/p011-tutor-health.json; then
+              break
+            fi
             if [ "${attempt}" = 30 ]; then exit 1; fi
             sleep 1
           done
+          grep --fixed-strings '"ok":true' /tmp/p011-tutor-health.json
+          grep --fixed-strings '"cloud_fallback":false' /tmp/p011-tutor-health.json
           test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-p011-web)" != unhealthy
           test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-p011-tutor)" != unhealthy
       - name: 記錄 Web／Tutor immutable evidence
