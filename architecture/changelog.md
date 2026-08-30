@@ -1851,3 +1851,4 @@ Hard invariants：未讀寫或搬移 production student data；未修改 product
 - Provider remote workflow 改為 commit-SHA-only GHCR publish、max provenance、SBOM、GitHub build attestation，並以 registry digest 重拉執行 authenticated readiness、discovery、auth negative 與 missing-namespace smoke。
 - Remote push、GitHub Actions run、immutable digest、attestation 與 digest container result 必須以實際 run evidence 更新；workflow 定義本身不升格為成功證據。
 - 首次 remote run `33285198222` 的 provider contract tests 通過，但 build 揭露舊 base-image manifest pin 已失效；依 Docker Hub 公開 OCI index metadata 更新同一 Node 22.22.0 Alpine 3.23 tag 的 immutable digest後重跑，未改 capability 或 readiness 規則。
+- 第二次 run `33285254793` 的 provider image 與 container guards 已通過；GHCR build-push 揭露 context-relative Dockerfile path 與 inline buildx attestation不相容。改用 context-relative `Dockerfile`，provenance由獨立 GitHub build attestation step簽發，避免重複 attestation backend。

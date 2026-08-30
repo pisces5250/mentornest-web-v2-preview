@@ -221,12 +221,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: provider/openclaw
-          file: provider/openclaw/Dockerfile
+          file: Dockerfile
           push: true
           tags: ghcr.io/pisces5250/mentornest-web-v2-preview-openclaw-provider:${{ github.sha }}
           build-args: VCS_REVISION=${{ github.sha }}
-          provenance: mode=max
-          sbom: true
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
