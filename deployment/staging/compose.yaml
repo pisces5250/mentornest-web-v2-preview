@@ -2,11 +2,7 @@ name: mentornest-web-v2-staging
 
 services:
   web-edge:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-      args:
-        VITE_USE_FIXTURES: "false"
+    image: ${WEB_EDGE_IMAGE:?必須使用已驗證的 Web immutable image digest}
     environment:
       MENTORNEST_ENV: staging
       TUTOR_BACKEND_ORIGIN: http://tutor-backend:8787
@@ -28,9 +24,7 @@ services:
     restart: unless-stopped
 
   tutor-backend:
-    build:
-      context: ../..
-      dockerfile: Dockerfile.backend
+    image: ${TUTOR_BACKEND_IMAGE:?必須使用已驗證的 Tutor immutable image digest}
     environment:
       MENTORNEST_ENV: staging
       PORT: "8787"
@@ -85,13 +79,22 @@ services:
     volumes:
       - openclaw-staging-data:/var/lib/mentornest-staging
     expose: ["18789"]
+    healthcheck:
+      # image 內的 probe 會以短效 HMAC credential 驗證完整 /readyz，而非只測 TCP。
+      test: ["CMD", "node", "src/healthcheck.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
     networks: [private]
     restart: unless-stopped
 
 networks:
-  edge: {}
+  edge:
+    name: ${STAGING_EDGE_NETWORK_NAME:?必須使用獨立 staging edge network 名稱}
   private:
     internal: true
+    name: ${STAGING_PRIVATE_NETWORK_NAME:?必須使用獨立 staging private network 名稱}
 
 volumes:
   openclaw-staging-data:

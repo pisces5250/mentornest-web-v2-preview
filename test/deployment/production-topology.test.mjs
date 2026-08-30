@@ -59,7 +59,10 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
     MENTORNEST_ENV: "staging",
     STAGING_DEPLOYMENT_ID: "staging-candidate-001",
     PRODUCTION_FALLBACK_SERVICE_ID: "6a8eaa6e7d3d98c91024fb26",
+    PRODUCTION_OPENCLAW_SERVICE_ID: "6a8e84ce9ec391c39ae7a996",
     STAGING_DATA_NAMESPACE: "mentornest-staging-isolated",
+    WEB_EDGE_IMAGE: `web@sha256:${"c".repeat(64)}`,
+    TUTOR_BACKEND_IMAGE: `tutor@sha256:${"d".repeat(64)}`,
     VOICE_BACKEND_IMAGE: `voice@sha256:${"a".repeat(64)}`,
     OPENCLAW_LEARNING_IMAGE: `openclaw@sha256:${"b".repeat(64)}`,
     OPENCLAW_RUNTIME_VERSION: "openclaw-test-1.0.0",
@@ -67,6 +70,8 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
     MENTORNEST_SERVICE_AUTH_KEY: "test-only-service-key-at-least-32-chars",
     OPENCLAW_SERVICE_AUTH_KEY: "test-only-openclaw-key-at-least-32-chars",
     STAGING_OPENCLAW_VOLUME_NAME: "mentornest-openclaw-p09-staging-only",
+    STAGING_EDGE_NETWORK_NAME: "mentornest-p011-staging-edge",
+    STAGING_PRIVATE_NETWORK_NAME: "mentornest-p011-staging-private",
   };
   const rejected = spawnSync(process.execPath, [script], {
     encoding: "utf8",
@@ -89,6 +94,13 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
   assert.notEqual(productionTargetRejected.status, 0);
   assert.match(productionTargetRejected.stderr, /不得指向 production fallback service/);
 
+  const productionOpenClawTargetRejected = spawnSync(process.execPath, [script], {
+    encoding: "utf8",
+    env: { ...validEnv, STAGING_DEPLOYMENT_ID: validEnv.PRODUCTION_OPENCLAW_SERVICE_ID },
+  });
+  assert.notEqual(productionOpenClawTargetRejected.status, 0);
+  assert.match(productionOpenClawTargetRejected.stderr, /production OpenClaw service/);
+
   const ambiguousNamespaceRejected = spawnSync(process.execPath, [script], {
     encoding: "utf8",
     env: { ...validEnv, STAGING_DATA_NAMESPACE: "mentornest-shared" },
@@ -102,6 +114,13 @@ test("staging environment guard fail-closed 並接受隔離、digest-pinned 設�
   });
   assert.notEqual(registryMismatchRejected.status, 0);
   assert.match(registryMismatchRejected.stderr, /architecture registry 不一致/);
+
+  const sharedNetworkRejected = spawnSync(process.execPath, [script], {
+    encoding: "utf8",
+    env: { ...validEnv, STAGING_PRIVATE_NETWORK_NAME: validEnv.STAGING_EDGE_NETWORK_NAME },
+  });
+  assert.notEqual(sharedNetworkRejected.status, 0);
+  assert.match(sharedNetworkRejected.stderr, /edge 與 private network 必須分離/);
 
   const accepted = spawnSync(process.execPath, [script], {
     encoding: "utf8",

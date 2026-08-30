@@ -1,5 +1,13 @@
 # MentorNest Architecture Changelog
 
+## 2026-08-30 — P0.11 staging deployment evidence gates
+
+- Staging compose 改為 Web、Tutor、Voice、OpenClaw 四個 immutable digest image，並補上 OpenClaw authenticated `/readyz` healthcheck。
+- 新增 production Web／OpenClaw service ID、staging-only network／volume 與 namespace fail-closed guards；不允許 production fallback、volume 或 secret reuse。
+- Cross-service smoke 改用四項 capability 正式 typed schema，新增 Assessment `mastery_effect: none`、Memory writer authority、Verified Bank verified-only，以及 Provider／Voice unavailable 負向路徑。
+- GitHub Actions 新增目前 HEAD 的 Web／Tutor SHA-tag image publish、digest pull smoke 與 OCI provenance；真實 digest 需待 remote run 成功後記錄。
+- 真實平台 service ID、DNS、TLS、secret injection、mount、deploy revision 與 runtime smoke 尚未產生，狀態維持 `PREPARING_DEPLOYMENT`，不得宣告 `STAGING READY`。
+
 ## 20260827T045354Z — Project Registry v1
 
 Created baseline architecture registry.

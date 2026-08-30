@@ -54,9 +54,13 @@ docker run --rm \
   --env P07_TUTOR_INVALID_CREDENTIAL_ORIGIN=http://tutor-invalid-runtime-credential:8787 \
   --env P07_TUTOR_CONTRACT_MISMATCH_ORIGIN=http://tutor-contract-mismatch:8787 \
   --env P07_TUTOR_MISSING_CAPABILITY_ORIGIN=http://tutor-missing-capability:8787 \
+  --env P011_TUTOR_PROVIDER_UNAVAILABLE_ORIGIN=http://tutor-provider-unavailable:8787 \
+  --env P011_WEB_EDGE_VOICE_UNAVAILABLE_ORIGIN=http://web-edge-voice-unavailable \
   --env P07_VOICE_INTERNAL_ORIGIN=http://voice-backend:8502 \
+  --env P011_OPENCLAW_INTERNAL_ORIGIN=http://openclaw-learning:18789 \
   --env P07_SESSION_SECRET="$MENTORNEST_GATEWAY_SESSION_SECRET" \
   --env P07_SERVICE_AUTH_KEY="$MENTORNEST_SERVICE_AUTH_KEY" \
+  --env P011_OPENCLAW_SERVICE_AUTH_KEY="$OPENCLAW_SERVICE_AUTH_KEY" \
   --env P07_VOICE_IMAGE="$VOICE_BACKEND_IMAGE" \
   --env P07_OPENCLAW_IMAGE="$OPENCLAW_LEARNING_IMAGE" \
   --env P07_STAGING_DATA_NAMESPACE="$STAGING_DATA_NAMESPACE" \

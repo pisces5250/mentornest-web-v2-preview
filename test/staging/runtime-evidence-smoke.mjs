@@ -92,9 +92,13 @@ async function main() {
   const invalidRuntimeTutor = origin("P07_TUTOR_INVALID_CREDENTIAL_ORIGIN");
   const mismatchTutor = origin("P07_TUTOR_CONTRACT_MISMATCH_ORIGIN");
   const missingTutor = origin("P07_TUTOR_MISSING_CAPABILITY_ORIGIN");
+  const unavailableTutor = origin("P011_TUTOR_PROVIDER_UNAVAILABLE_ORIGIN");
+  const unavailableVoiceEdge = origin("P011_WEB_EDGE_VOICE_UNAVAILABLE_ORIGIN");
   const voice = origin("P07_VOICE_INTERNAL_ORIGIN");
+  const openclaw = origin("P011_OPENCLAW_INTERNAL_ORIGIN");
   const sessionSecret = required("P07_SESSION_SECRET");
   const serviceKey = required("P07_SERVICE_AUTH_KEY");
+  const openclawServiceKey = required("P011_OPENCLAW_SERVICE_AUTH_KEY");
   const subjectRef = process.env.P07_SYNTHETIC_SUBJECT || "student_test_p07_runtime";
   if (!/^student_(?:t_|test_)/.test(subjectRef)) throw new Error("P0.7_UNVERIFIED: subject 必須是 synthetic test identity");
   const voiceImage = immutable("P07_VOICE_IMAGE");
@@ -143,6 +147,22 @@ async function main() {
   );
   assert.equal(missingCapability.response.status, 503, "missing capability 必須阻止 readiness");
   assert.ok(missingCapability.body?.dependencies?.openclaw?.missing_capabilities?.includes("p07.synthetic.missing"));
+  const providerUnavailable = await retry(
+    () => json(new URL("/api/ready", unavailableTutor)),
+    ({ response, body }) => response.status === 503 && body?.dependencies?.openclaw?.mismatches?.includes("runtime_unavailable"),
+    "provider unavailable probe",
+  );
+  assert.equal(providerUnavailable.response.status, 503, "Provider unavailable 必須阻止 readiness");
+
+  const expiredProviderCredential = createServiceToken({
+    subjectRef,
+    audience: "openclaw-learning",
+    ttlSeconds: -1,
+  }, openclawServiceKey);
+  const expiredProviderAuth = await json(new URL("/readyz", openclaw), {
+    headers: { Authorization: `Bearer ${expiredProviderCredential}` },
+  });
+  assert.equal(expiredProviderAuth.response.status, 401, "過期 Provider credential 必須 fail-closed");
 
   const invalidSession = await json(new URL("/api/learning/director/recommend", edge), {
     method: "POST",
@@ -151,26 +171,91 @@ async function main() {
   });
   assert.equal(invalidSession.response.status, 401, "無效 browser auth 必須 fail-closed");
 
-  const capabilityPaths = [
-    "/api/learning/director/recommend",
-    "/api/learning/assessment/observations",
-    "/api/learning/memory/observations",
-    "/api/learning/verified-bank/query",
+  const capabilityCases = [
+    {
+      name: "learning_director.recommend",
+      path: "/api/learning/director/recommend",
+      input: {
+        confirmed_mastery: [{
+          subject: "math",
+          knowledge_point: "fake-kp-fractions",
+          mastery: 0.4,
+          evidence_status: "confirmed",
+        }],
+      },
+      verify(result) {
+        assert.equal(result.body?.result?.evidence_basis, "confirmed_only");
+        assert.equal(result.body?.result?.authority, "learning_director_read_only");
+      },
+    },
+    {
+      name: "assessment.submit_observation",
+      path: "/api/learning/assessment/observations",
+      input: {
+        assessment_kind: "diagnostic",
+        subject: "math",
+        knowledge_point: "fake-kp-fractions",
+        instrument: {
+          question_id: "q.fake.verified.p011",
+          verification_status: "verified",
+          answer_key_version: "key-v1",
+        },
+        attempt: {
+          response_id: "response.fake.p011",
+          result: "correct",
+          hints_used: 0,
+          first_attempt: true,
+          occurred_at: "2026-08-30T00:00:00Z",
+        },
+      },
+      verify(result) {
+        assert.equal(result.body?.result?.schema_version, "assessment-observation-v1");
+        assert.equal(result.body?.result?.mastery_effect, "none");
+        assert.equal(result.body?.result?.authority, "assessment_observation_only");
+      },
+    },
+    {
+      name: "learning_memory.append_observation",
+      path: "/api/learning/memory/observations",
+      input: {
+        observation: {
+          kind: "synthetic_p011_cross_service",
+          knowledge_point: "fake-kp-fractions",
+          source: "p011-runtime-evidence",
+          occurred_at: "2026-08-30T00:00:00Z",
+        },
+      },
+      verify(result) {
+        assert.equal(result.body?.result?.accepted, true);
+        assert.equal(result.body?.result?.authority, "learning_memory_writer");
+      },
+    },
+    {
+      name: "verified_bank.read",
+      path: "/api/learning/verified-bank/query",
+      input: { subject: "math", limit: 5 },
+      verify(result) {
+        assert.ok(Array.isArray(result.body?.result?.questions));
+        assert.equal(result.body?.result?.authority, "verified_bank_reader");
+        assert.ok(result.body.result.questions.every((question) => question.verification_status === "verified"));
+      },
+    },
   ];
-  for (let index = 0; index < capabilityPaths.length; index += 1) {
-    const result = await json(new URL(capabilityPaths[index], edge), {
+  for (const capabilityCase of capabilityCases) {
+    const result = await json(new URL(capabilityCase.path, edge), {
       method: "POST",
       headers: browserHeaders(session, csrfToken),
-      body: JSON.stringify({ synthetic: true, evidence_case: REQUIRED_CAPABILITIES[index] }),
+      body: JSON.stringify(capabilityCase.input),
     });
-    assert.equal(result.response.ok, true, `${REQUIRED_CAPABILITIES[index]} runtime smoke 失敗`);
+    assert.equal(result.response.ok, true, `${capabilityCase.name} runtime smoke 失敗`);
     assert.equal(result.body?.ok, true);
+    capabilityCase.verify(result);
   }
 
   const memoryFailClosed = await json(new URL("/api/learning/memory/observations", invalidRuntimeTutor), {
     method: "POST",
     headers: browserHeaders(session, csrfToken),
-    body: JSON.stringify({ synthetic: true, observation: { authority: "candidate", source: "p07" } }),
+    body: JSON.stringify({ observation: { kind: "synthetic_p011_rejection", source: "p011" } }),
   });
   assert.ok(memoryFailClosed.response.status >= 500, "invalid runtime credential 時 Learning Memory 必須 fail-closed");
   assert.equal(memoryFailClosed.body?.ok, false);
@@ -199,6 +284,13 @@ async function main() {
     });
     assert.ok([401, 403].includes(rejected.response.status), `${label} credential 必須 fail-closed`);
   }
+
+  const voiceUnavailable = await json(new URL("/api/tts/synthesize", unavailableVoiceEdge), {
+    method: "POST",
+    headers: browserHeaders(session, csrfToken),
+    body: JSON.stringify({ text: "這是 unavailable fail-closed 測試。", speed: 1 }),
+  });
+  assert.ok(voiceUnavailable.response.status >= 500, "Voice unavailable 必須 fail-closed");
 
   const stt = await json(new URL("/api/stt/transcribe?language=auto", edge), {
     method: "POST",

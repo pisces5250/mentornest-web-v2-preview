@@ -304,3 +304,96 @@ jobs:
             echo '- OpenClaw provider digest：`${{ steps.openclaw-provider-image.outputs.digest }}`'
             echo '- Runtime evidence artifact：`openclaw-provider-runtime-evidence-${{ github.sha }}`'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-web-tutor:
+    name: 發布 Web／Tutor immutable images
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: 登入 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 建置並發布 Web／Tutor candidate images
+        id: images
+        env:
+          WEB_TAG: ghcr.io/pisces5250/mentornest-web-v2-preview-web:${{ github.sha }}
+          TUTOR_TAG: ghcr.io/pisces5250/mentornest-web-v2-preview-tutor:${{ github.sha }}
+        run: |
+          docker build \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --tag "${WEB_TAG}" .
+          docker build --file Dockerfile.backend \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --tag "${TUTOR_TAG}" .
+          docker push "${WEB_TAG}"
+          docker push "${TUTOR_TAG}"
+          web_digest="$(docker buildx imagetools inspect "${WEB_TAG}" | awk '/^Digest:/ {print $2; exit}')"
+          tutor_digest="$(docker buildx imagetools inspect "${TUTOR_TAG}" | awk '/^Digest:/ {print $2; exit}')"
+          test "${web_digest#sha256:}" != "${web_digest}"
+          test "${tutor_digest#sha256:}" != "${tutor_digest}"
+          echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
+          echo "tutor_digest=${tutor_digest}" >> "${GITHUB_OUTPUT}"
+      - name: 簽發 Web build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/pisces5250/mentornest-web-v2-preview-web
+          subject-digest: ${{ steps.images.outputs.web_digest }}
+          push-to-registry: true
+      - name: 簽發 Tutor build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/pisces5250/mentornest-web-v2-preview-tutor
+          subject-digest: ${{ steps.images.outputs.tutor_digest }}
+          push-to-registry: true
+      - name: 以 digest 重拉並驗證 liveness
+        env:
+          WEB_IMAGE: ghcr.io/pisces5250/mentornest-web-v2-preview-web@${{ steps.images.outputs.web_digest }}
+          TUTOR_IMAGE: ghcr.io/pisces5250/mentornest-web-v2-preview-tutor@${{ steps.images.outputs.tutor_digest }}
+        run: |
+          docker pull "${WEB_IMAGE}"
+          docker pull "${TUTOR_IMAGE}"
+          docker network create mentornest-p011-publish
+          cleanup() {
+            docker logs mentornest-p011-web || true
+            docker logs mentornest-p011-tutor || true
+            docker rm --force mentornest-p011-web mentornest-p011-tutor || true
+            docker network rm mentornest-p011-publish || true
+          }
+          trap cleanup EXIT
+          docker run --detach --name mentornest-p011-tutor --network mentornest-p011-publish \
+            --network-alias tutor-backend --env MENTORNEST_ENV=staging \
+            --env MENTORNEST_GATEWAY_SESSION_SECRET=p011-synthetic-session-secret-at-least-32-characters \
+            --env MENTORNEST_SERVICE_AUTH_KEY=p011-synthetic-service-key-at-least-32-characters \
+            "${TUTOR_IMAGE}"
+          docker run --detach --name mentornest-p011-web --network mentornest-p011-publish \
+            --publish 18080:80 "${WEB_IMAGE}"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null; then break; fi
+            if [ "${attempt}" = 30 ]; then exit 1; fi
+            sleep 1
+          done
+          test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-p011-web)" != unhealthy
+          test "$(docker inspect --format='{{.State.Health.Status}}' mentornest-p011-tutor)" != unhealthy
+      - name: 記錄 Web／Tutor immutable evidence
+        run: |
+          {
+            echo '## P0.11 Web／Tutor image evidence'
+            echo ''
+            echo '僅發布 commit SHA tag；未建立 latest 或 production tag。'
+            echo ''
+            echo '- Web digest：`${{ steps.images.outputs.web_digest }}`'
+            echo '- Tutor digest：`${{ steps.images.outputs.tutor_digest }}`'
+          } >> "$GITHUB_STEP_SUMMARY"
