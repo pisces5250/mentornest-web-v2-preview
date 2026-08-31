@@ -142,8 +142,12 @@ function safeSecretEqual(supplied, expected) {
 if (process.env.MENTORNEST_ENV === 'staging') {
   app.post('/api/auth/staging-session', (req, res) => {
     const origin = req.header('Origin');
-    const expectedOrigin = `${req.header('X-Forwarded-Proto') || req.protocol}://${req.get('host')}`;
-    if (!origin || origin !== expectedOrigin) return res.status(403).json({ ok: false, code: 'origin_rejected' });
+    let sameHttpsOrigin = false;
+    try {
+      const parsedOrigin = new URL(origin);
+      sameHttpsOrigin = parsedOrigin.protocol === 'https:' && parsedOrigin.host === req.get('host');
+    } catch {}
+    if (!sameHttpsOrigin) return res.status(403).json({ ok: false, code: 'origin_rejected' });
     const key = req.ip || 'unknown';
     const attempt = stagingLoginAttempts.get(key) || { count: 0, resetAt: 0 };
     const now = Date.now();
