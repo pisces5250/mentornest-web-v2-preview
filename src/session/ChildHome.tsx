@@ -30,7 +30,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { SessionView } from "./SessionView";
 import { buildSessionFromLearningDirector } from "./learning-director-adapter.mjs";
 import type { SessionState } from "./session-types";
-import { createStagingBrowserSession, startVerifiedSession, VerifiedSessionError } from "./VerifiedBankSessionClient";
+import { createStagingBrowserSession, startVerifiedSession, verifyVerifiedSession, VerifiedSessionError } from "./VerifiedBankSessionClient";
 
 // Presentation-only KP → child-friendly phrase mapping.  Mirrors the
 // view-layer maps in QuestionRenderer / SessionSummaryView.  If a KP
@@ -75,11 +75,13 @@ export function ChildHome(props: ChildHomeProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loginRequired, setLoginRequired] = useState(false);
+  const [entranceState, setEntranceState] = useState<"verifying" | "signed_out" | "ready" | "unavailable">("verifying");
   const [stagingPassword, setStagingPassword] = useState("");
   const [resumeAvailable, setResumeAvailable] = useState(false);
   const [resumeAtIndex, setResumeAtIndex] = useState<number | null>(null);
   const [resumeSteps, setResumeSteps] = useState<number | null>(null);
   const [resumeTopic, setResumeTopic] = useState<string | null>(null);
+  const [resumeSubject, setResumeSubject] = useState<string | null>(null);
 
   // Phase 6B: let the student (or parent) switch subject on the home page.
   // We do NOT auto-load this from profile because the parent setup flow
@@ -103,6 +105,19 @@ export function ChildHome(props: ChildHomeProps) {
     science: "自然",
     social_studies: "社會",
   };
+  const SUBJECT_MODE_ZH: Record<string, string> = {
+    math: "圖解與步驟", chinese: "文句與線索", english: "聽說與句型",
+    science: "觀察與證據", social_studies: "地圖、時間與資料",
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (useFixtures) { setEntranceState("ready"); return; }
+    verifyVerifiedSession()
+      .then((result) => { if (!cancelled) { setEntranceState(result); setLoginRequired(result === "signed_out"); } })
+      .catch(() => { if (!cancelled) setEntranceState("unavailable"); });
+    return () => { cancelled = true; };
+  }, [useFixtures]);
 
   useEffect(() => {
     if (!sessionStorageKey) return;
@@ -120,6 +135,8 @@ export function ChildHome(props: ChildHomeProps) {
         setResumeSteps(parsed.steps.length);
         const firstKp = parsed.steps[0]?.knowledge_point;
         if (firstKp) setResumeTopic(firstKp);
+        const firstSubject = parsed.steps[0]?.subject;
+        if (firstSubject) { setResumeSubject(firstSubject); setSubject(firstSubject); }
       }
     } catch (e) {
       // ignore
@@ -130,7 +147,8 @@ export function ChildHome(props: ChildHomeProps) {
     setLoading(true);
     setError(null);
     try {
-      if (sessionStorageKey && resumeAvailable) {
+      const subjectChanged = resumeAvailable && resumeSubject !== null && effectiveSubject !== resumeSubject;
+      if (sessionStorageKey && resumeAvailable && !subjectChanged) {
         try {
           const raw = window.localStorage.getItem(sessionStorageKey);
           if (raw) {
@@ -190,7 +208,7 @@ export function ChildHome(props: ChildHomeProps) {
       setSession(finalSession);
     } catch (e: any) {
       setLoginRequired(e instanceof VerifiedSessionError && e.code === "authentication_required");
-      setError(e?.message ?? String(e));
+      setError(e instanceof VerifiedSessionError ? e.message : "老師暫時無法準備學習內容，請稍後再試。");
     } finally {
       setLoading(false);
     }
@@ -204,9 +222,10 @@ export function ChildHome(props: ChildHomeProps) {
       await createStagingBrowserSession(stagingPassword);
       setStagingPassword("");
       setLoginRequired(false);
+      setEntranceState("ready");
       await handleStart();
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(e instanceof VerifiedSessionError ? e.message : "現在還連不上學習空間，請稍後再試。");
     } finally {
       setLoading(false);
     }
@@ -218,17 +237,19 @@ export function ChildHome(props: ChildHomeProps) {
         initialSession={session}
         storageKey={sessionStorageKey}
         onSessionEnd={onSessionEnd}
+        onPause={() => setSession(null)}
       />
     );
   }
 
+  const subjectChanged = resumeAvailable && resumeSubject !== null && effectiveSubject !== resumeSubject;
   const ctaLabel = loading
     ? "準備中…"
-    : resumeAvailable
+    : resumeAvailable && !subjectChanged
       ? "繼續上次的學習"
-      : "開始今天的學習";
+      : `開始${SUBJECT_LABEL_ZH[effectiveSubject] ?? "今天的"}學習`;
 
-  const topicPhrase = kpToPhrase(resumeTopic ?? effectiveKnowledgePoint);
+  const topicPhrase = kpToPhrase(subjectChanged ? effectiveKnowledgePoint : (resumeTopic ?? effectiveKnowledgePoint));
   const durationLabel = estimateDurationZh(
     resumeAvailable ? resumeSteps : 4
   );
@@ -256,29 +277,7 @@ export function ChildHome(props: ChildHomeProps) {
       <header className="mn-home__header">
         <div className="mn-home__meta">
           <span className="mn-tag">今日練習</span>
-          <span className="mn-status-badge">
-            {`GRADE ${ageBand.replace("G", "")} · ${(effectiveSubject ?? "math").toUpperCase()}`}
-          </span>
-          <div className="mn-home__subject-switch" role="group" aria-label="切換科目">
-            {(["math", "chinese", "english", "science", "social_studies"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={
-                  "mn-home__subject-chip" +
-                  (effectiveSubject === s ? " mn-home__subject-chip--active" : "")
-                }
-                aria-pressed={effectiveSubject === s ? "true" : "false"}
-                onClick={() => {
-                  setSubject(s);
-                  setResumeAvailable(false);
-                }}
-                data-testid={`subject-chip-${s}`}
-              >
-                {SUBJECT_LABEL_ZH[s] ?? s}
-              </button>
-            ))}
-          </div>
+          <span className="mn-status-badge">{`${ageBand.replaceAll("G", "")}年級 · ${SUBJECT_LABEL_ZH[subjectChanged ? effectiveSubject : (resumeSubject ?? effectiveSubject)]}`}</span>
         </div>
         <h1 className="mn-home__headline" data-testid="home-headline">
           {resumeAvailable ? "歡迎回來" : "嗨，今天準備好了嗎？"}
@@ -290,7 +289,7 @@ export function ChildHome(props: ChildHomeProps) {
         </p>
       </header>
 
-      {/* Practice card: surface lift + hairline + plan rows. */}
+      {entranceState === "ready" && <>{/* Practice card: surface lift + hairline + plan rows. */}
       <div className="mn-home__plan" data-testid="home-plan">
         <div className="mn-home__plan-head">
           <h2 className="mn-home__plan-title">今天要做什麼</h2>
@@ -339,14 +338,31 @@ export function ChildHome(props: ChildHomeProps) {
         )}
       </div>
 
+      <details className="mn-home__subject-picker" data-testid="subject-picker">
+        <summary>我想換一科</summary>
+        <div className="mn-home__subject-switch" role="group" aria-label="選擇學習科目">
+          {(["math", "chinese", "english", "science", "social_studies"] as const).map((s) => (
+            <button key={s} type="button" className={"mn-home__subject-chip" + (effectiveSubject === s ? " mn-home__subject-chip--active" : "")}
+              aria-pressed={effectiveSubject === s} onClick={() => setSubject(s)} data-testid={`subject-chip-${s}`}>
+              <strong>{SUBJECT_LABEL_ZH[s]}</strong><span>{SUBJECT_MODE_ZH[s]}</span>
+            </button>
+          ))}
+        </div>
+        {subjectChanged && <p className="mn-home__subject-note" role="status">上次的進度會保留；開始後會進入你剛選的科目。</p>}
+      </details>
+      </>}
+
       {/* Primary CTA.  Single button, full-width on mobile. */}
       <div className="mn-home__actions">
         {error && (
           <div className="mn-error" role="alert" data-testid="home-error">{error}</div>
         )}
-        {loginRequired ? (
+        {entranceState === "verifying" ? (
+          <div className="mn-home__entrance-state" role="status" data-testid="session-verifying"><h2>正在準備學習空間</h2><p>一下就好。</p></div>
+        ) : loginRequired || entranceState === "signed_out" ? (
           <form onSubmit={handleStagingLogin} data-testid="staging-login-form">
-            <label htmlFor="staging-access-password">Phase 6.2 staging 存取密碼</label>
+            <h2>學習空間還沒連上</h2><p>請家長協助登入，完成後會回到這裡。</p>
+            <label htmlFor="staging-access-password">家長登入密碼</label>
             <input
               id="staging-access-password"
               type="password"
@@ -357,9 +373,13 @@ export function ChildHome(props: ChildHomeProps) {
               data-testid="staging-access-password"
             />
             <button type="submit" className="mn-button mn-button--primary mn-button--lg" disabled={loading}>
-              {loading ? "登入中…" : "登入測試環境"}
+              {loading ? "登入中…" : "請家長登入"}
             </button>
           </form>
+        ) : entranceState === "unavailable" ? (
+          <div className="mn-home__entrance-state mn-error" role="alert" data-testid="session-unavailable">
+            <h2>老師正在整理學習空間</h2><p>這次沒有動到你的進度，請稍後重新整理。</p>
+          </div>
         ) : (
           <button
             type="button"

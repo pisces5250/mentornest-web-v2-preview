@@ -82,10 +82,11 @@ export function parseTutorTurnResponse(value: unknown): TutorTurnResponse {
     assessment_evidence_id: typeof assessment.observation_id === "string" ? assessment.observation_id : null,
     learning_memory_receipt_id: typeof memory.event_id === "string" ? memory.event_id : null,
     next_step: parsePublicNextStep(data.next_step),
-    selection_reason: data.director_decision ? "依照這次學習狀態安排" : null,
+    selection_reason: typeof data.child_safe_next_reason === "string" ? data.child_safe_next_reason : null,
     loop_completed: data.loop_completed === true,
     trace_id: typeof data.trace_id === "string" ? data.trace_id : "unavailable",
     representation: parseSpecialistRepresentation(subjectValue, data.representation ?? teaching.representation),
+    memory_write_failed: writerFailed,
   };
 }
 

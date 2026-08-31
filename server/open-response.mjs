@@ -160,13 +160,16 @@ if (process.env.MENTORNEST_ENV === 'staging') {
       return res.status(401).json({ ok: false, code: 'authentication_failed' });
     }
     const session = createSessionToken({
-      subject_ref: `student_test_phase62_browser_${crypto.randomUUID()}`,
+      // 同一隔離 staging 身分才能驗證跨 session 的 Learning Memory continuity。
+      subject_ref: 'student_test_phase62_browser',
       scopes: ['tutor:use'],
       exp: Math.floor(now / 1000) + 3600,
     }, SESSION_SECRET);
     const csrf = crypto.createHmac('sha256', SESSION_SECRET).update(`csrf:${session}`).digest('base64url');
-    res.cookie('mn_session', session, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 3_600_000, path: '/' });
-    res.cookie('mn_csrf', csrf, { httpOnly: false, secure: true, sameSite: 'lax', maxAge: 3_600_000, path: '/' });
+    stagingLoginAttempts.delete(key);
+    res.set('Cache-Control', 'no-store');
+    res.cookie('mn_session', session, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 3_600_000, path: '/' });
+    res.cookie('mn_csrf', csrf, { httpOnly: false, secure: true, sameSite: 'strict', maxAge: 3_600_000, path: '/' });
     return res.json({ ok: true, expires_in: 3600 });
   });
 }
@@ -583,6 +586,12 @@ app.post('/api/tutor/turn', browserAuth, csrfProtection, requireScope('tutor:use
       message: '老師暫時無法完成這次學習記錄，請稍後再試。',
     });
   }
+});
+
+// Browser 入口只確認 session 是否可用；不回傳 subject 或任何 authority 資料。
+app.get('/api/tutor/session/status', browserAuth, requireScope('tutor:use'), (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.json({ ok: true });
 });
 
 app.post('/api/tutor/session/start', browserAuth, csrfProtection, requireScope('tutor:use'), async (req, res) => {

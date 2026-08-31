@@ -297,6 +297,14 @@ test("vertical: TTS form request 與 backend parser contract 一致", () => {
     "utf8",
   );
   assert.match(player, /application\/x-www-form-urlencoded/);
+  assert.match(player, /X-MentorNest-CSRF/);
+  assert.match(player, /credentials:\s*"same-origin"/);
+  const recorder = readFileSync(
+    resolve(__dirname, "../../../src/input/VoiceRecorder.tsx"),
+    "utf8",
+  );
+  assert.match(recorder, /X-MentorNest-CSRF/);
+  assert.match(recorder, /credentials:\s*"same-origin"/);
   assert.match(backend, /express\.urlencoded\(\{ extended: false/);
 });
 

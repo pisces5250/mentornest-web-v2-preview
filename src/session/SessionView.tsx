@@ -21,10 +21,11 @@ export interface SessionViewProps {
   // Where to land on session end.
   onSessionEnd?: (finalSession: SessionState) => void;
   evaluateTurn?: TutorTurnEvaluator;
+  onPause?: () => void;
 }
 
 export function SessionView(props: SessionViewProps) {
-  const { initialSession, storageKey = "mentornest.session.v1", onSessionEnd, evaluateTurn = evaluateTutorTurn } = props;
+  const { initialSession, storageKey = "mentornest.session.v1", onSessionEnd, evaluateTurn = evaluateTutorTurn, onPause } = props;
   const publicInitialSession = useMemo(() => shapePublicSession(initialSession), [initialSession]);
   const [state, setState] = useState<SessionState>(publicInitialSession);
   const [resumed, setResumed] = useState(false);
@@ -34,6 +35,7 @@ export function SessionView(props: SessionViewProps) {
   const dispatch = useRef((action: any) => {
     setState((s: SessionState) => sessionReduce(s, action) as SessionState);
   });
+  const pendingTurn = useRef<Parameters<TutorTurnEvaluator>[0] | null>(null);
 
   // 1) Try to resume from localStorage on mount (if a snapshot exists for this key).
   useEffect(() => {
@@ -75,23 +77,24 @@ export function SessionView(props: SessionViewProps) {
     setTeacherState({ kind: "evaluating" });
     try {
       const response = typeof args.answer === "object" ? JSON.stringify(args.answer) : String(args.answer);
-      const turn = await evaluateTurn({
-        question_id: currentStep.step_id,
-        response_id: `resp_${crypto.randomUUID()}`,
-        response,
-        attempt_index: currentStep.attempts.length + 1,
-        hints_used: currentStep.hints_used,
+      const reusable = pendingTurn.current?.question_id === currentStep.step_id && pendingTurn.current.response === response;
+      const request = reusable ? pendingTurn.current! : {
+        question_id: currentStep.step_id, response_id: `resp_${crypto.randomUUID()}`, response,
+        attempt_index: currentStep.attempts.length + 1, hints_used: currentStep.hints_used,
         occurred_at: new Date().toISOString(),
-      });
-      dispatch.current({
-        type: "submit",
-        verdict: turn.verdict,
+      };
+      // Writer 結果不明時保留完全相同的 transaction；孩子改答案才建立新 response_id。
+      pendingTurn.current = request;
+      const turn = await evaluateTurn(request);
+      if (!turn.memory_write_failed) dispatch.current({
+        type: "submit", verdict: turn.verdict,
         error_type: turn.verdict === "incorrect" ? "tutor_diagnosed" : null,
         assessment_evidence_id: turn.assessment_evidence_id,
         learning_memory_receipt_id: turn.learning_memory_receipt_id,
         next_step: turn.loop_completed ? turn.next_step : null,
       });
       setTeacherState({ kind: "result", turn });
+      if (turn.loop_completed || turn.verdict === "unverifiable") pendingTurn.current = null;
     } catch (_) {
       dispatch.current({ type: "retry" });
       setTeacherState({ kind: "error", message: "連線有點慢，你的答案還沒有被判定。" });
@@ -106,6 +109,26 @@ export function SessionView(props: SessionViewProps) {
     dispatch.current({ type: "retry" });
     setTeacherState({ kind: "idle" });
   }, []);
+
+  const handleSaveRetry = useCallback(async () => {
+    const request = pendingTurn.current;
+    if (!request || teacherState.kind === "evaluating") return;
+    setTeacherState({ kind: "evaluating" });
+    try {
+      const turn = await evaluateTurn(request);
+      if (turn.loop_completed) dispatch.current({
+        type: "submit", verdict: turn.verdict,
+        error_type: turn.verdict === "incorrect" ? "tutor_diagnosed" : null,
+        assessment_evidence_id: turn.assessment_evidence_id,
+        learning_memory_receipt_id: turn.learning_memory_receipt_id,
+        next_step: turn.loop_completed ? turn.next_step : null,
+      });
+      setTeacherState({ kind: "result", turn });
+      if (turn.loop_completed) pendingTurn.current = null;
+    } catch (_) {
+      setTeacherState({ kind: "error", message: "正在確認學習紀錄，請再試一次。" });
+    }
+  }, [evaluateTurn, teacherState.kind]);
 
   const handleRepresentationSwitch = useCallback((to: string) => {
     dispatch.current({ type: "representation_switch", to });
@@ -130,7 +153,7 @@ export function SessionView(props: SessionViewProps) {
     return (
       <div className="mn-card mn-error-card" data-testid="session-error" role="alert">
         <h2>本次練習發生錯誤</h2>
-        <p>{state.error?.reason ?? "未知錯誤"}</p>
+        <p>這次進度沒有改動，請重新整理後再試。</p>
         <button
           type="button"
           className="mn-button"
@@ -160,6 +183,7 @@ export function SessionView(props: SessionViewProps) {
             已從上次進度接續
           </span>
         )}
+        {onPause && <button type="button" className="mn-button mn-button--ghost" data-testid="pause-session" onClick={onPause}>先休息</button>}
       </div>
 
       <QuestionRenderer
@@ -180,7 +204,7 @@ export function SessionView(props: SessionViewProps) {
           : teacherState.kind === "result" ? "feedback" : "presenting"}
       />
 
-      <TeacherTurnPanel state={teacherState} onRetry={handleRetry} onHint={handleHint} onAdvance={handleAdvance} />
+      <TeacherTurnPanel state={teacherState} onRetry={handleRetry} onHint={handleHint} onAdvance={handleAdvance} onSaveRetry={handleSaveRetry} />
     </div>
   );
 }

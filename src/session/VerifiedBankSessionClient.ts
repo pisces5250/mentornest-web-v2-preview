@@ -10,6 +10,13 @@ export class VerifiedSessionError extends Error {
   constructor(public readonly code: string, message: string) { super(message); }
 }
 
+export async function verifyVerifiedSession(): Promise<"ready" | "signed_out"> {
+  const response = await fetch("/api/tutor/session/status", { credentials: "same-origin" });
+  if (response.status === 401) return "signed_out";
+  if (!response.ok) throw new Error("session_status_unavailable");
+  return "ready";
+}
+
 export async function createStagingBrowserSession(password: string): Promise<void> {
   const response = await fetch("/api/auth/staging-session", {
     method: "POST",

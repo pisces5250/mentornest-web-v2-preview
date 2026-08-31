@@ -507,10 +507,10 @@ a { color: inherit; }
  * math / chinese / english / science without leaving the home view.
  * Designed to match the existing chip / hairline language. */
 .mn-home__subject-switch {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--mn-qg-sp-2);
-  margin-left: var(--mn-qg-sp-2);
+  margin-top: var(--mn-qg-sp-3);
 }
 
 .mn-home__subject-chip {
@@ -518,13 +518,18 @@ a { color: inherit; }
   font-size: var(--mn-qg-fs-meta, 13px);
   line-height: 1;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--mn-qg-radius);
   background: transparent;
   color: var(--mn-qg-ink-soft);
   border: 1px solid var(--mn-qg-line, #d8dee9);
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  min-height: 48px;
+  text-align: left;
+  display: grid;
+  gap: 4px;
 }
+.mn-home__subject-chip span { font-size: 0.8rem; line-height: 1.3; }
 
 .mn-home__subject-chip:hover {
   background: var(--mn-qg-bg-soft, #f5f7fa);
@@ -628,6 +633,12 @@ a { color: inherit; }
   max-width: 640px;
 }
 
+.mn-home__subject-picker { max-width: 640px; border-top: var(--mn-qg-border-1); padding-top: var(--mn-qg-sp-3); }
+.mn-home__subject-picker summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.mn-home__subject-note { margin: var(--mn-qg-sp-3) 0 0; color: var(--mn-qg-ink-soft); }
+.mn-home__entrance-state, .mn-home__actions form { display: grid; gap: var(--mn-qg-sp-3); padding: var(--mn-qg-sp-4); border: var(--mn-qg-border-1); border-radius: var(--mn-qg-radius); }
+.mn-home__actions form input { min-height: 44px; padding: 8px 12px; font: inherit; }
+
 .mn-home__status-row {
   display: flex;
   align-items: center;
@@ -648,6 +659,7 @@ a { color: inherit; }
     row-gap: var(--mn-qg-sp-1);
   }
   .mn-home__plan-label { padding-top: var(--mn-qg-sp-2); }
+  .mn-home__subject-switch { grid-template-columns: 1fr; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────

@@ -26,4 +26,5 @@ export interface TutorTurnResponse {
   loop_completed: boolean;
   trace_id: string;
   representation: SpecialistRepresentationData | null;
+  memory_write_failed: boolean;
 }

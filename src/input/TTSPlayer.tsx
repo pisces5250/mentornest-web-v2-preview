@@ -27,6 +27,7 @@ import {
   classifyVoiceError,
   devDiag,
 } from "../foundation/voice_api";
+import { browserCsrfToken } from "../foundation/browser_security";
 
 export interface TTSPlayerProps {
   text: string;
@@ -80,7 +81,11 @@ export function TTSPlayer(props: TTSPlayerProps) {
       form.set("speed", String(speed));
       const resp = await fetch(buildVoiceUrl("/api/tts/synthesize"), {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-MentorNest-CSRF": browserCsrfToken(),
+        },
         body: form.toString(),
       });
       const env = (await resp.json().catch(() => null)) as {

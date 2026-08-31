@@ -31,6 +31,7 @@ import {
   devDiag,
   type VoiceErrorInfo,
 } from "../foundation/voice_api";
+import { browserCsrfToken } from "../foundation/browser_security";
 
 export type VoiceRecorderState =
   | "idle"
@@ -152,7 +153,11 @@ export function VoiceRecorder(props: VoiceRecorderProps) {
       );
       const resp = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": blob.type || "audio/webm" },
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": blob.type || "audio/webm",
+          "X-MentorNest-CSRF": browserCsrfToken(),
+        },
         body: blob,
       });
       // Parse the envelope once.
