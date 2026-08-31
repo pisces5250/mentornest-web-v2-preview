@@ -340,7 +340,7 @@ function publicResponse({ traceId, judgement, diagnosis, teaching, assessment, m
     verdict: judgement.result,
     summary: teaching.utterance,
     teaching_point: teaching.utterance,
-    hint: teaching.action === "retry_same" ? teaching.utterance : null,
+    hint: teaching.action === "retry_same" && typeof teaching.hint === "string" ? teaching.hint : null,
     recommended_action: recommendedAction,
     assessment_evidence_id: assessment?.observation_id ?? null,
     learning_memory_receipt_id: memory?.accepted === true && safeReceiptId(memory.event_id) ? memory.event_id : null,

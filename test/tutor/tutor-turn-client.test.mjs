@@ -8,6 +8,8 @@ test("Tutor turn adapter 對齊 server authority 與 writer receipts", async () 
   assert.match(source, /data\.assessment_evidence/);
   assert.match(source, /data\.memory_write/);
   assert.match(source, /throw new Error/);
+  assert.match(source, /typeof data\.hint === "string"/);
+  assert.doesNotMatch(source, /hint:\s*null/);
 });
 
 test("一般題型不在 browser 讀取 expected_answer 判分", async () => {

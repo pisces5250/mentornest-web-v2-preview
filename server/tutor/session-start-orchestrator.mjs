@@ -49,7 +49,8 @@ export function createTutorSessionStartOrchestrator({ gateway } = {}) {
         });
         selectionBasis = "director_subject_verified_fallback";
       }
-      const questions = (bank?.questions || []).filter(canEvaluateVerifiedQuestion).slice(0, targetSteps).map(publicQuestion);
+      const eligibleQuestions = (bank?.questions || []).filter(canEvaluateVerifiedQuestion);
+      const questions = selectOpeningQuestions(eligibleQuestions, recommendation.subject, targetSteps).map(publicQuestion);
       if (questions.length === 0) throw new TutorSessionStartError("verified_question_unavailable", 503);
       return Object.freeze({
         ok: true,
@@ -61,6 +62,17 @@ export function createTutorSessionStartOrchestrator({ gateway } = {}) {
       });
     },
   });
+}
+
+/**
+ * 英文朗讀是正式的學科互動，不應因 Verified Bank 的 ID 排序而永遠落在 session 外。
+ * 放在第一題也能確保後續 Director 重選題目前，孩子已實際取得聽與跟讀介面。
+ */
+function selectOpeningQuestions(questions, subject, targetSteps) {
+  if (subject !== "english") return questions.slice(0, targetSteps);
+  const readAloud = questions.find((question) => question.type === "voice_response");
+  if (!readAloud) return questions.slice(0, targetSteps);
+  return [readAloud, ...questions.filter((question) => question.id !== readAloud.id)].slice(0, targetSteps);
 }
 
 function resolveGrade(grade, ageBand) {

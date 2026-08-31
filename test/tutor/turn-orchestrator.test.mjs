@@ -100,6 +100,38 @@ test("完整 loop 依序產生 Assessment、正式 Memory、Director 與 verifie
   ]);
 });
 
+test("科目 Specialist 的孩子安全提示會出現在公開回應，不以答案或診斷碼代替", async () => {
+  const question = {
+    ...subjectFixtures.find((item) => item.subject === "social_studies"),
+    verification_status: "verified",
+  };
+  const wrongChoice = question.choices.find((choice) => choice !== question.expected_answer);
+  const expectedHint = question.specialist.distractors[wrongChoice].hint;
+  const gateway = fakeGateway();
+  gateway.invoke = async (capability, request) => {
+    gateway.calls.push({ capability, request });
+    if (capability === "verified_bank.read" && request.input.question_id) return { questions: [question] };
+    if (capability === "verified_bank.read") return { questions: [question] };
+    if (capability === "assessment.submit_observation") return {
+      observation_id: "aobs_1234567890abcdef12345678", mastery_effect: "none",
+    };
+    if (capability === "learning_memory.append_observation") return {
+      accepted: true, event_id: "lmem_00000000-0000-4000-8000-000000000001",
+    };
+    if (capability === "learning_director.recommend") return {
+      recommendations: [{ subject: "social_studies", knowledge_point: question.knowledge_point, reason: "recent_observed_practice" }],
+    };
+    throw new Error(`unexpected ${capability}`);
+  };
+  const result = await createTutorTurnOrchestrator({ gateway }).submit(request({
+    question_id: question.id,
+    response: wrongChoice,
+  }), { subjectRef: "student_test_phase62" });
+  assert.equal(result.hint, expectedHint);
+  assert.notEqual(result.hint, result.summary);
+  assert.doesNotMatch(result.hint, /SS-|expected_answer|answer_key/);
+});
+
 test("答對仍只形成 observation，不宣稱 confirmed mastery", async () => {
   const gateway = fakeGateway();
   const result = await createTutorTurnOrchestrator({ gateway }).submit(request({

@@ -85,3 +85,23 @@ test("session start 排除沒有正式 evaluator contract 的 legacy verified it
   }, { subjectRef: "student_test_phase62" });
   assert.deepEqual(result.questions.map((question) => question.id), [verifiedFixture("social_studies").id]);
 });
+
+test("英文 session 優先提供正式朗讀題，讓孩子取得聽與跟讀介面", async () => {
+  const backend = {
+    async invoke(capability) {
+      if (capability === "learning_director.recommend") return {
+        recommendations: [{ subject: "english", knowledge_point: null, reason: "session_request_no_mastery" }],
+      };
+      return { questions: STAGING_QUESTIONS
+        .filter((question) => question.subject === "english")
+        .map((question) => ({ ...question, verification_status: "verified" })) };
+    },
+  };
+  const result = await createTutorSessionStartOrchestrator({ gateway: backend }).start({
+    subject: "english", age_band: "G5-G6", target_steps: 4,
+  }, { subjectRef: "student_test_phase62" });
+  assert.equal(result.questions.length, 4);
+  assert.equal(result.questions[0].type, "voice_response");
+  assert.equal(result.questions[0].id, "q.synthetic.english.read-aloud.001");
+  assert.doesNotMatch(JSON.stringify(result.questions[0]), /expected_answer|answer_key|rubric|specialist/);
+});

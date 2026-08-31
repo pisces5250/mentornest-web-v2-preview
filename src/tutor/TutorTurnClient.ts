@@ -77,7 +77,7 @@ export function parseTutorTurnResponse(value: unknown): TutorTurnResponse {
     summary: writerFailed ? "老師已看完，但學習紀錄還沒有安全存好，請再送一次。" : String(teaching.utterance || "老師已看完你的回答。"),
     diagnosis: typeof diagnosis.error_code === "string" ? diagnosis.error_code : null,
     teaching_point: rawAction === "practice_similar" ? "我們換一種方式，再練習同一個概念。" : null,
-    hint: null,
+    hint: typeof data.hint === "string" && data.hint.trim() !== "" ? data.hint : null,
     recommended_action: action as TutorTurnResponse["recommended_action"],
     assessment_evidence_id: typeof assessment.observation_id === "string" ? assessment.observation_id : null,
     learning_memory_receipt_id: typeof memory.event_id === "string" ? memory.event_id : null,
