@@ -256,8 +256,9 @@ function judgeAnswer(question, response) {
   if (question.subject !== "english") {
     return Object.freeze({ result: "unverifiable", authority: "specialist_evaluator_required" });
   }
-  const expected = normalize(question.expected_answer);
-  const actual = normalize(response);
+  const voiceResponse = question.type === "voice_response";
+  const expected = voiceResponse ? normalizeReadAloud(question.expected_answer) : normalize(question.expected_answer);
+  const actual = voiceResponse ? normalizeReadAloud(response) : normalize(response);
   const result = expected === actual ? "correct" : "incorrect";
   if (!RESULTS.has(result)) throw new TutorTurnError("objective_judgement_failed", 500);
   return Object.freeze({
@@ -266,6 +267,23 @@ function judgeAnswer(question, response) {
       ? "english_read_aloud_deterministic_evaluator"
       : "objective_validator",
   });
+}
+
+function normalizeReadAloud(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[’]/g, "'")
+    .replace(/\bwe're\b/g, "we are")
+    .replace(/\bi'm\b/g, "i am")
+    .replace(/\byou're\b/g, "you are")
+    .replace(/\bthey're\b/g, "they are")
+    .replace(/\b(isn't|aren't)\b/g, (word) => word === "isn't" ? "is not" : "are not")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    // 本機 STT 常把英文縮寫讀成逐字母；這不等同放寬一般單字判斷。
+    .replace(/\bt v\b/g, "tv")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function diagnose(question, judgement, attemptIndex, studentResponse) {

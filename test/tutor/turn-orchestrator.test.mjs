@@ -327,3 +327,26 @@ test("English受限read-aloud instrument可評量confirmed transcript且不保�
   const memory = calls.find((call) => call.capability === "learning_memory.append_observation");
   assert.doesNotMatch(JSON.stringify(memory.request.input), /We are not watching|transcript|audio/i);
 });
+
+test("English read-aloud 接受本機 STT 的 contraction 與逐字母縮寫正規化", async () => {
+  const voiceQuestion = STAGING_QUESTIONS.find((question) => question.type === "voice_response");
+  const gateway = fakeGateway();
+  gateway.invoke = async (capability, input) => {
+    gateway.calls.push({ capability, request: input });
+    if (capability === "verified_bank.read" && input.input.question_id) {
+      return { questions: [{ ...voiceQuestion, verification_status: "verified" }] };
+    }
+    if (capability === "assessment.submit_observation") return { observation_id: "aobs_voice_normalized", mastery_effect: "none" };
+    if (capability === "learning_memory.append_observation") return { accepted: true, event_id: "lmem_voice_normalized" };
+    if (capability === "learning_director.recommend") return { recommendations: [] };
+    return { questions: [] };
+  };
+  const result = await createTutorTurnOrchestrator({ gateway }).submit(request({
+    question_id: voiceQuestion.id,
+    response_id: "resp_voice_normalized",
+    response: "We're not watching T.V. now.",
+  }), { subjectRef: "student_test_phase62" });
+  assert.equal(result.judgement.result, "correct");
+  assert.equal(result.judgement.authority, "english_read_aloud_deterministic_evaluator");
+  assert.doesNotMatch(JSON.stringify(result), /We're not watching/);
+});
