@@ -25,6 +25,7 @@ import {
 import { browserCsrfToken } from "../foundation/browser_security";
 
 const DEFAULT_TIMEOUT_MS = 8000;
+const CONVERSATION_TURN_TIMEOUT_MS = 20_000;
 
 function endpointUrl(path: string): string {
   // Vite dev proxy uses same-origin; in prod the server is reverse-proxied
@@ -88,6 +89,7 @@ export async function postConversationTurn(
     "/api/tutor/english-conversation/turn",
     body,
     isConversationTurnResponse,
+    CONVERSATION_TURN_TIMEOUT_MS,
   );
 }
 

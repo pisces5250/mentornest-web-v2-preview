@@ -1927,3 +1927,9 @@ Hard invariants：未讀寫或搬移 production student data；未修改 product
 - 手寫作答經 Learning Product、UX 與 Architecture/Security 交叉審查：當次 session vector ink 可落地，但正式辨識與跨 session 保存仍缺 local recognizer、專用 artifact authority 及 retention/consent policy，不以 OCR 或 Learning Memory shortcut 冒充完成。
 - 遠端人工驗收發現第一題完成後，browser 會用 Director next step 覆蓋預排對話；修正為保留 English Specialist 的「朗讀 → 即時對話」橋接，Director 題目接在對話後。對話結束新增「繼續下一題」，STT 補齊 same-origin credentials 與 CSRF；完整 regression 378/378 及 Chrome gate 通過。
 - 第二次遠端人工驗收發現第一句後中斷：VAD callback 捕捉到 React 更新前的空 session ID，且後續輪次會重複使用舊 turn index。改用 server-confirmed session/turn refs 與單輪 in-flight guard；每輪送出後釋放麥克風，老師 TTS 結束才重新聆聽，避免 iPad 外放回授；空白 STT 回到可再說狀態。完整 regression 379/379、typecheck、build 與 Chrome gate 通過。
+## 2026-08-31 — English 即時對話逾時恢復與 iPad 音訊相容
+
+- 對話 STT 加入 20 秒 client timeout；Voice worker 無回應時不再永久停在 processing。
+- 可恢復錯誤回到同一 conversation session 的收音狀態，向孩子顯示可再次說話的提示，不把暫時性 STT 失敗誤判為對話結束。
+- Tutor conversation turn 等待上限調整為 20 秒，並補上 iPad Safari `audio/mp4` MediaRecorder 格式。
+- 驗證：typecheck、380 項 regression、production build、Chrome browser／a11y gate 全數通過。

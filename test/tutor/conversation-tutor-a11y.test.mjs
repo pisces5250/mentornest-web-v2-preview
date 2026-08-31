@@ -132,3 +132,15 @@ test("對話 VAD 使用 server-confirmed session ref 與遞增 turn ref", () => 
   assert.match(source, /if \(turnInFlightRef\.current\) return/);
   assert.doesNotMatch(source, /session_id:\s*state\.sessionId/);
 });
+
+test("對話 STT 有等待上限、可恢復收音，並支援 iPad 錄音格式", () => {
+  const source = readFileSync(resolve(__dirname, "../../src/tutor/ConversationTutor.tsx"), "utf8");
+  const stateMachine = readFileSync(resolve(__dirname, "../../src/tutor/ConversationStateMachine.ts"), "utf8");
+  assert.match(source, /const STT_TIMEOUT_MS\s*=\s*20_000/);
+  assert.match(source, /signal:\s*controller\.signal/);
+  assert.match(source, /type:\s*"LISTEN_AGAIN"/);
+  assert.match(source, /resumeListening\s*&&\s*sessionIdRef\.current/);
+  assert.match(source, /"audio\/mp4"/);
+  assert.match(source, /role="alert"/);
+  assert.match(stateMachine, /errorMessage:\s*ev\.errorMessage\s*\?\?\s*null/);
+});

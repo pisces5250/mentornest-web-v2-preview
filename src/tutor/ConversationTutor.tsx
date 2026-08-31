@@ -62,6 +62,7 @@ export interface ConversationTutorProps {
 
 const SILENCE_MS = 700;
 const MIN_SPEECH_MS = 250;
+const STT_TIMEOUT_MS = 20_000;
 
 /**
  * Runs the VAD on a continuous AnalyserNode.  Calls onSpeechEnd() once
@@ -118,20 +119,32 @@ async function transcribeBlob(
   endpoint: string,
   blob: Blob,
 ): Promise<string> {
-  const r = await fetch(endpoint, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {
-      "Content-Type": blob.type || "audio/webm",
-      "X-MentorNest-CSRF": browserCsrfToken(),
-    },
-    body: blob,
-  });
-  if (!r.ok) throw new Error(`stt failed: ${r.status}`);
-  const data = await r.json();
-  if (typeof data?.transcript === "string") return data.transcript;
-  if (typeof data?.text === "string") return data.text;
-  return "";
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), STT_TIMEOUT_MS);
+  try {
+    const r = await fetch(endpoint, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": blob.type || "audio/webm",
+        "X-MentorNest-CSRF": browserCsrfToken(),
+      },
+      body: blob,
+      signal: controller.signal,
+    });
+    if (!r.ok) throw new Error(`stt failed: ${r.status}`);
+    const data = await r.json();
+    if (typeof data?.transcript === "string") return data.transcript;
+    if (typeof data?.text === "string") return data.text;
+    return "";
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("stt_timeout");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -229,14 +242,17 @@ export function ConversationTutor(props: ConversationTutorProps) {
       dispatch({ type: "STUDENT_SPOKE" });
       setBusy(true);
       turnInFlightRef.current = true;
+      let resumeListening = false;
       try {
         const transcript = await transcribeBlob(sttEndpoint, blob);
         setStudentTranscript(transcript);
         if (!transcript.trim()) {
           // Empty transcript: invite again instead of POSTing nothing.
-          setBusy(false);
-          dispatch({ type: "LISTEN_AGAIN" });
-          void startListening();
+          resumeListening = true;
+          dispatch({
+            type: "LISTEN_AGAIN",
+            errorMessage: "這次沒有聽清楚，請再說一次。",
+          });
           return;
         }
         const sessionId = sessionIdRef.current;
@@ -261,14 +277,26 @@ export function ConversationTutor(props: ConversationTutorProps) {
             errorMessage: "message" in resp ? (resp as any).message : null,
           });
         }
-      } catch (_err) {
-        setBusy(false);
+      } catch (error) {
+        resumeListening = true;
         dispatch({
-          type: "ENDED",
-          errorMessage: "老師這邊連線有點慢，等一下再試。",
+          type: "LISTEN_AGAIN",
+          errorMessage:
+            error instanceof Error && error.message === "stt_timeout"
+              ? "語音辨識等太久了，請再說一次。"
+              : "老師剛剛沒有接好，請再說一次。",
         });
       } finally {
+        setBusy(false);
         turnInFlightRef.current = false;
+        if (resumeListening && sessionIdRef.current) {
+          void startListening().catch(() => {
+            dispatch({
+              type: "ENDED",
+              errorMessage: "無法重新開啟麥克風，請檢查權限後再開始。",
+            });
+          });
+        }
       }
     });
   }, [stopListening, sttEndpoint]);
@@ -408,6 +436,12 @@ export function ConversationTutor(props: ConversationTutorProps) {
             </p>
           )}
 
+          {state.errorMessage && state.phase !== "ENDED" && (
+            <p className="mn-conversation__error" role="alert">
+              {state.errorMessage}
+            </p>
+          )}
+
           {state.phase === "THINKING" && (
             <p className="mn-conversation__thinking" data-testid="thinking">
               老師想想怎麼接…
@@ -456,7 +490,12 @@ function PhaseBadge({ phase }: { phase: ConversationPhase }) {
 
 function selectMime(): string {
   if (typeof MediaRecorder === "undefined") return "audio/webm";
-  const mimes = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+  const mimes = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4",
+  ];
   for (const m of mimes) {
     if (MediaRecorder.isTypeSupported(m)) return m;
   }
