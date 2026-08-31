@@ -118,7 +118,7 @@ jobs:
             --request POST \
             --header "Authorization: Bearer ${PROVIDER_MEMORY_CREDENTIAL}" \
             --header 'Content-Type: application/json' \
-            --data '{"contract_version":"1","capability":"learning_memory.append_observation","subject_ref":"student_test_p09_ci","input":{"observation":{"kind":"synthetic_ci"}}}' \
+            --data '{"contract_version":"1","capability":"learning_memory.append_observation","subject_ref":"student_test_p09_ci","input":{"idempotency_key":"ci-memory-response-001","observation":{"kind":"synthetic_ci"}}}' \
             http://127.0.0.1:18789/v1/capabilities/invoke)" = 200
           grep --fixed-strings '"authority":"learning_memory_writer"' /tmp/provider-invoke.json
           docker exec mentornest-openclaw-provider-ci \

@@ -247,7 +247,7 @@ export function ChildHome(props: ChildHomeProps) {
     ? "準備中…"
     : resumeAvailable && !subjectChanged
       ? "繼續上次的學習"
-      : `開始${SUBJECT_LABEL_ZH[effectiveSubject] ?? "今天的"}學習`;
+      : "開始今天的學習";
 
   const topicPhrase = kpToPhrase(subjectChanged ? effectiveKnowledgePoint : (resumeTopic ?? effectiveKnowledgePoint));
   const durationLabel = estimateDurationZh(
