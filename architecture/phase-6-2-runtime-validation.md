@@ -78,6 +78,20 @@ Designer 保留共用的 session shell、auth、answer isolation、focus 與狀�
 
 Remaining UNVERIFIED（非本輪 staging blocker）：Voice 歷史 timeout 的精確 source-level root cause；Learning Memory idempotency 跨 process restart 的 durable guarantee；五科目前只驗證最小正式 multiple-choice evaluator，開放題／口說 rubric 尚未宣稱具備正式能力。
 
+## 2026-08-31 三缺口與入口 UI closure
+
+Runtime source identity：`efa8ce5bc1c640af54cf8109c1e08c664e6be07b`。GitHub Actions run `33352135433` 公開頁面標示 `completed successfully`；Web／Tutor／OpenClaw 使用同一 immutable commit-SHA tag，Voice image 未修改。四個 Phase 6.1 services 最終皆 `RUNNING`，public domain TLS 為 `PROVISIONED`。本次受 private GHCR 與公開 API rate limit 限制，未重新取得三個 manifest digest，故不偽造或覆寫先前 digest。
+
+- Question Quality：五科各六題，共 30 個 synthetic candidates；每題經正式 writer 取得 stable SHA-256 content digest 與 `qqr_*` receipt。同 ID 同內容跨 restart replay 原 receipt，同 ID 不同內容 409；Verified Bank 支援排除 current/recent question，Tutor 只呈現具完整正式 evaluator contract 的 instrument。
+- 下一題：最終 remote sessions 每科回四題；五科真實 turn 均產生 Assessment、Memory、Director 與不同的 eligible next question，public payload 無 answer key，沒有 confirmed mastery 宣稱。
+- Memory recovery：以 `response_id` 綁定 immutable assessment artifact 與 writer idempotency key；失敗時不呼叫 Director、不顯示下一題，孩子可按「再存一次」重送同一交易。Provider 已驗證跨 process/restart replay、八路並行只 append 一筆、payload conflict 409。
+- 孩子回饋：browser 不再呈現 `SS-*`／`EN-*` 等內部診斷碼，只顯示 specialist feedback、提示與 child-safe next reason。
+- 入口 UI：單一 primary CTA「開始今天的學習」；換科收在 secondary disclosure，五科各自顯示教學模式；resume subject/topic 保持一致，提供「先休息」。未登入、驗證中、ready、service unavailable 四狀態分離。
+- Remote Chrome：staging login 200；入口 Axe serious/critical 0；英文 session 顯示 `題目 1 / 4`。Screenshot：[phase6-2-entry-efa8ce5.png](evidence/phase6-2-entry-efa8ce5.png)。
+- Voice：三次新 synthetic TTS→audio→STT 均成功，約 4–6 秒；model `sensevoice-small-int8`，audio 不保留、transcript 不持久化。實測 STT 會將 `We're`／`T.V.` 轉成 contraction／逐字母形式，Tutor 僅在 read-aloud evaluator 做 deterministic normalization；remote turn 最終判定 `correct`，authority `english_read_aloud_deterministic_evaluator`，Assessment `aobs_32eeeae36bd2b69bc5af113c`、Memory `lmem_306cc20c-b259-4666-b729-ed7b375e5624`，且 response 不回傳 raw transcript。
+
+最終驗證：full regression 369/369、typecheck、production build、真實 Chrome browser gate、`git diff --check` 與 final HEAD GitHub CI 全綠。Production resources、student data、credential、volume、fallback 與 cutover 均未修改。
+
 ## 人工瀏覽器存取修正
 
 一般瀏覽器原先沒有取得 synthetic staging session，首次點擊被 Tutor 正確回 401，但 UI 誤顯示為題目準備失敗。修正後：

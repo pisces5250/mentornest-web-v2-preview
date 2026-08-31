@@ -1907,3 +1907,12 @@ Hard invariants：未讀寫或搬移 production student data；未修改 product
 - 五科 Chrome／Axe remote evidence 通過；Voice 連續三次 local-only TTS→STT 皆低於 30 秒，分別約 8.6、3.6、3.8 秒。
 - 依實證宣告 `CORE PHASE 6 STAGING READY`、`VOICE STAGING READY` 與 `FULL PHASE 6 STAGING READY`；不代表 production ready，未進行 production cutover。
 - 修正一般 staging browser 沒有 synthetic session 時誤報題庫故障；新增 staging-only password exchange，核發一小時 HttpOnly session。全新 Chrome 已驗證 401 → login 200 → session 200 與題目呈現，production 不註冊此 route。
+
+# 2026-08-31 — Phase 6.2 三缺口與入口 UI closure
+
+- 五科題庫擴充為各六題，正式 Question Quality writer receipts、content digest、conflict 與 idempotent replay 均有測試；下一題排除 current/recent，沒有 eligible 題時 fail-closed。
+- Learning Memory transaction 改為 durable idempotency；UI 在 writer failure 時保留同一 response/Assessment，顯示「再存一次」，成功前不前進。
+- 孩子畫面移除內部診斷碼，改用 specialist feedback 與 child-safe next reason。
+- 入口改為單一「開始今天的學習」主行動、次層五科選擇與 verifying/signed-out/ready/unavailable 狀態；remote Chrome Axe serious/critical 0。
+- English Voice 補齊 browser CSRF，三次 remote TTS→STT 約 4–6 秒；read-aloud evaluator 正規化本機 STT contraction／英文縮寫後，remote Assessment、Memory、Director 與 next learning 完整通過且不回傳 raw transcript。
+- Runtime source `efa8ce5bc1c640af54cf8109c1e08c664e6be07b`；GitHub Actions run `33352135433` completed successfully。只更新隔離 staging，未修改 production 或 cutover。
