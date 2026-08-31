@@ -51,6 +51,15 @@ function publicQuestion(value: unknown): SessionStep {
   if (questionType === "voice_response" && (voiceFields.some((field) => typeof field !== "string" || field.trim() === "") || raw.language !== "en-US")) {
     throw new Error("英文朗讀題公開欄位不完整");
   }
+  const conversation = raw.conversation as Record<string, unknown> | undefined;
+  if (questionType === "english_conversation" && (!conversation
+    || typeof conversation.greeting_zh !== "string"
+    || !Number.isInteger(conversation.target_turn_count)
+    || conversation.transcript_retention !== "none"
+    || conversation.audio_retention !== "none"
+    || conversation.local_voice_only !== true)) {
+    throw new Error("英文即時對話題公開欄位不完整");
+  }
   return {
     step_id: stepId,
     knowledge_point: typeof raw.knowledge_point === "string" ? raw.knowledge_point : "unknown",
@@ -63,6 +72,9 @@ function publicQuestion(value: unknown): SessionStep {
       display_text: raw.display_text as string,
       spoken_text: raw.spoken_text as string,
       language: "en-US" as const,
+    } : {}),
+    ...(questionType === "english_conversation" ? {
+      conversation: conversation as SessionStep["conversation"],
     } : {}),
     choices: raw.choices as string[] | undefined,
     difficulty: raw.difficulty === "easy" || raw.difficulty === "hard" ? raw.difficulty : "medium",

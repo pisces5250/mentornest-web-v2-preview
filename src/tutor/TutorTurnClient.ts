@@ -9,7 +9,7 @@ function record(value: unknown): Record<string, unknown> {
     ? value as Record<string, unknown> : {};
 }
 
-const NEXT_STEP_FIELDS = ["id", "step_id", "knowledge_point", "subject", "type", "question_type", "representation_type", "stem", "choices", "difficulty", "source", "license", "instruction_text", "display_text", "spoken_text", "language"] as const;
+const NEXT_STEP_FIELDS = ["id", "step_id", "knowledge_point", "subject", "type", "question_type", "representation_type", "stem", "choices", "difficulty", "source", "license", "instruction_text", "display_text", "spoken_text", "language", "conversation"] as const;
 
 export function parsePublicNextStep(value: unknown): Record<string, unknown> | null {
   if (value == null) return null;

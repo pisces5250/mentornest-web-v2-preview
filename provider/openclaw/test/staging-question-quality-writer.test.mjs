@@ -98,16 +98,36 @@ test("Question Quality writer只接受local-only且不保留transcript的English
   }
 });
 
-test("五科各六題皆逐題取得唯一durable receipt與content digest", async (t) => {
+test("Question Quality writer只接受不保留逐輪內容的English即時對話instrument", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mentornest-quality-conversation-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const config = { environment: "staging", productionDataAllowed: false, dataRoot: root, verifiedBankRoot: path.join(root, "namespace", "verified-bank") };
+  const conversation = STAGING_QUESTIONS.find((question) => question.type === "english_conversation");
+  const receipt = await verifyAndWriteStagingQuestion(conversation, config);
+  assert.equal(receipt.written, true);
+  const unsafe = {
+    ...conversation,
+    id: "q.synthetic.english.conversation.unsafe",
+    conversation: { ...conversation.conversation, transcript_retention: "full" },
+  };
+  await assert.rejects(verifyAndWriteStagingQuestion(unsafe, config), /conversation/);
+  await assert.rejects(verifyAndWriteStagingQuestion({
+    ...conversation,
+    id: "q.synthetic.english.conversation.answer-key",
+    expected_answer: "I like reading.",
+  }, config), /conversation/);
+});
+
+test("五科基礎題與英文即時對話皆逐題取得唯一durable receipt與content digest", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mentornest-quality-thirty-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const config = { environment: "staging", productionDataAllowed: false, dataRoot: root, verifiedBankRoot: path.join(root, "namespace", "verified-bank") };
   const receipts = [];
   for (const question of STAGING_QUESTIONS) receipts.push(await verifyAndWriteStagingQuestion(question, config));
-  assert.equal(receipts.length, 30);
-  assert.equal(new Set(receipts.map((receipt) => receipt.receipt_id)).size, 30);
+  assert.equal(receipts.length, 31);
+  assert.equal(new Set(receipts.map((receipt) => receipt.receipt_id)).size, 31);
   assert.ok(receipts.every((receipt) => receipt.written && /^sha256:[a-f0-9]{64}$/.test(receipt.content_digest)));
   for (const subject of ["math", "english", "chinese", "science", "social_studies"]) {
-    assert.equal(receipts.filter((_, index) => STAGING_QUESTIONS[index].subject === subject).length, 6);
+    assert.equal(receipts.filter((_, index) => STAGING_QUESTIONS[index].subject === subject).length, subject === "english" ? 7 : 6);
   }
 });

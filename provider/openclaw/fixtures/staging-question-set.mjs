@@ -78,7 +78,7 @@ const GENERATED_QUESTIONS = Object.entries(SUBJECT_SETS).flatMap(([subject, set]
     },
   })));
 
-export const STAGING_QUESTIONS = Object.freeze(GENERATED_QUESTIONS.map((question) => {
+const BASE_STAGING_QUESTIONS = GENERATED_QUESTIONS.map((question) => {
   if (question.id !== "q.synthetic.english.negative.001") return question;
   const { choices: _choices, ...voice } = question;
   return Object.freeze({
@@ -107,7 +107,41 @@ export const STAGING_QUESTIONS = Object.freeze(GENERATED_QUESTIONS.map((question
       },
     },
   });
-}));
+});
+
+export const STAGING_QUESTIONS = Object.freeze([
+  ...BASE_STAGING_QUESTIONS,
+  Object.freeze({
+    id: "q.synthetic.english.conversation.001",
+    subject: "english",
+    grade: 5,
+    knowledge_point: "english.G5.SPEAK.short-dialog",
+    type: "english_conversation",
+    representation_type: "conversation",
+    difficulty: "easy",
+    stem: "和老師用英文聊一聊：你平常最喜歡做什麼？",
+    verification_status: "candidate",
+    source: "staging_synthetic",
+    license: "AI_ORIGINAL",
+    answer_key_version: "synthetic-conversation-v1",
+    provenance: { source_class: "AI_ORIGINAL", license: "AI_ORIGINAL" },
+    conversation: {
+      greeting_zh: "嗨！先用一句簡單的英文告訴老師，你喜歡做什麼。",
+      target_turn_count: 6,
+      transcript_retention: "none",
+      audio_retention: "none",
+      local_voice_only: true,
+    },
+    specialist: {
+      schema_version: "english-conversation-specialist-v1",
+      evidence_schema: "english-specialist-evidence-v1",
+      subskill: "conversation",
+      mode: "guided_dialogue",
+      evaluator: "english_specialist_conversation_turn",
+      completion_evidence: "session_summary_only",
+    },
+  }),
+]);
 
 function correctFeedback(subject) {
   return {

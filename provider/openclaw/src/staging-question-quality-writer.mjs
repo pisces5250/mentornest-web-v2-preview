@@ -29,8 +29,12 @@ export async function verifyAndWriteStagingQuestion(question, config, {
     if (!question.choices.includes(question.expected_answer)) throw new Error("answer_not_in_choices");
     if (new Set(question.choices.map(String)).size !== question.choices.length) throw new Error("duplicate_choices");
     validateSpecialistChoiceMetadata(question);
-  } else {
+  } else if (question.type === "voice_response") {
     validateEnglishReadAloudMetadata(question);
+  } else if (question.type === "english_conversation") {
+    validateEnglishConversationMetadata(question);
+  } else {
+    throw new Error("unsupported_question_type");
   }
   const contentDigest = `sha256:${createHash("sha256").update(stableJson(question)).digest("hex")}`;
   const receiptId = `qqr_${contentDigest.slice(7, 31)}`;
@@ -43,7 +47,8 @@ export async function verifyAndWriteStagingQuestion(question, config, {
       content_digest: contentDigest,
       gate_version: "staging-synthetic-v1",
       stages_passed: ["structure", "provenance", "answer-key",
-        question.type === "multiple_choice" ? "choice-dedupe" : "voice-rubric",
+        question.type === "multiple_choice" ? "choice-dedupe"
+          : question.type === "voice_response" ? "voice-rubric" : "conversation-rubric",
         "subject-specialist", "staging-isolation"],
     },
   };
@@ -78,6 +83,31 @@ export async function verifyAndWriteStagingQuestion(question, config, {
       return { written: false, idempotent: true, question_id: question.id, authority: "question_quality_agent_verify", receipt_id: existing.quality.receipt_id, content_digest: contentDigest };
     }
     throw error;
+  }
+}
+
+function validateEnglishConversationMetadata(question) {
+  const conversation = question.conversation;
+  const specialist = question.specialist;
+  if (question.subject !== "english"
+    || question.type !== "english_conversation"
+    || question.expected_answer !== undefined
+    || question.answer_key_version !== "synthetic-conversation-v1"
+    || !validSpeechText(question.stem, 240)
+    || !validSpeechText(conversation?.greeting_zh, 240)
+    || !Number.isInteger(conversation?.target_turn_count)
+    || conversation.target_turn_count < 2
+    || conversation.target_turn_count > 10
+    || conversation.transcript_retention !== "none"
+    || conversation.audio_retention !== "none"
+    || conversation.local_voice_only !== true
+    || specialist?.schema_version !== "english-conversation-specialist-v1"
+    || specialist?.evidence_schema !== "english-specialist-evidence-v1"
+    || specialist?.subskill !== "conversation"
+    || specialist?.mode !== "guided_dialogue"
+    || specialist?.evaluator !== "english_specialist_conversation_turn"
+    || specialist?.completion_evidence !== "session_summary_only") {
+    throw new Error("invalid_english_conversation_metadata");
   }
 }
 

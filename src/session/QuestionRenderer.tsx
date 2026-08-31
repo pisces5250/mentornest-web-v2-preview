@@ -79,6 +79,13 @@ export interface SessionStep {
   display_text?: string;
   spoken_text?: string;
   language?: "en-US";
+  conversation?: {
+    greeting_zh: string;
+    target_turn_count: number;
+    transcript_retention: "none";
+    audio_retention: "none";
+    local_voice_only: true;
+  };
   choices?: ReadonlyArray<string>;
   difficulty: "easy" | "medium" | "hard";
   source: "verified" | "generated";

@@ -1916,3 +1916,12 @@ Hard invariants：未讀寫或搬移 production student data；未修改 product
 - 入口改為單一「開始今天的學習」主行動、次層五科選擇與 verifying/signed-out/ready/unavailable 狀態；remote Chrome Axe serious/critical 0。
 - English Voice 補齊 browser CSRF，三次 remote TTS→STT 約 4–6 秒；read-aloud evaluator 正規化本機 STT contraction／英文縮寫後，remote Assessment、Memory、Director 與 next learning 完整通過且不回傳 raw transcript。
 - Runtime source `efa8ce5bc1c640af54cf8109c1e08c664e6be07b`；GitHub Actions run `33352135433` completed successfully。只更新隔離 staging，未修改 production 或 cutover。
+
+# 2026-08-31 — Phase 6.2 英文即時對話正式入口
+
+- English Specialist 的既有即時對話引擎與 UI 正式接入 Question Quality staging writer，不再只存在於測試 fixture。
+- 新增無標準答案的 `english_conversation` instrument；英文 session 固定先提供朗讀，再提供即時對話，browser payload 不含 answer key 或 specialist private rubric。
+- 對話只使用 local Voice；逐輪 transcript／audio retention 均為 `none`，結束後只由正式 Learning Memory writer 保存 session summary。
+- Question Quality gate 拒絕帶標準答案、保存 transcript/audio、非 local Voice 或 specialist contract 不符的對話題。
+- 完整 regression 376/376、strict typecheck、production build 與本機 Google Chrome browser/axe/keyboard gate 通過；未修改 production、production data 或 Voice service。
+- 手寫作答經 Learning Product、UX 與 Architecture/Security 交叉審查：當次 session vector ink 可落地，但正式辨識與跨 session 保存仍缺 local recognizer、專用 artifact authority 及 retention/consent policy，不以 OCR 或 Learning Memory shortcut 冒充完成。

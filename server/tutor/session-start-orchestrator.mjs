@@ -49,7 +49,8 @@ export function createTutorSessionStartOrchestrator({ gateway } = {}) {
         });
         selectionBasis = "director_subject_verified_fallback";
       }
-      const eligibleQuestions = (bank?.questions || []).filter(canEvaluateVerifiedQuestion);
+      const eligibleQuestions = (bank?.questions || []).filter((question) =>
+        canEvaluateVerifiedQuestion(question) || isVerifiedEnglishConversation(question));
       const questions = selectOpeningQuestions(eligibleQuestions, recommendation.subject, targetSteps).map(publicQuestion);
       if (questions.length === 0) throw new TutorSessionStartError("verified_question_unavailable", 503);
       return Object.freeze({
@@ -71,8 +72,21 @@ export function createTutorSessionStartOrchestrator({ gateway } = {}) {
 function selectOpeningQuestions(questions, subject, targetSteps) {
   if (subject !== "english") return questions.slice(0, targetSteps);
   const readAloud = questions.find((question) => question.type === "voice_response");
-  if (!readAloud) return questions.slice(0, targetSteps);
-  return [readAloud, ...questions.filter((question) => question.id !== readAloud.id)].slice(0, targetSteps);
+  const conversation = questions.find((question) => question.type === "english_conversation");
+  const featured = [readAloud, conversation].filter(Boolean);
+  return [...featured, ...questions.filter((question) =>
+    !featured.some((item) => item.id === question.id))].slice(0, targetSteps);
+}
+
+function isVerifiedEnglishConversation(question) {
+  return question?.verification_status === "verified"
+    && question.subject === "english"
+    && question.type === "english_conversation"
+    && question.specialist?.schema_version === "english-conversation-specialist-v1"
+    && question.specialist?.evaluator === "english_specialist_conversation_turn"
+    && question.conversation?.transcript_retention === "none"
+    && question.conversation?.audio_retention === "none"
+    && question.conversation?.local_voice_only === true;
 }
 
 function resolveGrade(grade, ageBand) {
@@ -88,5 +102,6 @@ function publicQuestion(question) {
   if (question.type === "voice_response") {
     for (const key of ["instruction_text", "display_text", "spoken_text", "language"]) safe[key] = question[key];
   }
+  if (question.type === "english_conversation") safe.conversation = question.conversation;
   return Object.freeze(safe);
 }

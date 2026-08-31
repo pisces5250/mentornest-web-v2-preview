@@ -86,7 +86,7 @@ test("session start 排除沒有正式 evaluator contract 的 legacy verified it
   assert.deepEqual(result.questions.map((question) => question.id), [verifiedFixture("social_studies").id]);
 });
 
-test("英文 session 優先提供正式朗讀題，讓孩子取得聽與跟讀介面", async () => {
+test("英文 session 優先提供正式朗讀與即時對話題", async () => {
   const backend = {
     async invoke(capability) {
       if (capability === "learning_director.recommend") return {
@@ -108,4 +108,9 @@ test("英文 session 優先提供正式朗讀題，讓孩子取得聽與跟讀�
   assert.equal(result.questions[0].spoken_text, "We are not watching TV now.");
   assert.equal(result.questions[0].language, "en-US");
   assert.doesNotMatch(JSON.stringify(result.questions[0]), /expected_answer|answer_key|rubric|specialist/);
+  assert.equal(result.questions[1].type, "english_conversation");
+  assert.equal(result.questions[1].id, "q.synthetic.english.conversation.001");
+  assert.equal(result.questions[1].conversation.transcript_retention, "none");
+  assert.equal(result.questions[1].conversation.audio_retention, "none");
+  assert.equal(result.questions[1].conversation.local_voice_only, true);
 });

@@ -5,16 +5,21 @@ import { STAGING_QUESTIONS } from "../../provider/openclaw/fixtures/staging-ques
 
 const fixtures = STAGING_QUESTIONS.filter((question) => question.type === "multiple_choice");
 
-test("五科各有六題candidate，English包含一題受限read-aloud", () => {
-  assert.equal(STAGING_QUESTIONS.length, 30);
+test("五科基礎題齊備，English另含受限read-aloud與即時對話", () => {
+  assert.equal(STAGING_QUESTIONS.length, 31);
   for (const subject of ["math", "english", "chinese", "science", "social_studies"]) {
-    assert.equal(STAGING_QUESTIONS.filter((question) => question.subject === subject).length, 6);
+    assert.equal(STAGING_QUESTIONS.filter((question) => question.subject === subject).length, subject === "english" ? 7 : 6);
   }
   const voice = STAGING_QUESTIONS.find((question) => question.type === "voice_response");
   assert.equal(voice.subject, "english");
   assert.equal(voice.specialist.mode, "read_aloud");
   assert.equal(voice.specialist.rubric.local_stt_only, true);
   assert.equal(voice.specialist.rubric.transcript_retention, "none");
+  const conversation = STAGING_QUESTIONS.find((question) => question.type === "english_conversation");
+  assert.equal(conversation.subject, "english");
+  assert.equal(conversation.expected_answer, undefined);
+  assert.equal(conversation.conversation.transcript_retention, "none");
+  assert.equal(conversation.conversation.audio_retention, "none");
 });
 
 test("五科 verified choice evaluator 保留各科 schema、taxonomy 與 representation", () => {
