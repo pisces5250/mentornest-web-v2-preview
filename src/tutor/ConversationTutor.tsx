@@ -149,9 +149,30 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startTtsAtRef = useRef<number | null>(null);
+  // Media/VAD callback 的生命週期長於單次 React render；server-confirmed
+  // identity 與 turn index 必須由 refs 提供，不能捕捉尚未更新的 state。
+  const sessionIdRef = useRef<string | null>(null);
+  const turnIndexRef = useRef(0);
+  const turnInFlightRef = useRef(false);
 
   const sttEndpoint =
     props.sttEndpoint ?? buildVoiceUrl("/api/stt/transcribe");
+
+  const stopListening = useCallback(() => {
+    try {
+      mediaRecorderRef.current?.state !== "inactive" &&
+        mediaRecorderRef.current?.stop();
+    } catch (_) {
+      /* swallow */
+    }
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    vadStopRef.current?.();
+    audioCtxRef.current?.close().catch(() => {});
+    mediaRecorderRef.current = null;
+    mediaStreamRef.current = null;
+    vadStopRef.current = null;
+    audioCtxRef.current = null;
+  }, []);
 
   // Tear down any in-flight media on unmount.
   useEffect(() => {
@@ -189,6 +210,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
     mr.start();
 
     vadStopRef.current = attachVad(analyser, async (_durationMs) => {
+      if (turnInFlightRef.current) return;
       // Pause recording briefly, snapshot chunks, send to STT.
       const recorder = mediaRecorderRef.current;
       if (!recorder || recorder.state === "inactive") return;
@@ -199,33 +221,35 @@ export function ConversationTutor(props: ConversationTutorProps) {
       await stopped;
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
       chunksRef.current = [];
-      // Restart recording for the next speech segment.
-      const next = new MediaRecorder(stream, { mimeType: recorder.mimeType });
-      mediaRecorderRef.current = next;
-      next.ondataavailable = (ev) => {
-        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
-      };
-      next.start();
+      // 一輪只收孩子的聲音；送 STT 與老師 TTS 期間釋放麥克風，避免
+      // iPad 外放被 VAD 誤當成下一輪學生回答。
+      stopListening();
 
       // Tell the UI we have heard the child.
       dispatch({ type: "STUDENT_SPOKE" });
       setBusy(true);
+      turnInFlightRef.current = true;
       try {
         const transcript = await transcribeBlob(sttEndpoint, blob);
         setStudentTranscript(transcript);
         if (!transcript.trim()) {
           // Empty transcript: invite again instead of POSTing nothing.
           setBusy(false);
-          dispatch({ type: "TTS_DONE" });
+          dispatch({ type: "LISTEN_AGAIN" });
+          void startListening();
           return;
         }
+        const sessionId = sessionIdRef.current;
+        if (!sessionId) throw new Error("conversation_session_missing");
+        const nextTurnIndex = turnIndexRef.current + 1;
         const resp = await postConversationTurn({
-          session_id: state.sessionId!,
+          session_id: sessionId,
           transcript,
-          turn_index: state.turnIndex + 1,
+          turn_index: nextTurnIndex,
         });
         setBusy(false);
         if (resp.ok === true) {
+          turnIndexRef.current = resp.turn_index;
           dispatch({
             type: "DECISION_READY",
             action: resp.decision.action,
@@ -243,24 +267,11 @@ export function ConversationTutor(props: ConversationTutorProps) {
           type: "ENDED",
           errorMessage: "老師這邊連線有點慢，等一下再試。",
         });
+      } finally {
+        turnInFlightRef.current = false;
       }
     });
-  }, [state.sessionId, state.turnIndex, sttEndpoint]);
-
-  const stopListening = useCallback(() => {
-    try {
-      mediaRecorderRef.current?.state !== "inactive" &&
-        mediaRecorderRef.current?.stop();
-    } catch (_) {
-      /* swallow */
-    }
-    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
-    vadStopRef.current?.();
-    audioCtxRef.current?.close().catch(() => {});
-    mediaStreamRef.current = null;
-    vadStopRef.current = null;
-    audioCtxRef.current = null;
-  }, []);
+  }, [stopListening, sttEndpoint]);
 
   const onStart = useCallback(async () => {
     const resp = await startConversationSession({
@@ -271,6 +282,8 @@ export function ConversationTutor(props: ConversationTutorProps) {
       locale: props.locale ?? "en-US",
     });
     if (resp.ok === true) {
+      sessionIdRef.current = resp.session.session_id;
+      turnIndexRef.current = 0;
       dispatch({
         type: "STARTED",
         sessionId: resp.session.session_id,
@@ -288,18 +301,21 @@ export function ConversationTutor(props: ConversationTutorProps) {
 
   const onEnd = useCallback(async () => {
     stopListening();
-    if (state.sessionId) {
+    const sessionId = sessionIdRef.current;
+    if (sessionId) {
       try {
         await endConversationSession({
-          session_id: state.sessionId,
+          session_id: sessionId,
           reason: "child_ended",
         });
       } catch (_) {
         /* swallow; we are leaving anyway */
       }
     }
+    sessionIdRef.current = null;
+    turnIndexRef.current = 0;
     dispatch({ type: "ENDED" });
-  }, [state.sessionId, stopListening]);
+  }, [stopListening]);
 
   // Track when TTS playback finishes -> back to LISTENING.
   useEffect(() => {
@@ -367,7 +383,10 @@ export function ConversationTutor(props: ConversationTutorProps) {
                   <TTSPlayer
                     text={state.lastUtterance}
                     voiceId="en_US-lessac-medium"
-                    onEnded={() => dispatch({ type: "TTS_DONE" })}
+                    onEnded={() => {
+                      dispatch({ type: "TTS_DONE" });
+                      if (state.lastAction !== "wrap_up") void startListening();
+                    }}
                   />
                 )}
               </>

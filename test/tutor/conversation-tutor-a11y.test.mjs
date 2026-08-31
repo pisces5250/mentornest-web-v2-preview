@@ -122,3 +122,13 @@ test("正式對話 STT 使用同源 credentials 與 CSRF，結束後可繼續下
   assert.match(source, /data-testid="conversation-next"/);
   assert.match(renderer, /onComplete=\{onAdvance\}/);
 });
+
+test("對話 VAD 使用 server-confirmed session ref 與遞增 turn ref", () => {
+  const source = readFileSync(resolve(__dirname, "../../src/tutor/ConversationTutor.tsx"), "utf8");
+  assert.match(source, /sessionIdRef\.current\s*=\s*resp\.session\.session_id/);
+  assert.match(source, /const sessionId\s*=\s*sessionIdRef\.current/);
+  assert.match(source, /const nextTurnIndex\s*=\s*turnIndexRef\.current\s*\+\s*1/);
+  assert.match(source, /turnIndexRef\.current\s*=\s*resp\.turn_index/);
+  assert.match(source, /if \(turnInFlightRef\.current\) return/);
+  assert.doesNotMatch(source, /session_id:\s*state\.sessionId/);
+});

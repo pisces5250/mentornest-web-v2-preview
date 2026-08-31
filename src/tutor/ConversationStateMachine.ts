@@ -51,6 +51,7 @@ export type ConversationEvent =
   | { type: "STARTED"; sessionId: string; greeting: string }
   | { type: "STUDENT_SPOKE" }
   | { type: "DECISION_READY"; action: string; utterance: string }
+  | { type: "LISTEN_AGAIN" }
   | { type: "TTS_DONE" }
   | { type: "ENDED"; errorMessage?: string | null };
 
@@ -80,6 +81,8 @@ export function conversationReducer(
         lastUtterance: ev.utterance,
         turnIndex: state.turnIndex + 1,
       };
+    case "LISTEN_AGAIN":
+      return { ...state, phase: "LISTENING", errorMessage: null };
     case "TTS_DONE":
       if (state.phase !== "SPEAKING") return state;
       // If the server told us the session is ended, stop.  Otherwise
