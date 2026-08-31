@@ -119,6 +119,7 @@ test("正式對話 STT 使用同源 credentials 與 CSRF，結束後可繼續下
   const renderer = readFileSync(resolve(__dirname, "../../src/session/QuestionRenderer.tsx"), "utf8");
   assert.match(source, /credentials:\s*"same-origin"/);
   assert.match(source, /"X-MentorNest-CSRF":\s*browserCsrfToken\(\)/);
+  assert.match(source, /\/api\/stt\/transcribe\?language=en/);
   assert.match(source, /data-testid="conversation-next"/);
   assert.match(renderer, /onComplete=\{onAdvance\}/);
 });

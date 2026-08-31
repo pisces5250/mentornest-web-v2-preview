@@ -169,7 +169,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const turnInFlightRef = useRef(false);
 
   const sttEndpoint =
-    props.sttEndpoint ?? buildVoiceUrl("/api/stt/transcribe");
+    props.sttEndpoint ?? buildVoiceUrl("/api/stt/transcribe?language=en");
 
   const stopListening = useCallback(() => {
     try {
