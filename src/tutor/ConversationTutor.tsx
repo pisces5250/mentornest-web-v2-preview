@@ -25,8 +25,7 @@
 //   - No recording is persisted to disk anywhere.
 
 import React, { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { TTSPlayer } from "../input/TTSPlayer";
-import { buildVoiceUrl } from "../foundation/voice_api";
+import { buildVoiceUrl, classifyVoiceError, devDiag } from "../foundation/voice_api";
 import { browserCsrfToken } from "../foundation/browser_security";
 import {
   startConversationSession,
@@ -63,6 +62,7 @@ export interface ConversationTutorProps {
 const SILENCE_MS = 700;
 const MIN_SPEECH_MS = 250;
 const STT_TIMEOUT_MS = 20_000;
+const TTS_TIMEOUT_MS = 20_000;
 
 /**
  * Runs the VAD on a continuous AnalyserNode.  Calls onSpeechEnd() once
@@ -155,6 +155,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const [state, dispatch] = useReducer(conversationReducer, INITIAL_UI_STATE);
   const [studentTranscript, setStudentTranscript] = useState("");
   const [busy, setBusy] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -167,6 +168,14 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const sessionIdRef = useRef<string | null>(null);
   const turnIndexRef = useRef(0);
   const turnInFlightRef = useRef(false);
+  const conversationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackAbortRef = useRef<AbortController | null>(null);
+  const playbackObjectUrlRef = useRef<string | null>(null);
+  const playbackGenerationRef = useRef(0);
+  const playbackActiveRef = useRef(false);
+  const startListeningRef = useRef<(() => Promise<void>) | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const sttEndpoint =
     props.sttEndpoint ?? buildVoiceUrl("/api/stt/transcribe?language=en");
@@ -187,9 +196,147 @@ export function ConversationTutor(props: ConversationTutorProps) {
     audioCtxRef.current = null;
   }, []);
 
+  const releaseConversationAudio = useCallback(() => {
+    playbackAbortRef.current?.abort();
+    playbackAbortRef.current = null;
+    playbackActiveRef.current = false;
+    const audio = conversationAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
+    if (playbackObjectUrlRef.current) {
+      URL.revokeObjectURL(playbackObjectUrlRef.current);
+      playbackObjectUrlRef.current = null;
+    }
+  }, []);
+
+  // iPad Safari 必須在明確 user gesture 中解鎖同一個 audio element。
+  // 這段只播放 20ms 靜音，後續每一輪仍使用本機 Voice TTS 音訊。
+  const primeConversationAudio = useCallback(() => {
+    const audio = conversationAudioRef.current;
+    if (!audio) return;
+    const sampleCount = 160;
+    const wav = new ArrayBuffer(44 + sampleCount * 2);
+    const view = new DataView(wav);
+    const text = (offset: number, value: string) => {
+      for (let index = 0; index < value.length; index += 1) {
+        view.setUint8(offset + index, value.charCodeAt(index));
+      }
+    };
+    text(0, "RIFF");
+    view.setUint32(4, 36 + sampleCount * 2, true);
+    text(8, "WAVEfmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 8000, true);
+    view.setUint32(28, 16000, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    text(36, "data");
+    view.setUint32(40, sampleCount * 2, true);
+    const url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
+    audio.muted = true;
+    audio.src = url;
+    const priming = audio.play();
+    void priming.catch(() => {}).finally(() => {
+      if (!playbackActiveRef.current) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      }
+      audio.muted = false;
+      URL.revokeObjectURL(url);
+    });
+  }, []);
+
+  const playTutorAudio = useCallback(async (utterance: string) => {
+    if (!utterance.trim() || !sessionIdRef.current) return;
+    stopListening();
+    releaseConversationAudio();
+    setPlaybackError(null);
+    const generation = ++playbackGenerationRef.current;
+    const controller = new AbortController();
+    playbackAbortRef.current = controller;
+    const deadline = window.setTimeout(() => controller.abort(), TTS_TIMEOUT_MS);
+    try {
+      const form = new URLSearchParams();
+      form.set("text", utterance);
+      form.set("language", props.locale ?? "en-US");
+      const response = await fetch(buildVoiceUrl("/api/tts/synthesize"), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-MentorNest-CSRF": browserCsrfToken(),
+        },
+        body: form.toString(),
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      const envelope = await response.json().catch(() => null) as {
+        ok?: boolean;
+        audio_url?: string;
+      } | null;
+      if (!response.ok || !envelope?.ok || !envelope.audio_url) {
+        throw response;
+      }
+      if (!/^\/api\/audio\/[a-f0-9]{16}$/i.test(envelope.audio_url)) {
+        throw new Error("invalid_audio_url");
+      }
+      const audioResponse = await fetch(buildVoiceUrl(envelope.audio_url), {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!audioResponse.ok) throw audioResponse;
+      const blob = await audioResponse.blob();
+      if (generation !== playbackGenerationRef.current) return;
+      const audio = conversationAudioRef.current;
+      if (!audio) return;
+      const url = URL.createObjectURL(blob);
+      playbackObjectUrlRef.current = url;
+      audio.muted = false;
+      audio.src = url;
+      audio.playbackRate = 1;
+      playbackActiveRef.current = true;
+      await audio.play();
+    } catch (error) {
+      if (generation !== playbackGenerationRef.current) return;
+      playbackActiveRef.current = false;
+      const info = classifyVoiceError(error);
+      devDiag("conversation-playback", info);
+      setPlaybackError(
+        error instanceof DOMException && error.name === "NotAllowedError"
+          ? "瀏覽器暫停了自動播放，點一下就能繼續。"
+          : "老師的聲音沒有播放成功，可以再試一次。",
+      );
+    } finally {
+      window.clearTimeout(deadline);
+    }
+  }, [props.locale, releaseConversationAudio, stopListening]);
+
+  const finishTutorAudio = useCallback(() => {
+    if (!playbackActiveRef.current) return;
+    playbackActiveRef.current = false;
+    if (playbackObjectUrlRef.current) {
+      URL.revokeObjectURL(playbackObjectUrlRef.current);
+      playbackObjectUrlRef.current = null;
+    }
+    const shouldResume = stateRef.current.lastAction !== "wrap_up";
+    dispatch({ type: "TTS_DONE" });
+    if (shouldResume && sessionIdRef.current) {
+      void startListeningRef.current?.();
+    }
+  }, []);
+
   // Tear down any in-flight media on unmount.
   useEffect(() => {
     return () => {
+      playbackGenerationRef.current += 1;
+      releaseConversationAudio();
       try {
         mediaRecorderRef.current?.state !== "inactive" &&
           mediaRecorderRef.current?.stop();
@@ -200,9 +347,10 @@ export function ConversationTutor(props: ConversationTutorProps) {
       vadStopRef.current?.();
       audioCtxRef.current?.close().catch(() => {});
     };
-  }, []);
+  }, [releaseConversationAudio]);
 
   const startListening = useCallback(async () => {
+    if (mediaStreamRef.current || stateRef.current.phase === "ENDED") return;
     if (!navigator.mediaDevices?.getUserMedia) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaStreamRef.current = stream;
@@ -300,35 +448,44 @@ export function ConversationTutor(props: ConversationTutorProps) {
       }
     });
   }, [stopListening, sttEndpoint]);
+  startListeningRef.current = startListening;
 
   const onStart = useCallback(async () => {
-    const resp = await startConversationSession({
-      student_id: props.studentId,
-      knowledge_point: props.knowledgePoint,
-      age_band: props.ageBand,
-      topic: props.topic,
-      locale: props.locale ?? "en-US",
-    });
-    if (resp.ok === true) {
-      sessionIdRef.current = resp.session.session_id;
-      turnIndexRef.current = 0;
-      dispatch({
-        type: "STARTED",
-        sessionId: resp.session.session_id,
-        greeting: resp.greeting,
+    // 必須同步發生在按鈕 click call stack，才能合法解鎖 Safari audio。
+    primeConversationAudio();
+    setBusy(true);
+    setPlaybackError(null);
+    try {
+      const resp = await startConversationSession({
+        student_id: props.studentId,
+        knowledge_point: props.knowledgePoint,
+        age_band: props.ageBand,
+        topic: props.topic,
+        locale: props.locale ?? "en-US",
       });
-      // Begin listening as soon as the greeting starts.
-      void startListening();
-    } else {
-      dispatch({
-        type: "ENDED",
-        errorMessage: "message" in resp ? (resp as any).message : null,
-      });
+      if (resp.ok === true) {
+        sessionIdRef.current = resp.session.session_id;
+        turnIndexRef.current = 0;
+        dispatch({
+          type: "STARTED",
+          sessionId: resp.session.session_id,
+          greeting: resp.greeting,
+        });
+      } else {
+        dispatch({
+          type: "ENDED",
+          errorMessage: "message" in resp ? (resp as any).message : null,
+        });
+      }
+    } finally {
+      setBusy(false);
     }
-  }, [props.studentId, props.knowledgePoint, props.ageBand, props.topic, props.locale, startListening]);
+  }, [props.studentId, props.knowledgePoint, props.ageBand, props.topic, props.locale, primeConversationAudio]);
 
   const onEnd = useCallback(async () => {
     stopListening();
+    playbackGenerationRef.current += 1;
+    releaseConversationAudio();
     const sessionId = sessionIdRef.current;
     if (sessionId) {
       try {
@@ -343,13 +500,14 @@ export function ConversationTutor(props: ConversationTutorProps) {
     sessionIdRef.current = null;
     turnIndexRef.current = 0;
     dispatch({ type: "ENDED" });
-  }, [stopListening]);
+  }, [releaseConversationAudio, stopListening]);
 
   // Track when TTS playback finishes -> back to LISTENING.
   useEffect(() => {
     if (state.phase !== "SPEAKING") return;
     startTtsAtRef.current = performance.now();
-  }, [state.phase]);
+    void playTutorAudio(state.lastUtterance);
+  }, [state.phase, state.lastUtterance, playTutorAudio]);
 
   return (
     <section
@@ -396,7 +554,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
             </button>
           </header>
 
-          {/* Tutor's last utterance (also feeds TTSPlayer). */}
+          {/* Tutor's last utterance；Conversation 專用 controller 自動播放。 */}
           <div
             className="mn-conversation__tutor"
             data-testid="tutor-utterance"
@@ -407,15 +565,10 @@ export function ConversationTutor(props: ConversationTutorProps) {
                 <p className="mn-conversation__tutor-text">
                   老師：{state.lastUtterance}
                 </p>
-                {state.phase === "SPEAKING" && (
-                  <TTSPlayer
-                    text={state.lastUtterance}
-                    voiceId="en_US-lessac-medium"
-                    onEnded={() => {
-                      dispatch({ type: "TTS_DONE" });
-                      if (state.lastAction !== "wrap_up") void startListening();
-                    }}
-                  />
+                {state.phase === "SPEAKING" && !playbackError && (
+                  <p className="mn-conversation__speaking" data-testid="conversation-auto-speaking">
+                    老師正在說話…
+                  </p>
                 )}
               </>
             ) : (
@@ -442,6 +595,28 @@ export function ConversationTutor(props: ConversationTutorProps) {
             </p>
           )}
 
+          {playbackError && state.phase === "SPEAKING" && (
+            <div className="mn-conversation__playback-recovery" role="alert">
+              <p>{playbackError}</p>
+              <button
+                type="button"
+                className="mn-conversation__btn mn-conversation__btn--primary"
+                onClick={() => void playTutorAudio(state.lastUtterance)}
+                data-testid="conversation-playback-retry"
+              >點一下聽老師說</button>
+              <button
+                type="button"
+                className="mn-conversation__btn mn-conversation__btn--ghost"
+                onClick={() => {
+                  releaseConversationAudio();
+                  dispatch({ type: "TTS_DONE" });
+                  if (state.lastAction !== "wrap_up") void startListening();
+                }}
+                data-testid="conversation-playback-skip"
+              >略過這次，繼續說</button>
+            </div>
+          )}
+
           {state.phase === "THINKING" && (
             <p className="mn-conversation__thinking" data-testid="thinking">
               老師想想怎麼接…
@@ -463,6 +638,19 @@ export function ConversationTutor(props: ConversationTutorProps) {
           )}
         </div>
       )}
+      <audio
+        ref={conversationAudioRef}
+        preload="auto"
+        aria-hidden="true"
+        data-testid="conversation-audio"
+        onEnded={finishTutorAudio}
+        onError={() => {
+          if (playbackActiveRef.current) {
+            playbackActiveRef.current = false;
+            setPlaybackError("老師的聲音沒有播放成功，可以再試一次。");
+          }
+        }}
+      />
     </section>
   );
 }

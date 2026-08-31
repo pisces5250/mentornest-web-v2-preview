@@ -63,9 +63,12 @@ export function conversationReducer(
     case "STARTED":
       return {
         ...INITIAL_UI_STATE,
-        phase: "LISTENING",
+        // Greeting 是老師的第一個 spoken turn；必須先完成播放，
+        // audio ended 後才能開麥進入 LISTENING。
+        phase: "SPEAKING",
         sessionId: ev.sessionId,
         turnIndex: 0,
+        lastAction: "greeting",
         lastUtterance: ev.greeting,
         errorMessage: null,
       };

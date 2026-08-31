@@ -145,3 +145,42 @@ test("對話 STT 有等待上限、可恢復收音，並支援 iPad 錄音格式
   assert.match(source, /role="alert"/);
   assert.match(stateMachine, /errorMessage:\s*ev\.errorMessage\s*\?\?\s*null/);
 });
+
+test("Conversation greeting 與每輪老師回應皆為 hands-free spoken turn", () => {
+  const source = readFileSync(resolve(__dirname, "../../src/tutor/ConversationTutor.tsx"), "utf8");
+  const stateMachine = readFileSync(resolve(__dirname, "../../src/tutor/ConversationStateMachine.ts"), "utf8");
+  assert.match(stateMachine, /case\s+"STARTED":[\s\S]*phase:\s*"SPEAKING"/);
+  assert.match(stateMachine, /lastAction:\s*"greeting"/);
+  assert.match(source, /primeConversationAudio\(\)/);
+  assert.match(source, /state\.phase\s*!==\s*"SPEAKING"/);
+  assert.match(source, /void playTutorAudio\(state\.lastUtterance\)/);
+  assert.match(source, /onEnded=\{finishTutorAudio\}/);
+  assert.match(source, /stopListening\(\);[\s\S]*releaseConversationAudio\(\)/);
+  assert.match(source, /data-testid="conversation-auto-speaking"/);
+  assert.match(source, /data-testid="conversation-playback-retry"/);
+  assert.match(source, /data-testid="conversation-playback-skip"/);
+  assert.doesNotMatch(source, /<TTSPlayer/);
+});
+
+test("Conversation 正常播放不顯示一般播放鍵，錯誤恢復仍可鍵盤操作", async () => {
+  const html = `<!doctype html><html lang="zh-Hant"><head><title>英文對話</title></head><body>
+    <section role="region" aria-label="和老師說英文" data-phase="SPEAKING">
+      <span role="status" aria-live="polite">老師在說</span>
+      <p aria-live="polite">老師：Hello!</p>
+      <p data-testid="conversation-auto-speaking">老師正在說話…</p>
+      <audio aria-hidden="true"></audio>
+      <div role="alert"><p>老師的聲音沒有播放成功，可以再試一次。</p>
+        <button type="button" data-testid="conversation-playback-retry">點一下聽老師說</button>
+        <button type="button" data-testid="conversation-playback-skip">略過這次，繼續說</button>
+      </div>
+      <button type="button">結束對話</button>
+    </section></body></html>`;
+  const d = new JSDOM(html);
+  assert.equal(d.window.document.querySelector("[data-testid='tts-play']"), null);
+  for (const id of ["conversation-playback-retry", "conversation-playback-skip"]) {
+    const button = d.window.document.querySelector(`[data-testid='${id}']`);
+    assert.ok(button);
+    assert.notEqual(button.getAttribute("tabindex"), "-1");
+  }
+  assert.equal((await runAxe(html)).length, 0);
+});
