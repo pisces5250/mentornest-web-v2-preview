@@ -1253,6 +1253,94 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--mn-qg-sp-4);
+  min-block-size: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * LEARNING WORKSPACE — iPad-first，單一 DOM 順序。
+ *
+ * 預設（直向、Split View、放大）維持單欄文件流。只有寬度與高度都
+ * 足夠的橫向 viewport 才把題幹與作答區排成雙欄；內容永遠可在工作區
+ * 內捲動，沒有固定高度或 overflow:hidden 造成的裁切。
+ * ───────────────────────────────────────────────────────────────────── */
+.mn-learning-workspace {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--mn-qg-sp-4);
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.mn-learning-workspace__question,
+.mn-learning-workspace__feedback {
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.mn-learning-workspace__feedback:empty {
+  display: none;
+}
+
+@media (min-width: 900px) and (min-height: 620px) and (orientation: landscape) {
+  .mn-learning-workspace {
+    /* dvh 反映 iPad 瀏覽器工具列；max 而非固定 block-size，短內容不被撐高。 */
+    max-block-size: calc(100dvh - 10rem);
+    overflow-y: auto;
+    overscroll-behavior-block: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .mn-question-card {
+    grid-template-columns: minmax(0, 0.9fr) minmax(20rem, 1.1fr);
+    column-gap: var(--mn-qg-sp-6);
+    align-items: start;
+    min-inline-size: 0;
+    min-block-size: 0;
+  }
+
+  .mn-question-card__meta {
+    grid-column: 1 / -1;
+  }
+
+  .mn-question-card__stem-wrap {
+    grid-column: 1;
+    grid-row: 2 / span 5;
+    min-inline-size: 0;
+    min-block-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .mn-question-card > .mn-choices,
+  .mn-question-card > .mn-question-card__answer-area,
+  .mn-question-card > .mn-question-card__hint-row,
+  .mn-question-card > .mn-hint-row,
+  .mn-question-card > .mn-question-card__cta-row,
+  .mn-question-card > .mn-question-card__actions,
+  .mn-question-card > .mn-conversation,
+  .mn-question-card > .mn-math-visual {
+    grid-column: 2;
+    min-inline-size: 0;
+    min-block-size: 0;
+  }
+
+  /* 舊版以負 margin 延伸卡片邊界；雙欄時收回欄內，避免橫向溢出。 */
+  .mn-question-card__answer-area,
+  .mn-question-card__hint-row,
+  .mn-question-card__cta-row {
+    margin-inline: 0;
+  }
+
+  .mn-learning-workspace__feedback {
+    overflow: auto;
+    overscroll-behavior-block: contain;
+  }
+}
+
+@media (max-width: 899px), (max-height: 619px), (orientation: portrait) {
+  .mn-learning-workspace,
+  .mn-question-card {
+    max-block-size: none;
+  }
 }
 
 /* Round 5: session meta row carries the 题目 N / M badge + resumed

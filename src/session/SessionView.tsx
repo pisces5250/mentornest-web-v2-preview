@@ -186,25 +186,33 @@ export function SessionView(props: SessionViewProps) {
         {onPause && <button type="button" className="mn-button mn-button--ghost" data-testid="pause-session" onClick={onPause}>先休息</button>}
       </div>
 
-      <QuestionRenderer
-        key={`${currentStep.step_id}-${currentStep.attempts.length}`}
-        step={currentStep}
-        ageBand={state.age_band}
-        studentId={state.student_id}
-        onSubmit={handleSubmit}
-        onHint={handleHint}
-        onRepresentationSwitch={handleRepresentationSwitch}
-        onRetry={handleRetry}
-        onAdvance={handleAdvance}
-        hintsUsed={currentStep.hints_used}
-        attemptsCount={currentStep.attempts.length}
-        lastVerdict={teacherState.kind === "result" ? teacherState.turn.verdict : null}
-        phase={teacherState.kind === "evaluating"
-          ? "evaluating"
-          : teacherState.kind === "result" ? "feedback" : "presenting"}
-      />
+      {/* iPad 工作區只建立一個 DOM／焦點順序；寬螢幕的雙欄完全由 CSS
+          排版，Split View、放大或直向時會安全回到單欄。 */}
+      <section className="mn-learning-workspace" data-testid="learning-workspace" aria-label="學習題目工作區">
+        <div className="mn-learning-workspace__question" data-testid="learning-workspace-question">
+          <QuestionRenderer
+            key={`${currentStep.step_id}-${currentStep.attempts.length}`}
+            step={currentStep}
+            ageBand={state.age_band}
+            studentId={state.student_id}
+            onSubmit={handleSubmit}
+            onHint={handleHint}
+            onRepresentationSwitch={handleRepresentationSwitch}
+            onRetry={handleRetry}
+            onAdvance={handleAdvance}
+            hintsUsed={currentStep.hints_used}
+            attemptsCount={currentStep.attempts.length}
+            lastVerdict={teacherState.kind === "result" ? teacherState.turn.verdict : null}
+            phase={teacherState.kind === "evaluating"
+              ? "evaluating"
+              : teacherState.kind === "result" ? "feedback" : "presenting"}
+          />
+        </div>
 
-      <TeacherTurnPanel state={teacherState} onRetry={handleRetry} onHint={handleHint} onAdvance={handleAdvance} onSaveRetry={handleSaveRetry} />
+        <div className="mn-learning-workspace__feedback" data-testid="learning-workspace-feedback">
+          <TeacherTurnPanel state={teacherState} onRetry={handleRetry} onHint={handleHint} onAdvance={handleAdvance} onSaveRetry={handleSaveRetry} />
+        </div>
+      </section>
     </div>
   );
 }
