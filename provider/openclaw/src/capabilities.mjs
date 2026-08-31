@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { assessObservation } from "./assessment.mjs";
 
 const SUBJECT_PATTERN = /^student_test_[a-z0-9_]{1,80}$/;
@@ -19,6 +19,8 @@ export function createCapabilityRegistry(config, {
   readFile = fs.readFile,
   access = fs.access,
   realpath = fs.realpath,
+  open = fs.open,
+  unlink = fs.unlink,
 } = {}) {
   const statuses = new Map([
     ["learning_director.recommend", {
@@ -40,23 +42,29 @@ export function createCapabilityRegistry(config, {
       invoke: async ({ subjectRef, input }) => {
         if (!SUBJECT_PATTERN.test(subjectRef)) throw capabilityError("synthetic_subject_required", 400);
         const observation = validateObservation(input?.observation);
+        const idempotencyKey = validateIdempotencyKey(input?.idempotency_key);
+        const payloadDigest = digestCanonical({ subject_ref: subjectRef, observation });
         const directory = path.join(config.dataRoot, config.namespace, "learning-memory");
         await mkdir(directory, { recursive: true });
         await assertContainedDirectory(config.dataRoot, directory, realpath);
-        const eventId = `lmem_${randomUUID()}`;
-        const record = {
-          schema_version: "1",
-          event_id: eventId,
-          subject_ref: subjectRef,
-          observation,
-          recorded_at: new Date().toISOString(),
-        };
-        await appendFile(path.join(directory, `${subjectRef}.jsonl`), `${JSON.stringify(record)}\n`, {
-          encoding: "utf8",
-          flag: "a",
-          mode: 0o600,
+        const ledgerPath = path.join(directory, `${subjectRef}.jsonl`);
+        return withLedgerLock(`${ledgerPath}.lock`, { open, unlink }, async () => {
+          const rows = (await readFile(ledgerPath, "utf8").catch((error) => error?.code === "ENOENT" ? "" : Promise.reject(error)))
+            .split("\n").filter(Boolean).map((row) => JSON.parse(row));
+          const existing = rows.find((row) => row.idempotency_key === idempotencyKey);
+          if (existing) {
+            if (existing.payload_digest !== payloadDigest) throw capabilityError("idempotency_conflict", 409);
+            return { accepted: true, authority: "learning_memory_writer", event_id: existing.event_id, replayed: true };
+          }
+          const eventId = `lmem_${randomUUID()}`;
+          const record = {
+            schema_version: "1", event_id: eventId, subject_ref: subjectRef, observation,
+            idempotency_key: idempotencyKey, payload_digest: payloadDigest,
+            recorded_at: new Date().toISOString(),
+          };
+          await appendFile(ledgerPath, `${JSON.stringify(record)}\n`, { encoding: "utf8", flag: "a", mode: 0o600 });
+          return { accepted: true, authority: "learning_memory_writer", event_id: eventId, replayed: false };
         });
-        return { accepted: true, authority: "learning_memory_writer", event_id: eventId };
       },
     }],
     ["verified_bank.read", {
@@ -107,6 +115,38 @@ export function createCapabilityRegistry(config, {
       }
     },
   });
+}
+
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function digestCanonical(value) {
+  return createHash("sha256").update(canonical(value)).digest("hex");
+}
+
+function validateIdempotencyKey(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9._:-]{8,160}$/.test(value)) {
+    throw capabilityError("idempotency_key_required", 400);
+  }
+  return value;
+}
+
+async function withLedgerLock(lockPath, { open, unlink }, action) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      const handle = await open(lockPath, "wx", 0o600);
+      try { return await action(); } finally { await handle.close(); await unlink(lockPath).catch(() => {}); }
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+    }
+  }
+  throw capabilityError("learning_memory_busy", 503);
 }
 
 function recommendFromConfirmedMastery(input) {
@@ -205,11 +245,16 @@ function normalizeRecentObservations(value) {
 }
 
 async function readVerifiedQuestions(dataRoot, root, input = {}, { readdir, readFile, realpath }) {
-  const allowed = new Set(["question_id", "subject", "grade", "knowledge_point", "difficulty", "type", "limit"]);
+  const allowed = new Set(["question_id", "subject", "grade", "knowledge_point", "difficulty", "type", "exclude_question_ids", "limit"]);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw capabilityError("invalid_verified_query", 400);
   if (Object.keys(input).some((key) => !allowed.has(key))) throw capabilityError("verified_query_field_not_allowed", 400);
   const limit = input.limit === undefined ? 20 : input.limit;
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw capabilityError("invalid_verified_query_limit", 400);
+  if (input.exclude_question_ids !== undefined && (!Array.isArray(input.exclude_question_ids)
+    || input.exclude_question_ids.length > 50
+    || input.exclude_question_ids.some((id) => typeof id !== "string" || id.length > 100))) {
+    throw capabilityError("invalid_verified_exclusions", 400);
+  }
   const questions = [];
   try { await assertContainedDirectory(dataRoot, root, realpath); }
   catch (error) { if (error.code === "ENOENT") return []; throw error; }
@@ -242,6 +287,7 @@ async function assertContainedDirectory(root, directory, realpath) {
 
 function matchesVerifiedQuery(question, query) {
   if (!question || question.verification_status !== "verified") return false;
+  if (query.exclude_question_ids?.includes(question.id)) return false;
   if (query.question_id !== undefined && question.id !== query.question_id) return false;
   for (const field of ["subject", "grade", "knowledge_point", "difficulty", "type"]) {
     if (query[field] !== undefined && question[field] !== query[field]) return false;

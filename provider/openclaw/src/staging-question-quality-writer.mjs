@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 const SAFE_ID = /^[a-z0-9_.-]{3,100}$/i;
 const SUBJECTS = Object.freeze({
@@ -15,7 +16,7 @@ const SUBJECTS = Object.freeze({
  * 此入口不對 HTTP 暴露，只能把 image 內的 synthetic fixture 經完整最小 gate 寫入隔離 Verified Bank。
  */
 export async function verifyAndWriteStagingQuestion(question, config, {
-  writeFile = fs.writeFile, mkdir = fs.mkdir, realpath = fs.realpath,
+  writeFile = fs.writeFile, readFile = fs.readFile, mkdir = fs.mkdir, realpath = fs.realpath,
 } = {}) {
   if (config.environment !== "staging" || config.productionDataAllowed !== false) throw new Error("staging_only_writer");
   if (!question || question.verification_status !== "candidate") throw new Error("candidate_required");
@@ -23,17 +24,27 @@ export async function verifyAndWriteStagingQuestion(question, config, {
   if (!SAFE_ID.test(question.subject) || !Number.isInteger(question.grade) || question.grade < 1 || question.grade > 12) throw new Error("invalid_question_target");
   if (!SAFE_ID.test(question.knowledge_point) || !SAFE_ID.test(question.answer_key_version)) throw new Error("invalid_question_identity");
   if (question.provenance?.source_class !== "AI_ORIGINAL" || question.provenance?.license !== "AI_ORIGINAL") throw new Error("staging_provenance_required");
-  if (!Array.isArray(question.choices) || question.choices.length < 2 || question.choices.length > 6) throw new Error("invalid_choices");
-  if (!question.choices.includes(question.expected_answer)) throw new Error("answer_not_in_choices");
-  if (new Set(question.choices.map(String)).size !== question.choices.length) throw new Error("duplicate_choices");
-  validateSpecialistChoiceMetadata(question);
+  if (question.type === "multiple_choice") {
+    if (!Array.isArray(question.choices) || question.choices.length < 2 || question.choices.length > 6) throw new Error("invalid_choices");
+    if (!question.choices.includes(question.expected_answer)) throw new Error("answer_not_in_choices");
+    if (new Set(question.choices.map(String)).size !== question.choices.length) throw new Error("duplicate_choices");
+    validateSpecialistChoiceMetadata(question);
+  } else {
+    validateEnglishReadAloudMetadata(question);
+  }
+  const contentDigest = `sha256:${createHash("sha256").update(stableJson(question)).digest("hex")}`;
+  const receiptId = `qqr_${contentDigest.slice(7, 31)}`;
   const verified = {
     ...question,
     verification_status: "verified",
     quality: {
       authority: "question_quality_agent_verify",
+      receipt_id: receiptId,
+      content_digest: contentDigest,
       gate_version: "staging-synthetic-v1",
-      stages_passed: ["structure", "provenance", "answer-key", "choice-dedupe", "subject-specialist", "staging-isolation"],
+      stages_passed: ["structure", "provenance", "answer-key",
+        question.type === "multiple_choice" ? "choice-dedupe" : "voice-rubric",
+        "subject-specialist", "staging-isolation"],
     },
   };
   const canonicalRoot = await realpath(config.dataRoot);
@@ -54,10 +65,38 @@ export async function verifyAndWriteStagingQuestion(question, config, {
   const target = path.join(directory, `${question.id}.json`);
   try {
     await writeFile(target, JSON.stringify(verified, null, 2), { encoding: "utf8", flag: "wx", mode: 0o600 });
-    return { written: true, question_id: question.id, authority: "question_quality_agent_verify" };
+    return { written: true, idempotent: false, question_id: question.id, authority: "question_quality_agent_verify", receipt_id: receiptId, content_digest: contentDigest };
   } catch (error) {
-    if (error?.code === "EEXIST") return { written: false, question_id: question.id, authority: "question_quality_agent_verify" };
+    if (error?.code === "EEXIST") {
+      const existing = JSON.parse(await readFile(target, "utf8"));
+      if (existing?.quality?.content_digest !== contentDigest) {
+        const conflict = new Error("verified_question_conflict");
+        conflict.code = "verified_question_conflict";
+        conflict.status = 409;
+        throw conflict;
+      }
+      return { written: false, idempotent: true, question_id: question.id, authority: "question_quality_agent_verify", receipt_id: existing.quality.receipt_id, content_digest: contentDigest };
+    }
     throw error;
+  }
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (!value || typeof value !== "object") return JSON.stringify(value);
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
+}
+
+function validateEnglishReadAloudMetadata(question) {
+  const specialist = question.specialist;
+  if (question.subject !== "english" || question.type !== "voice_response"
+    || typeof question.expected_answer !== "string" || !question.expected_answer.trim()
+    || specialist?.schema_version !== "english-read-aloud-specialist-v1"
+    || specialist?.evidence_schema !== "english-specialist-evidence-v1"
+    || specialist?.mode !== "read_aloud" || specialist?.rubric?.evaluator !== "deterministic_transcript_match"
+    || specialist?.rubric?.low_reliability_result !== "unverifiable"
+    || specialist?.rubric?.local_stt_only !== true || specialist?.rubric?.transcript_retention !== "none") {
+    throw new Error("invalid_english_read_aloud_metadata");
   }
 }
 

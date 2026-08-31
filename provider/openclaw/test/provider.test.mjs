@@ -205,12 +205,14 @@ test("Learning Director分離confirmed mastery與observed attempt，Verified Ban
   assert.deepEqual(bankBody.result.questions.map((item) => item.id), ["q.synthetic.verified"]);
   const exact = await invoke("verified_bank.read", { question_id: "q.synthetic.verified", limit: 1 });
   assert.equal((await exact.json()).result.questions[0].id, "q.synthetic.verified");
+  const excluded = await invoke("verified_bank.read", { subject: "math", exclude_question_ids: ["q.synthetic.verified"], limit: 10 });
+  assert.deepEqual((await excluded.json()).result.questions, []);
 });
 
 test("Learning Memory writer只接受synthetic subject並寫入隔離namespace", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mentornest-provider-p09-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const runtime = await start(loadConfig(environment({ MENTORNEST_DATA_ROOT: root })));
+  let runtime = await start(loadConfig(environment({ MENTORNEST_DATA_ROOT: root })));
   t.after(() => runtime.server.close());
 
   const invoke = (subjectRef) => request(runtime.baseUrl, "/v1/capabilities/invoke", {
@@ -220,7 +222,7 @@ test("Learning Memory writer只接受synthetic subject並寫入隔離namespace",
       contract_version: "1",
       capability: "learning_memory.append_observation",
       subject_ref: subjectRef,
-      input: { observation: { kind: "synthetic_attempt", mastery_candidate_kps: ["fake-kp"] } },
+      input: { idempotency_key: "response_p09_0001", observation: { kind: "synthetic_attempt", mastery_candidate_kps: ["fake-kp"] } },
     },
   });
   assert.equal((await invoke("real-student-id")).status, 400);
@@ -236,6 +238,25 @@ test("Learning Memory writer只接受synthetic subject並寫入隔離namespace",
   assert.equal(records[0].subject_ref, "student_test_p09");
   assert.equal(records[0].observation.mastery_candidate_kps[0], "fake-kp");
 
+  await new Promise((resolveClose) => runtime.server.close(resolveClose));
+  runtime = await start(loadConfig(environment({ MENTORNEST_DATA_ROOT: root })));
+  const replay = await invoke("student_test_p09");
+  assert.equal(replay.status, 200);
+  const replayBody = await replay.json();
+  assert.equal(replayBody.result.event_id, acceptedBody.result.event_id);
+  assert.equal(replayBody.result.replayed, true);
+  assert.equal((await fs.readFile(target, "utf8")).trim().split("\n").length, 1);
+
+  const concurrent = await Promise.all(Array.from({ length: 8 }, () => invoke("student_test_p09")));
+  assert.equal(new Set((await Promise.all(concurrent.map((response) => response.json()))).map((body) => body.result.event_id)).size, 1);
+  const conflict = await request(runtime.baseUrl, "/v1/capabilities/invoke", {
+    token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", "capability:learning_memory.append_observation"] }),
+    method: "POST",
+    body: { contract_version: "1", capability: "learning_memory.append_observation", subject_ref: "student_test_p09",
+      input: { idempotency_key: "response_p09_0001", observation: { kind: "synthetic_attempt", mastery_candidate_kps: ["different-kp"] } } },
+  });
+  assert.equal(conflict.status, 409);
+
   const rejected = await request(runtime.baseUrl, "/v1/capabilities/invoke", {
     token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", "capability:learning_memory.append_observation"] }),
     method: "POST",
@@ -243,7 +264,7 @@ test("Learning Memory writer只接受synthetic subject並寫入隔離namespace",
       contract_version: "1",
       capability: "learning_memory.append_observation",
       subject_ref: "student_test_p09",
-      input: { observation: { kind: "synthetic_attempt", transcript: "不得保存的內容", mastered: true } },
+      input: { idempotency_key: "response_p09_bad1", observation: { kind: "synthetic_attempt", transcript: "不得保存的內容", mastered: true } },
     },
   });
   assert.equal(rejected.status, 400);
@@ -262,7 +283,7 @@ test("staging namespace symlink不得逃逸data root", async (t) => {
     token: credential({ subjectRef: "student_test_p09", scopes: ["service:invoke", "capability:learning_memory.append_observation"] }), method: "POST",
     body: {
       contract_version: "1", capability: "learning_memory.append_observation",
-      subject_ref: "student_test_p09", input: { observation: { kind: "synthetic_escape" } },
+      subject_ref: "student_test_p09", input: { idempotency_key: "response_escape_01", observation: { kind: "synthetic_escape" } },
     },
   });
   assert.equal(response.status, 500);

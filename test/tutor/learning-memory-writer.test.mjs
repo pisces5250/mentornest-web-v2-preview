@@ -49,3 +49,36 @@ test("測試 writer 只以 hash 建檔，且加入 immutable event metadata", as
   assert.equal(row.transcript, undefined);
   await rm(root, { recursive: true, force: true });
 });
+
+test("同一 idempotency key 同 payload 跨 writer 重啟仍回傳原 receipt", async () => {
+  const root = await mkdtemp("/tmp/mentornest-memory-boundary-");
+  const observation = { kind: "synthetic_english_conversation_session", evidence: { student_id_hash: "1234abcd", turn_count: 2 } };
+  const first = await createTestFileLearningMemoryWriter({ root }).appendObservation({
+    subjectRef: "student_test_boundary", observation, idempotencyKey: "response_0001",
+  });
+  const replay = await createTestFileLearningMemoryWriter({ root }).appendObservation({
+    subjectRef: "student_test_boundary", observation, idempotencyKey: "response_0001",
+  });
+  assert.equal(replay.event_id, first.event_id);
+  assert.equal(replay.replayed, true);
+  assert.equal((await readFile(resolve(root, "1234abcd.jsonl"), "utf8")).trim().split("\n").length, 1);
+  await rm(root, { recursive: true, force: true });
+});
+
+test("同一 idempotency key 不同 payload 拒絕，並行重送只 append 一筆", async () => {
+  const root = await mkdtemp("/tmp/mentornest-memory-boundary-");
+  const writer = createTestFileLearningMemoryWriter({ root });
+  const base = { kind: "synthetic_english_conversation_session", evidence: { student_id_hash: "1234abcd", turn_count: 2 } };
+  const results = await Promise.all(Array.from({ length: 8 }, () => writer.appendObservation({
+    subjectRef: "student_test_boundary", observation: base, idempotencyKey: "response_0002",
+  })));
+  assert.equal(new Set(results.map((item) => item.event_id)).size, 1);
+  const conflict = await writer.appendObservation({
+    subjectRef: "student_test_boundary",
+    observation: { ...base, evidence: { ...base.evidence, turn_count: 3 } },
+    idempotencyKey: "response_0002",
+  });
+  assert.deepEqual(conflict, { accepted: false, code: "idempotency_conflict" });
+  assert.equal((await readFile(resolve(root, "1234abcd.jsonl"), "utf8")).trim().split("\n").length, 1);
+  await rm(root, { recursive: true, force: true });
+});

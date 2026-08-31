@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
 import { createTutorTurnOrchestrator, TutorTurnError } from "../../server/tutor/turn-orchestrator.mjs";
+import { STAGING_QUESTIONS } from "../../provider/openclaw/fixtures/staging-question-set.mjs";
 
-const subjectFixtures = JSON.parse(await fs.readFile(new URL("../../provider/openclaw/fixtures/staging-questions.json", import.meta.url), "utf8"));
+const subjectFixtures = ["math", "english", "chinese", "science", "social_studies"]
+  .map((subject) => STAGING_QUESTIONS.find((question) => question.subject === subject && question.type === "multiple_choice"));
 
 function fixtureQuestion(overrides = {}) {
   return {
@@ -146,6 +147,17 @@ test("response_id 不可跨學生重用", async () => {
   );
 });
 
+test("相同 response_id 不可換答案重用", async () => {
+  const gateway = fakeGateway();
+  const orchestrator = createTutorTurnOrchestrator({ gateway });
+  const input = request();
+  await orchestrator.submit(input, { subjectRef: "student_test_a" });
+  await assert.rejects(
+    orchestrator.submit({ ...input, response: "999" }, { subjectRef: "student_test_a" }),
+    (error) => error.code === "response_id_conflict" && error.status === 409,
+  );
+});
+
 test("Memory 拒絕時 fail-closed，不呼叫 Director 或選下一題", async () => {
   const gateway = fakeGateway({ memoryAccepted: false });
   const result = await createTutorTurnOrchestrator({ gateway }).submit(request(), {
@@ -175,6 +187,7 @@ test("Memory 失敗不快取，重送可再次嘗試正式 writer", async () => 
   assert.equal(first.loop_completed, false);
   assert.equal(second.loop_completed, true);
   assert.equal(memoryAttempts, 2);
+  assert.equal(gateway.calls.filter((item) => item.capability === "assessment.submit_observation").length, 1);
 });
 
 test("未驗證題目與缺少 server answer key 皆拒絕判斷", async () => {
@@ -272,4 +285,45 @@ test("五科正式 choice metadata 皆走 Assessment、Memory 與 Director，保
     assert.equal(memoryCall.request.input.observation.evidence.subject_payload.schema_version, question.specialist.evidence_schema);
     assert.equal(result.assessment_evidence.mastery_effect, "none");
   }
+});
+
+test("next-question query排除current與recent，無eligible時不回傳重複題", async () => {
+  const gateway = fakeGateway();
+  const original = gateway.invoke.bind(gateway);
+  gateway.invoke = async (capability, request) => {
+    if (capability === "verified_bank.read" && request.input.exclude_question_ids) {
+      gateway.calls.push({ capability, request });
+      return { questions: [] };
+    }
+    return original(capability, request);
+  };
+  const result = await createTutorTurnOrchestrator({ gateway }).submit(request({
+    recent_question_ids: ["q_math_recent_1", "q_math_recent_2"],
+  }), { subjectRef: "student_test_phase62" });
+  assert.equal(result.next_step, null);
+  assert.equal(result.next_selection_status, "no_eligible_verified_question");
+  const selection = gateway.calls.find((call) => call.request?.input?.exclude_question_ids);
+  assert.deepEqual(selection.request.input.exclude_question_ids, ["q_math_001", "q_math_recent_1", "q_math_recent_2"]);
+});
+
+test("English受限read-aloud instrument可評量confirmed transcript且不保存raw transcript", async () => {
+  const question = STAGING_QUESTIONS.find((item) => item.type === "voice_response");
+  const calls = [];
+  const gateway = {
+    async invoke(capability, request) {
+      calls.push({ capability, request });
+      if (capability === "verified_bank.read") return request.input.question_id ? { questions: [{ ...question, verification_status: "verified" }] } : { questions: [] };
+      if (capability === "assessment.submit_observation") return { observation_id: "aobs_voice", evidence_status: "observed", mastery_effect: "none", authority: "assessment_observation_only" };
+      if (capability === "learning_memory.append_observation") return { accepted: true, event_id: "lmem_voice", authority: "learning_memory_writer" };
+      if (capability === "learning_director.recommend") return { recommendations: [], evidence_basis: "observed_only_no_mastery_promotion", authority: "learning_director_read_only" };
+      throw new Error(capability);
+    },
+  };
+  const result = await createTutorTurnOrchestrator({ gateway }).submit(request({
+    question_id: question.id, response_id: "resp_voice", response: question.expected_answer,
+  }), { subjectRef: "student_test_phase62" });
+  assert.equal(result.verdict, "correct");
+  assert.equal(result.assessment_evidence.mastery_effect, "none");
+  const memory = calls.find((call) => call.capability === "learning_memory.append_observation");
+  assert.doesNotMatch(JSON.stringify(memory.request.input), /We are not watching|transcript|audio/i);
 });

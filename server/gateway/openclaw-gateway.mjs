@@ -126,10 +126,11 @@ export function createUnavailableGateway() {
 
 export function createGatewayLearningMemoryWriter(gateway) {
   return Object.freeze({
-    async appendObservation({ subjectRef, observation }) {
+    async appendObservation({ subjectRef, observation, idempotencyKey }) {
       return gateway.invoke("learning_memory.append_observation", {
         subjectRef,
-        input: { observation },
+        input: { observation, idempotency_key: idempotencyKey },
+        requestId: idempotencyKey,
       });
     },
   });

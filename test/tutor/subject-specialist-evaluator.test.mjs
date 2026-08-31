@@ -1,9 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
 import { evaluateSubjectChoice } from "../../server/tutor/subject-specialist-evaluator.mjs";
+import { STAGING_QUESTIONS } from "../../provider/openclaw/fixtures/staging-question-set.mjs";
 
-const fixtures = JSON.parse(await fs.readFile(new URL("../../provider/openclaw/fixtures/staging-questions.json", import.meta.url), "utf8"));
+const fixtures = STAGING_QUESTIONS.filter((question) => question.type === "multiple_choice");
+
+test("五科各有六題candidate，English包含一題受限read-aloud", () => {
+  assert.equal(STAGING_QUESTIONS.length, 30);
+  for (const subject of ["math", "english", "chinese", "science", "social_studies"]) {
+    assert.equal(STAGING_QUESTIONS.filter((question) => question.subject === subject).length, 6);
+  }
+  const voice = STAGING_QUESTIONS.find((question) => question.type === "voice_response");
+  assert.equal(voice.subject, "english");
+  assert.equal(voice.specialist.mode, "read_aloud");
+  assert.equal(voice.specialist.rubric.local_stt_only, true);
+  assert.equal(voice.specialist.rubric.transcript_retention, "none");
+});
 
 test("五科 verified choice evaluator 保留各科 schema、taxonomy 與 representation", () => {
   for (const question of fixtures) {

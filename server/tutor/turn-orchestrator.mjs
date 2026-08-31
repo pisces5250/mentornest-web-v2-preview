@@ -20,8 +20,10 @@ export class TutorTurnError extends Error {
 export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000 } = {}) {
   if (!gateway || typeof gateway.invoke !== "function") throw new TypeError("gateway_required");
   const responseOwners = new Map();
+  const responseInputs = new Map();
   const responseCache = new Map();
   const inFlightResponses = new Map();
+  const assessmentArtifacts = new Map();
 
   return Object.freeze({
     async submit(input, { subjectRef } = {}) {
@@ -29,12 +31,20 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
       const owner = responseOwners.get(input.response_id);
       if (owner && owner !== subjectRef) throw new TutorTurnError("response_owner_mismatch", 403);
       const cacheKey = `${subjectRef}:${input.response_id}`;
+      const inputDigest = JSON.stringify({
+        question_id: input.question_id, response: input.response, attempt_index: input.attempt_index,
+        hints_used: input.hints_used, occurred_at: input.occurred_at,
+      });
+      if (responseInputs.has(cacheKey) && responseInputs.get(cacheKey) !== inputDigest) {
+        throw new TutorTurnError("response_id_conflict", 409);
+      }
       if (responseCache.has(cacheKey)) return { ...responseCache.get(cacheKey), idempotent_replay: true };
       if (inFlightResponses.has(cacheKey)) {
         const replay = await inFlightResponses.get(cacheKey);
         return { ...replay, idempotent_replay: true };
       }
       responseOwners.set(input.response_id, subjectRef);
+      responseInputs.set(cacheKey, inputDigest);
 
       const operation = (async () => {
 
@@ -112,13 +122,17 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
         },
         error_code: diagnosis.error_code,
       };
-      const assessment = await gateway.invoke("assessment.submit_observation", {
-        subjectRef,
-        input: assessmentInput,
-        requestId: input.response_id,
-      });
-
-      const traceId = `tturn_${randomUUID()}`;
+      let artifact = assessmentArtifacts.get(cacheKey);
+      if (!artifact) {
+        const assessment = await gateway.invoke("assessment.submit_observation", {
+          subjectRef,
+          input: assessmentInput,
+          requestId: input.response_id,
+        });
+        artifact = Object.freeze({ assessment, traceId: `tturn_${randomUUID()}` });
+        assessmentArtifacts.set(cacheKey, artifact);
+      }
+      const { assessment, traceId } = artifact;
       const observation = {
         kind: "synthetic_tutor_attempt",
         knowledge_point: question.knowledge_point,
@@ -152,7 +166,7 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
       try {
         memory = await gateway.invoke("learning_memory.append_observation", {
           subjectRef,
-          input: { observation },
+          input: { observation, idempotency_key: `tutor-turn:${input.response_id}` },
           requestId: input.response_id,
         });
       } catch {
@@ -183,21 +197,25 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
       });
       const recommendation = director?.recommendations?.[0] || null;
       let nextQuestion = null;
+      let selectionStatus = "no_director_recommendation";
       if (recommendation) {
+        const excluded = [...new Set([question.id, ...(input.recent_question_ids || [])])];
         const next = await gateway.invoke("verified_bank.read", {
           subjectRef,
           input: {
             subject: recommendation.subject,
             knowledge_point: recommendation.knowledge_point,
+            exclude_question_ids: excluded,
             limit: 5,
           },
           requestId: input.response_id,
         });
-        nextQuestion = (next?.questions || []).find((item) => item.id !== question.id) || next?.questions?.[0] || null;
+        nextQuestion = next?.questions?.[0] || null;
+        selectionStatus = nextQuestion ? "eligible_verified_question" : "no_eligible_verified_question";
       }
       const result = publicResponse({
         traceId, judgement, diagnosis, teaching, assessment, memory,
-        director, nextQuestion, loopCompleted: true,
+        director, nextQuestion, loopCompleted: true, selectionStatus,
       });
       remember(responseCache, cacheKey, result, maxCachedResponses);
       return result;
@@ -220,6 +238,9 @@ function validateRequest(input, subjectRef) {
   if (!Number.isInteger(input.hints_used) || input.hints_used < 0 || input.hints_used > 5) throw new TutorTurnError("invalid_attempt", 400);
   if (!["string", "number"].includes(typeof input.response)) throw new TutorTurnError("invalid_response", 400);
   if (String(input.response).length > 500) throw new TutorTurnError("invalid_response", 400);
+  if (input.recent_question_ids !== undefined && (!Array.isArray(input.recent_question_ids)
+    || input.recent_question_ids.length > 20
+    || input.recent_question_ids.some((id) => !safeId(id)))) throw new TutorTurnError("invalid_recent_questions", 400);
 }
 
 function judgeAnswer(question, response) {
@@ -239,7 +260,12 @@ function judgeAnswer(question, response) {
   const actual = normalize(response);
   const result = expected === actual ? "correct" : "incorrect";
   if (!RESULTS.has(result)) throw new TutorTurnError("objective_judgement_failed", 500);
-  return Object.freeze({ result, authority: "objective_validator" });
+  return Object.freeze({
+    result,
+    authority: question.type === "voice_response"
+      ? "english_read_aloud_deterministic_evaluator"
+      : "objective_validator",
+  });
 }
 
 function diagnose(question, judgement, attemptIndex, studentResponse) {
@@ -251,7 +277,7 @@ function diagnose(question, judgement, attemptIndex, studentResponse) {
       student_answer: studentResponse,
       expected_answer: question.expected_answer,
       knowledge_point: question.knowledge_point,
-      mode: "written",
+      mode: question.type === "voice_response" ? "read_aloud" : "written",
     });
     return Object.freeze({
       error_code: result.error_codes[0] || "EN-UNKNOWN",
@@ -284,7 +310,7 @@ function teach(question, judgement, diagnosis, attemptIndex) {
   });
 }
 
-function publicResponse({ traceId, judgement, diagnosis, teaching, assessment, memory, director, nextQuestion, loopCompleted }) {
+function publicResponse({ traceId, judgement, diagnosis, teaching, assessment, memory, director, nextQuestion, loopCompleted, selectionStatus = null }) {
   const recommendedAction = teaching.action === "advance"
     ? "next"
     : teaching.action === "practice_similar" ? "review" : "hint";
@@ -301,7 +327,13 @@ function publicResponse({ traceId, judgement, diagnosis, teaching, assessment, m
     assessment_evidence_id: assessment?.observation_id ?? null,
     learning_memory_receipt_id: memory?.accepted === true && safeReceiptId(memory.event_id) ? memory.event_id : null,
     next_step_id: nextQuestion?.id ?? null,
+    next_selection_status: selectionStatus,
     selection_reason: director?.recommendations?.[0]?.reason ?? null,
+    child_safe_next_reason: nextQuestion
+      ? teaching.action === "advance"
+        ? "換一題，繼續用剛才的方法。"
+        : "同一個概念，換一種方式練習。"
+      : null,
     judgement,
     diagnosis,
     teaching,
