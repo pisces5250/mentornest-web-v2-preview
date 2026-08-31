@@ -389,6 +389,9 @@ function sanitizeQuestion(question) {
   ]) {
     if (question[key] !== undefined) safe[key] = question[key];
   }
+  if (question.type === "voice_response") {
+    for (const key of ["instruction_text", "display_text", "spoken_text", "language"]) safe[key] = question[key];
+  }
   return Object.freeze(safe);
 }
 

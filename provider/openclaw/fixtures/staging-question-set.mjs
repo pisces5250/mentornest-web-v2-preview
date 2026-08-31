@@ -83,10 +83,15 @@ export const STAGING_QUESTIONS = Object.freeze(GENERATED_QUESTIONS.map((question
   const { choices: _choices, ...voice } = question;
   return Object.freeze({
     ...voice,
-    id: "q.synthetic.english.read-aloud.001",
+    id: "q.synthetic.english.read-aloud.002",
     type: "voice_response",
     representation_type: "text",
-    stem: "請朗讀：We are not watching TV now.",
+    stem: "請先聽一次，再朗讀下面句子。",
+    instruction_text: "請先聽一次，再朗讀下面句子。",
+    display_text: "We are not watching TV now.",
+    spoken_text: "We are not watching TV now.",
+    language: "en-US",
+    answer_key_version: "synthetic-v2",
     expected_answer: "We are not watching TV now.",
     specialist: {
       schema_version: "english-read-aloud-specialist-v1",

@@ -47,6 +47,10 @@ function publicQuestion(value: unknown): SessionStep {
   if (raw.choices !== undefined && (!Array.isArray(raw.choices) || raw.choices.some((choice) => typeof choice !== "string"))) {
     throw new Error("題目選項格式錯誤");
   }
+  const voiceFields = [raw.instruction_text, raw.display_text, raw.spoken_text];
+  if (questionType === "voice_response" && (voiceFields.some((field) => typeof field !== "string" || field.trim() === "") || raw.language !== "en-US")) {
+    throw new Error("英文朗讀題公開欄位不完整");
+  }
   return {
     step_id: stepId,
     knowledge_point: typeof raw.knowledge_point === "string" ? raw.knowledge_point : "unknown",
@@ -54,6 +58,12 @@ function publicQuestion(value: unknown): SessionStep {
     question_type: questionType as SessionStep["question_type"],
     representation_type: representation as SessionStep["representation_type"],
     stem: raw.stem,
+    ...(questionType === "voice_response" ? {
+      instruction_text: raw.instruction_text as string,
+      display_text: raw.display_text as string,
+      spoken_text: raw.spoken_text as string,
+      language: "en-US" as const,
+    } : {}),
     choices: raw.choices as string[] | undefined,
     difficulty: raw.difficulty === "easy" || raw.difficulty === "hard" ? raw.difficulty : "medium",
     source: "verified",

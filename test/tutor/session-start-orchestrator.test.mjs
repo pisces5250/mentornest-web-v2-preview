@@ -102,6 +102,10 @@ test("英文 session 優先提供正式朗讀題，讓孩子取得聽與跟讀�
   }, { subjectRef: "student_test_phase62" });
   assert.equal(result.questions.length, 4);
   assert.equal(result.questions[0].type, "voice_response");
-  assert.equal(result.questions[0].id, "q.synthetic.english.read-aloud.001");
+  assert.equal(result.questions[0].id, "q.synthetic.english.read-aloud.002");
+  assert.equal(result.questions[0].instruction_text, "請先聽一次，再朗讀下面句子。");
+  assert.equal(result.questions[0].display_text, "We are not watching TV now.");
+  assert.equal(result.questions[0].spoken_text, "We are not watching TV now.");
+  assert.equal(result.questions[0].language, "en-US");
   assert.doesNotMatch(JSON.stringify(result.questions[0]), /expected_answer|answer_key|rubric|specialist/);
 });

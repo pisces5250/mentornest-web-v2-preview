@@ -75,6 +75,10 @@ export interface SessionStep {
   question_type: QuestionType;
   representation_type: "text" | "fraction_bar" | "number_line" | "area_model" | "bar_model";
   stem: string;
+  instruction_text?: string;
+  display_text?: string;
+  spoken_text?: string;
+  language?: "en-US";
   choices?: ReadonlyArray<string>;
   difficulty: "easy" | "medium" | "hard";
   source: "verified" | "generated";
@@ -879,12 +883,20 @@ function OpenResponseSubtree(props: {
           </span>
         </div>
         <div className="mn-question-card__meta-right">
-          <TTSPlayer text={step.stem} ariaLabel="朗讀題目" />
+          <TTSPlayer
+            text={step.spoken_text ?? step.stem}
+            language={step.language}
+            preloadAudio={step.question_type === "voice_response"}
+            ariaLabel="聽老師念英文句子"
+          />
         </div>
       </div>
 
       <div className="mn-question-card__stem-wrap">
-        <p className="mn-question-card__stem">{step.stem}</p>
+        <p className="mn-question-card__stem">{step.instruction_text ?? step.stem}</p>
+        {step.question_type === "voice_response" && step.display_text && (
+          <p className="mn-question-card__spoken-target" lang="en-US" data-testid="read-aloud-target">{step.display_text}</p>
+        )}
       </div>
 
       {/* Hint / feedback row (zero layout when no hint) */}
@@ -916,7 +928,7 @@ function OpenResponseSubtree(props: {
             {mode === "voice" ? (
               <VoiceRecorder
                 stepId={step.step_id}
-                language="auto"
+                language={step.language === "en-US" ? "en" : "auto"}
                 ariaLabel="用說的"
                 onSubmit={handleVoiceSubmit}
               />

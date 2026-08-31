@@ -360,7 +360,6 @@ export function ConversationTutor(props: ConversationTutorProps) {
                   <TTSPlayer
                     text={state.lastUtterance}
                     voiceId="en_US-lessac-medium"
-                    autoPlay={false}
                     onEnded={() => dispatch({ type: "TTS_DONE" })}
                   />
                 )}

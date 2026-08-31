@@ -704,6 +704,14 @@ a { color: inherit; }
   padding: var(--mn-qg-sp-5) 0;
 }
 
+.mn-question-card__spoken-target {
+  margin: var(--mn-space-sm, 0.75rem) 0 0;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--mn-color-text, #24332d);
+}
+
 .mn-question-stem {
   font-size: var(--mn-qg-fs-title-sm);
   font-weight: 600;

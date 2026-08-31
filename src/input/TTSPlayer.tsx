@@ -31,10 +31,11 @@ import { browserCsrfToken } from "../foundation/browser_security";
 
 export interface TTSPlayerProps {
   text: string;
+  language?: "en-US";
   voiceId?: string;       // future: select voice persona; default "piper-lessac-en-us-high"
   defaultSpeed?: number;  // 0.5-2.0; default 1.0
   ariaLabel?: string;
-  autoPlay?: boolean;     // default false — never auto-play (avoid surprising child)
+  preloadAudio?: boolean; // 只準備目前顯示題目的音訊，永不自動播放
   showSpeed?: boolean;    // default true
   onEnded?: () => void;
 }
@@ -44,32 +45,56 @@ const SPEED_OPTIONS = [0.75, 1.0, 1.25, 1.5];
 export function TTSPlayer(props: TTSPlayerProps) {
   const {
     text,
+    language,
     defaultSpeed = 1.0,
     ariaLabel = "播放語音",
-    autoPlay = false,
+    preloadAudio = false,
     showSpeed = true,
   } = props;
 
-  const [state, setState] = useState<"idle" | "loading" | "playing" | "paused" | "error">("idle");
+  const [state, setState] = useState<"idle" | "preloading" | "loading" | "ready" | "playing" | "paused" | "error">("idle");
   const [speed, setSpeed] = useState(defaultSpeed);
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const pendingRef = useRef<Promise<string> | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
 
-  useEffect(() => {
-    return () => {
-      // Cleanup audio on unmount
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
-    };
+  const releaseAudio = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    pendingRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load();
+    }
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = null;
+    setAudioUrl(null);
   }, []);
 
-  const fetchAndPlay = useCallback(async (withPlay: boolean) => {
+  useEffect(() => {
+    generationRef.current += 1;
+    releaseAudio();
     setError(null);
-    setState("loading");
-    try {
+    setState("idle");
+    return () => {
+      generationRef.current += 1;
+      releaseAudio();
+    };
+  }, [text, language, releaseAudio]);
+
+  const prepareAudio = useCallback(async () => {
+    if (objectUrlRef.current) return objectUrlRef.current;
+    if (pendingRef.current) return pendingRef.current;
+    const generation = generationRef.current;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setError(null);
+    const operation = (async () => {
       // application/x-www-form-urlencoded is a CORS "simple" request
       // — the browser will NOT issue an OPTIONS preflight for it.
       // This is needed because the Zeabur ingress intercepts OPTIONS
@@ -78,7 +103,7 @@ export function TTSPlayer(props: TTSPlayerProps) {
       // cross-origin calls entirely.
       const form = new URLSearchParams();
       form.set("text", text);
-      form.set("speed", String(speed));
+      if (language) form.set("language", language);
       const resp = await fetch(buildVoiceUrl("/api/tts/synthesize"), {
         method: "POST",
         credentials: "same-origin",
@@ -87,6 +112,8 @@ export function TTSPlayer(props: TTSPlayerProps) {
           "X-MentorNest-CSRF": browserCsrfToken(),
         },
         body: form.toString(),
+        signal: controller.signal,
+        cache: "no-store",
       });
       const env = (await resp.json().catch(() => null)) as {
         ok?: boolean;
@@ -97,59 +124,69 @@ export function TTSPlayer(props: TTSPlayerProps) {
       if (!resp.ok || !env?.ok || !env.audio_url) {
         const info = classifyVoiceError(env ?? resp);
         devDiag("tts-player", info);
-        setError(info.message);
-        setState("error");
-        return;
+        throw new Error(info.message);
       }
-      // Resolve audio_url against the voice backend base.
-      const url = `${buildVoiceUrl(env.audio_url)}?t=${Date.now()}`;
+      if (!/^\/api\/audio\/[a-f0-9]{16}$/i.test(env.audio_url)) {
+        throw new Error("音訊位置無效，請再試一次。");
+      }
+      const audioResponse = await fetch(buildVoiceUrl(env.audio_url), {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!audioResponse.ok) throw new Error("老師的聲音還沒準備好，請再試一次。");
+      const blob = await audioResponse.blob();
+      if (generation !== generationRef.current || controller.signal.aborted) throw new DOMException("stale", "AbortError");
+      const url = URL.createObjectURL(blob);
+      objectUrlRef.current = url;
       setAudioUrl(url);
-
-      // Wait for the next render cycle so the <audio> ref exists
-      await new Promise((r) => setTimeout(r, 0));
-
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.playbackRate = speed;
-        if (withPlay) {
-          try {
-            await audioRef.current.play();
-            setState("playing");
-          } catch {
-            setState("idle");
-          }
-        } else {
-          setState("idle");
-        }
-      }
+      return url;
+    })();
+    pendingRef.current = operation;
+    try {
+      return await operation;
     } catch (e: any) {
-      // Network / fetch threw before we even got a Response.
+      if (e?.name === "AbortError") throw e;
       const info = classifyVoiceError(e);
       devDiag("tts-player", info);
       setError(info.message);
       setState("error");
+      throw e;
+    } finally {
+      if (pendingRef.current === operation) pendingRef.current = null;
     }
-  }, [text, speed]);
+  }, [text, language]);
 
-  // Auto-play support
   useEffect(() => {
-    if (autoPlay && text && state === "idle" && !audioUrl) {
-      fetchAndPlay(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoPlay]);
+    if (!preloadAudio || !text || audioUrl || pendingRef.current) return;
+    setState("preloading");
+    prepareAudio().then(() => setState("ready")).catch((error) => {
+      if (error?.name !== "AbortError") setState("error");
+    });
+  }, [preloadAudio, text, audioUrl, prepareAudio]);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     if (state === "playing" && audioRef.current) {
       audioRef.current.pause();
       setState("paused");
     } else if (state === "paused" && audioRef.current) {
       audioRef.current.play();
       setState("playing");
+    } else if (state === "ready" && audioRef.current) {
+      await audioRef.current.play();
     } else if (state === "idle" || state === "error") {
-      fetchAndPlay(true);
+      setState("loading");
+      try {
+        const url = await prepareAudio();
+        if (!audioRef.current) return;
+        audioRef.current.src = url;
+        audioRef.current.playbackRate = speed;
+        await audioRef.current.play();
+      } catch (error: any) {
+        if (error?.name !== "AbortError") setState("error");
+      }
     }
-  }, [state, fetchAndPlay]);
+  }, [state, prepareAudio, speed]);
 
   const cycleSpeed = useCallback(() => {
     setSpeed((s) => {
@@ -162,7 +199,7 @@ export function TTSPlayer(props: TTSPlayerProps) {
     });
   }, [state]);
 
-  const label = state === "playing" ? "暫停" : state === "loading" ? "載入中…" : "播放";
+  const label = state === "playing" ? "暫停" : state === "preloading" ? "準備中…" : state === "loading" ? "載入中…" : "播放";
   const dataState = state === "playing" ? "playing" : state === "paused" ? "paused" : "ready";
 
   return (
@@ -173,9 +210,9 @@ export function TTSPlayer(props: TTSPlayerProps) {
         onClick={togglePlay}
         aria-label={ariaLabel}
         data-testid="tts-play"
-        disabled={state === "loading"}
+        disabled={state === "loading" || state === "preloading"}
       >
-        {state === "loading" ? (
+        {state === "loading" || state === "preloading" ? (
           <span className="mn-tts-player__spinner" aria-hidden="true" />
         ) : state === "playing" ? (
           <span className="mn-tts-player__icon" aria-hidden="true">⏸</span>
@@ -199,6 +236,7 @@ export function TTSPlayer(props: TTSPlayerProps) {
 
       <audio
         ref={audioRef}
+        src={audioUrl ?? undefined}
         onPlay={() => setState("playing")}
         onPause={() => setState("paused")}
         onEnded={() => {
@@ -206,7 +244,7 @@ export function TTSPlayer(props: TTSPlayerProps) {
           props.onEnded?.();
         }}
         onError={() => { setError("音訊播放失敗"); setState("error"); }}
-        preload="none"
+        preload={preloadAudio ? "auto" : "none"}
         aria-hidden="true"
       />
 

@@ -299,6 +299,13 @@ test("vertical: TTS form request 與 backend parser contract 一致", () => {
   assert.match(player, /application\/x-www-form-urlencoded/);
   assert.match(player, /X-MentorNest-CSRF/);
   assert.match(player, /credentials:\s*"same-origin"/);
+  assert.match(player, /preloadAudio/);
+  assert.match(player, /URL\.createObjectURL/);
+  assert.match(player, /URL\.revokeObjectURL/);
+  assert.match(player, /AbortController/);
+  assert.match(player, /audio_url\)\) \{/);
+  assert.match(player, /\[a-f0-9\]\{16\}/);
+  assert.doesNotMatch(player, /audioRef\.current\.play\(\)[\s\S]{0,120}preloadAudio/);
   const recorder = readFileSync(
     resolve(__dirname, "../../../src/input/VoiceRecorder.tsx"),
     "utf8",
@@ -306,6 +313,17 @@ test("vertical: TTS form request 與 backend parser contract 一致", () => {
   assert.match(recorder, /X-MentorNest-CSRF/);
   assert.match(recorder, /credentials:\s*"same-origin"/);
   assert.match(backend, /express\.urlencoded\(\{ extended: false/);
+});
+
+test("vertical: read-aloud 顯示、播放與辨識文字使用正式分離欄位", () => {
+  const renderer = readFileSync(resolve(__dirname, "../../../src/session/QuestionRenderer.tsx"), "utf8");
+  const fixture = readFileSync(resolve(__dirname, "../../../provider/openclaw/fixtures/staging-question-set.mjs"), "utf8");
+  assert.match(renderer, /text=\{step\.spoken_text \?\? step\.stem\}/);
+  assert.match(renderer, /step\.instruction_text \?\? step\.stem/);
+  assert.match(renderer, /step\.display_text/);
+  assert.match(renderer, /language=\{step\.language === "en-US" \? "en" : "auto"\}/);
+  assert.match(fixture, /spoken_text: "We are not watching TV now\."/);
+  assert.doesNotMatch(fixture.match(/spoken_text:[^\n]+/)?.[0] ?? "", /請/);
 });
 
 test("vertical: 1-step vertical — english_voice produces valid TutorEvaluation, no mastery write, no transcript persistence", () => {

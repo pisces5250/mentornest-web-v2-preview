@@ -91,6 +91,12 @@ function validateEnglishReadAloudMetadata(question) {
   const specialist = question.specialist;
   if (question.subject !== "english" || question.type !== "voice_response"
     || typeof question.expected_answer !== "string" || !question.expected_answer.trim()
+    || !validSpeechText(question.instruction_text, 160)
+    || !validSpeechText(question.display_text, 240)
+    || !validSpeechText(question.spoken_text, 240)
+    || question.language !== "en-US"
+    || canonicalSpeech(question.display_text) !== canonicalSpeech(question.spoken_text)
+    || canonicalSpeech(question.expected_answer) !== canonicalSpeech(question.spoken_text)
     || specialist?.schema_version !== "english-read-aloud-specialist-v1"
     || specialist?.evidence_schema !== "english-specialist-evidence-v1"
     || specialist?.mode !== "read_aloud" || specialist?.rubric?.evaluator !== "deterministic_transcript_match"
@@ -98,6 +104,15 @@ function validateEnglishReadAloudMetadata(question) {
     || specialist?.rubric?.local_stt_only !== true || specialist?.rubric?.transcript_retention !== "none") {
     throw new Error("invalid_english_read_aloud_metadata");
   }
+}
+
+function validSpeechText(value, maxLength) {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength
+    && !/[\u0000-\u001f\u007f<>]/u.test(value);
+}
+
+function canonicalSpeech(value) {
+  return String(value).normalize("NFKC").trim().replace(/\s+/g, " ");
 }
 
 function validateSpecialistChoiceMetadata(question) {

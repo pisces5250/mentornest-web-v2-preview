@@ -9,7 +9,7 @@ function record(value: unknown): Record<string, unknown> {
     ? value as Record<string, unknown> : {};
 }
 
-const NEXT_STEP_FIELDS = ["id", "step_id", "knowledge_point", "subject", "type", "question_type", "representation_type", "stem", "choices", "difficulty", "source", "license"] as const;
+const NEXT_STEP_FIELDS = ["id", "step_id", "knowledge_point", "subject", "type", "question_type", "representation_type", "stem", "choices", "difficulty", "source", "license", "instruction_text", "display_text", "spoken_text", "language"] as const;
 
 export function parsePublicNextStep(value: unknown): Record<string, unknown> | null {
   if (value == null) return null;
@@ -26,6 +26,10 @@ export function parsePublicNextStep(value: unknown): Record<string, unknown> | n
   }
   if (result.choices !== undefined && (!Array.isArray(result.choices) || result.choices.some((choice) => typeof choice !== "string"))) {
     throw new Error("Tutor next_step choices 格式錯誤");
+  }
+  if (type === "voice_response" && ([result.instruction_text, result.display_text, result.spoken_text]
+    .some((field) => typeof field !== "string" || field.trim() === "") || result.language !== "en-US")) {
+    throw new Error("Tutor next_step 英文朗讀欄位不完整");
   }
   return result;
 }

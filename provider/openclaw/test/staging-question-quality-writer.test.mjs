@@ -85,6 +85,17 @@ test("Question Quality writer只接受local-only且不保留transcript的English
   assert.equal(receipt.written, true);
   const unsafe = { ...voice, specialist: { ...voice.specialist, rubric: { ...voice.specialist.rubric, local_stt_only: false } } };
   await assert.rejects(verifyAndWriteStagingQuestion({ ...unsafe, id: "q.synthetic.english.read-aloud.unsafe" }, config), /read_aloud/);
+  for (const [suffix, patch] of [
+    ["missing-spoken", { spoken_text: undefined }],
+    ["wrong-language", { language: "zh-TW" }],
+    ["target-mismatch", { spoken_text: "This is a different sentence." }],
+    ["unsafe-markup", { spoken_text: "<speak>We are not watching TV now.</speak>" }],
+  ]) {
+    await assert.rejects(
+      verifyAndWriteStagingQuestion({ ...voice, ...patch, id: `q.synthetic.english.read-aloud.${suffix}` }, config),
+      /read_aloud/,
+    );
+  }
 });
 
 test("五科各六題皆逐題取得唯一durable receipt與content digest", async (t) => {

@@ -72,7 +72,12 @@ export function canEvaluateVerifiedQuestion(question) {
       && specialist?.mode === "read_aloud"
       && specialist?.rubric?.evaluator === "deterministic_transcript_match"
       && specialist?.rubric?.local_stt_only === true
-      && specialist?.rubric?.transcript_retention === "none";
+      && specialist?.rubric?.transcript_retention === "none"
+      && question.language === "en-US"
+      && typeof question.instruction_text === "string"
+      && typeof question.display_text === "string"
+      && typeof question.spoken_text === "string"
+      && question.display_text.normalize("NFKC").trim() === question.spoken_text.normalize("NFKC").trim();
   }
   const policy = SUBJECTS[question.subject];
   if (!policy || question.type !== "multiple_choice") return false;
