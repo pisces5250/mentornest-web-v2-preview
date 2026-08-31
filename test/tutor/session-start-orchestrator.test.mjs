@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createTutorSessionStartOrchestrator, TutorSessionStartError } from "../../server/tutor/session-start-orchestrator.mjs";
+import { STAGING_QUESTIONS } from "../../provider/openclaw/fixtures/staging-question-set.mjs";
+
+const verifiedFixture = (subject) => ({
+  ...STAGING_QUESTIONS.find((question) => question.subject === subject && question.type === "multiple_choice"),
+  verification_status: "verified",
+});
 
 function gateway() {
   const calls = [];
@@ -12,18 +18,7 @@ function gateway() {
         recommendations: [{ subject: "science", knowledge_point: "science.G5.EXPERIMENT.variables", reason: "session_request_no_mastery" }],
         evidence_basis: "no_mastery_session_request", authority: "learning_director_read_only",
       };
-      return { questions: [{
-        id: "q.synthetic.science.001", subject: "science", grade: 5,
-        knowledge_point: "science.G5.EXPERIMENT.variables", type: "multiple_choice",
-        representation_type: "experiment_setup", stem: "題目", choices: ["A", "B"], difficulty: "easy",
-        expected_answer: "A", answer_key_version: "private-v1", rubric: { private: true },
-        specialist: {
-          schema_version: "science-choice-specialist-v1",
-          evidence_schema: "science-specialist-evidence-v1",
-          subskill: "variables",
-          private: true,
-        }, verification_status: "verified", student_id: "forbidden",
-      }] };
+      return { questions: [{ ...verifiedFixture("science"), rubric: { private: true }, student_id: "forbidden" }] };
     },
   };
 }
@@ -35,7 +30,7 @@ test("session start 只用 server identity 呼叫 Director 與 Verified Bank，�
   }, { subjectRef: "student_test_phase62" });
   assert.equal(result.ok, true);
   assert.equal(result.director_decision.authority, "learning_director_read_only");
-  assert.equal(result.questions[0].id, "q.synthetic.science.001");
+  assert.equal(result.questions[0].id, verifiedFixture("science").id);
   const serialized = JSON.stringify(result);
   assert.doesNotMatch(serialized, /expected_answer|answer_key|rubric|specialist|student_id/);
   assert.deepEqual(backend.calls.map((call) => call.capability), ["learning_director.recommend", "verified_bank.read"]);
@@ -61,12 +56,7 @@ test("session start 接受 age_band，Director指定KP無題時只降級到同�
         evidence_basis: "no_mastery_session_request", authority: "learning_director_read_only",
       };
       if (request.input.knowledge_point) return { questions: [] };
-      return { questions: [{
-        id: "q.synthetic.chinese.001", subject: "chinese", grade: 5,
-        knowledge_point: "chinese.G5.READING.main-idea", type: "multiple_choice", stem: "題目", choices: ["甲", "乙"],
-        verification_status: "verified",
-        specialist: { schema_version: "chinese-choice-specialist-v1", evidence_schema: "chinese-specialist-evidence-v1", subskill: "main_idea" },
-      }] };
+      return { questions: [verifiedFixture("chinese")] };
     },
   };
   const result = await createTutorSessionStartOrchestrator({ gateway: backend }).start({
@@ -86,17 +76,12 @@ test("session start 排除沒有正式 evaluator contract 的 legacy verified it
       };
       return { questions: [
         { id: "q.synthetic.social.legacy", subject: "social_studies", grade: 5, knowledge_point: "social.G5.HISTORY.timeline", type: "multiple_choice", stem: "舊題", choices: ["甲", "乙"], verification_status: "verified" },
-        {
-          id: "q.synthetic.social.current", subject: "social_studies", grade: 5,
-          knowledge_point: "social.G5.HISTORY.timeline", type: "multiple_choice", stem: "新題", choices: ["甲", "乙"],
-          verification_status: "verified",
-          specialist: { schema_version: "social_studies-choice-specialist-v1", evidence_schema: "social-studies-specialist-evidence-v1", subskill: "timeline" },
-        },
+        verifiedFixture("social_studies"),
       ] };
     },
   };
   const result = await createTutorSessionStartOrchestrator({ gateway: backend }).start({
     subject: "social_studies", age_band: "G5-G6", target_steps: 4,
   }, { subjectRef: "student_test_phase62" });
-  assert.deepEqual(result.questions.map((question) => question.id), ["q.synthetic.social.current"]);
+  assert.deepEqual(result.questions.map((question) => question.id), [verifiedFixture("social_studies").id]);
 });

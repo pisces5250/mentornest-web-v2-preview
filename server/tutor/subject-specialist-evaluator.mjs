@@ -75,10 +75,17 @@ export function canEvaluateVerifiedQuestion(question) {
       && specialist?.rubric?.transcript_retention === "none";
   }
   const policy = SUBJECTS[question.subject];
-  return !!policy && question.type === "multiple_choice"
-    && question.specialist?.schema_version === `${question.subject}-choice-specialist-v1`
-    && question.specialist?.evidence_schema === policy.schema
-    && typeof question.specialist?.subskill === "string";
+  if (!policy || question.type !== "multiple_choice") return false;
+  const specialist = question.specialist;
+  if (specialist?.schema_version !== `${question.subject}-choice-specialist-v1`
+    || specialist?.evidence_schema !== policy.schema
+    || typeof specialist?.subskill !== "string"
+    || typeof specialist?.correct_feedback !== "string"
+    || !Array.isArray(question.choices)
+    || !question.choices.map(String).includes(String(question.expected_answer))) return false;
+  return question.choices.map(String)
+    .filter((choice) => choice !== String(question.expected_answer))
+    .every((choice) => validDiagnostic(specialist.distractors?.[choice], policy.prefix));
 }
 
 function validDiagnostic(value, prefix) {
