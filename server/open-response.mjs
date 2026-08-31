@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { compareReading as readingComparison } from './lib/reading-comparison.mjs';
 import { evaluateReadingAloud } from './tutor/reading-aloud-evaluator.mjs';
-import { createBrowserAuth, createCsrfProtection, createServiceToken, requireScope } from './auth/session-auth.mjs';
+import { createBrowserAuth, createCsrfProtection, createServiceToken, createSessionToken, requireScope } from './auth/session-auth.mjs';
 import {
   createGatewayLearningMemoryWriter,
   createOpenClawGateway,
@@ -53,6 +53,7 @@ const AUDIO_TMP = process.env.MENTORNEST_AUDIO_TMP
 const AUDIO_TTL_MS = 30_000; // 30 seconds
 const AUTH_MODE = process.env.MENTORNEST_AUTH_MODE || 'production';
 const SESSION_SECRET = process.env.MENTORNEST_GATEWAY_SESSION_SECRET;
+const STAGING_ACCESS_PASSWORD = process.env.PASSWORD;
 const SERVICE_AUTH_KEY = process.env.MENTORNEST_SERVICE_AUTH_KEY;
 const REQUIRED_CAPABILITY_ALIASES = {
   learning_director: 'learning_director.recommend',
@@ -127,6 +128,44 @@ function assertNoOutbound(before, after, op) {
 const app = express();
 app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
+
+const stagingLoginAttempts = new Map();
+
+function safeSecretEqual(supplied, expected) {
+  if (typeof expected !== 'string' || expected.length < 16 || typeof supplied !== 'string') return false;
+  const left = crypto.createHash('sha256').update(supplied).digest();
+  const right = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(left, right);
+}
+
+// 僅供隔離 staging 的人工瀏覽器驗證。Production 永遠不註冊此 route。
+if (process.env.MENTORNEST_ENV === 'staging') {
+  app.post('/api/auth/staging-session', (req, res) => {
+    const origin = req.header('Origin');
+    const expectedOrigin = `${req.header('X-Forwarded-Proto') || req.protocol}://${req.get('host')}`;
+    if (!origin || origin !== expectedOrigin) return res.status(403).json({ ok: false, code: 'origin_rejected' });
+    const key = req.ip || 'unknown';
+    const attempt = stagingLoginAttempts.get(key) || { count: 0, resetAt: 0 };
+    const now = Date.now();
+    if (attempt.resetAt <= now) { attempt.count = 0; attempt.resetAt = now + 60_000; }
+    attempt.count += 1;
+    stagingLoginAttempts.set(key, attempt);
+    if (attempt.count > 5) return res.status(429).json({ ok: false, code: 'rate_limited' });
+    const supplied = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!safeSecretEqual(supplied, STAGING_ACCESS_PASSWORD)) {
+      return res.status(401).json({ ok: false, code: 'authentication_failed' });
+    }
+    const session = createSessionToken({
+      subject_ref: `student_test_phase62_browser_${crypto.randomUUID()}`,
+      scopes: ['tutor:use'],
+      exp: Math.floor(now / 1000) + 3600,
+    }, SESSION_SECRET);
+    const csrf = crypto.createHmac('sha256', SESSION_SECRET).update(`csrf:${session}`).digest('base64url');
+    res.cookie('mn_session', session, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 3_600_000, path: '/' });
+    res.cookie('mn_csrf', csrf, { httpOnly: false, secure: true, sameSite: 'lax', maxAge: 3_600_000, path: '/' });
+    return res.json({ ok: true, expires_in: 3600 });
+  });
+}
 
 // Raw body for audio uploads
 app.use('/api/stt/transcribe', express.raw({ type: '*/*', limit: '10mb' }));

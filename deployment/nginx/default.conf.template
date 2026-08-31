@@ -23,6 +23,15 @@ server {
     proxy_set_header X-Request-Id $request_id;
   }
 
+  # Staging-only 人工登入由 Tutor 依 runtime environment 決定是否存在。
+  # 此入口不經既有 session auth，且不代理其他 /api/auth 路徑。
+  location = /api/auth/staging-session {
+    proxy_pass ${TUTOR_BACKEND_ORIGIN};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+  }
+
   # 同源 edge 負責路由；瀏覽器不直接取得內部 service 位址。
   location /api/tutor/ {
     auth_request /_auth/session;

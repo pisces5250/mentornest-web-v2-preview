@@ -30,7 +30,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { SessionView } from "./SessionView";
 import { buildSessionFromLearningDirector } from "./learning-director-adapter.mjs";
 import type { SessionState } from "./session-types";
-import { startVerifiedSession } from "./VerifiedBankSessionClient";
+import { createStagingBrowserSession, startVerifiedSession, VerifiedSessionError } from "./VerifiedBankSessionClient";
 
 // Presentation-only KP → child-friendly phrase mapping.  Mirrors the
 // view-layer maps in QuestionRenderer / SessionSummaryView.  If a KP
@@ -74,6 +74,8 @@ export function ChildHome(props: ChildHomeProps) {
   const [session, setSession] = useState<SessionState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginRequired, setLoginRequired] = useState(false);
+  const [stagingPassword, setStagingPassword] = useState("");
   const [resumeAvailable, setResumeAvailable] = useState(false);
   const [resumeAtIndex, setResumeAtIndex] = useState<number | null>(null);
   const [resumeSteps, setResumeSteps] = useState<number | null>(null);
@@ -187,11 +189,28 @@ export function ChildHome(props: ChildHomeProps) {
       }
       setSession(finalSession);
     } catch (e: any) {
+      setLoginRequired(e instanceof VerifiedSessionError && e.code === "authentication_required");
       setError(e?.message ?? String(e));
     } finally {
       setLoading(false);
     }
   }, [studentId, ageBand, effectiveSubject, effectiveKnowledgePoint, resumeAvailable, sessionStorageKey, useFixtures, fixtureSteps, forcedStepId]);
+
+  const handleStagingLogin = useCallback(async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await createStagingBrowserSession(stagingPassword);
+      setStagingPassword("");
+      setLoginRequired(false);
+      await handleStart();
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [handleStart, stagingPassword]);
 
   if (session) {
     return (
@@ -325,16 +344,34 @@ export function ChildHome(props: ChildHomeProps) {
         {error && (
           <div className="mn-error" role="alert" data-testid="home-error">{error}</div>
         )}
-        <button
-          type="button"
-          className="mn-button mn-button--primary mn-button--lg"
-          data-testid="start-session"
-          onClick={handleStart}
-          disabled={loading}
-          aria-label={ctaLabel}
-        >
-          {ctaLabel}
-        </button>
+        {loginRequired ? (
+          <form onSubmit={handleStagingLogin} data-testid="staging-login-form">
+            <label htmlFor="staging-access-password">Phase 6.2 staging 存取密碼</label>
+            <input
+              id="staging-access-password"
+              type="password"
+              value={stagingPassword}
+              onChange={(event) => setStagingPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+              data-testid="staging-access-password"
+            />
+            <button type="submit" className="mn-button mn-button--primary mn-button--lg" disabled={loading}>
+              {loading ? "登入中…" : "登入測試環境"}
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            className="mn-button mn-button--primary mn-button--lg"
+            data-testid="start-session"
+            onClick={handleStart}
+            disabled={loading}
+            aria-label={ctaLabel}
+          >
+            {ctaLabel}
+          </button>
+        )}
       </div>
 
       <span role="status" aria-live="polite" className="mn-sr-only" data-testid="sr-status-home">
