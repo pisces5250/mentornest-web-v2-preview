@@ -59,6 +59,28 @@ export function evaluateSubjectChoice({ question, response, attemptIndex }) {
   });
 }
 
+/** Tutor 只呈現目前有正式 deterministic evaluator 的 verified instrument。 */
+export function canEvaluateVerifiedQuestion(question) {
+  if (!question || question.verification_status !== "verified") return false;
+  if (question.subject === "math" && ["fraction_input", "integer_input", "decimal_input"].includes(question.type)) {
+    return question.expected_answer !== undefined && typeof question.answer_key_version === "string";
+  }
+  if (question.subject === "english" && question.type === "voice_response") {
+    const specialist = question.specialist;
+    return specialist?.schema_version === "english-read-aloud-specialist-v1"
+      && specialist?.evidence_schema === SUBJECTS.english.schema
+      && specialist?.mode === "read_aloud"
+      && specialist?.rubric?.evaluator === "deterministic_transcript_match"
+      && specialist?.rubric?.local_stt_only === true
+      && specialist?.rubric?.transcript_retention === "none";
+  }
+  const policy = SUBJECTS[question.subject];
+  return !!policy && question.type === "multiple_choice"
+    && question.specialist?.schema_version === `${question.subject}-choice-specialist-v1`
+    && question.specialist?.evidence_schema === policy.schema
+    && typeof question.specialist?.subskill === "string";
+}
+
 function validDiagnostic(value, prefix) {
   return !!value && Array.isArray(value.error_codes) && value.error_codes.length > 0
     && value.error_codes.every((code) => typeof code === "string" && code.startsWith(prefix))

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { validateMathAnswer } from "../../src/foundation/math_validator.mjs";
 import { diagnoseEnglishResponse } from "./english/english_specialist.mjs";
-import { evaluateSubjectChoice } from "./subject-specialist-evaluator.mjs";
+import { canEvaluateVerifiedQuestion, evaluateSubjectChoice } from "./subject-specialist-evaluator.mjs";
 
 const RESULTS = new Set(["correct", "incorrect", "partially_correct"]);
 
@@ -206,11 +206,11 @@ export function createTutorTurnOrchestrator({ gateway, maxCachedResponses = 1000
             subject: recommendation.subject,
             knowledge_point: recommendation.knowledge_point,
             exclude_question_ids: excluded,
-            limit: 5,
+            limit: 100,
           },
           requestId: input.response_id,
         });
-        nextQuestion = next?.questions?.[0] || null;
+        nextQuestion = (next?.questions || []).find(canEvaluateVerifiedQuestion) || null;
         selectionStatus = nextQuestion ? "eligible_verified_question" : "no_eligible_verified_question";
       }
       const result = publicResponse({

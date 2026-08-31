@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { canEvaluateVerifiedQuestion } from "./subject-specialist-evaluator.mjs";
 
 const SUBJECTS = new Set(["math", "english", "chinese", "science", "social_studies"]);
 
@@ -28,11 +29,13 @@ export function createTutorSessionStartOrchestrator({ gateway } = {}) {
       });
       const recommendation = director?.recommendations?.[0];
       if (!recommendation) throw new TutorSessionStartError("learning_plan_unavailable", 503);
+      const targetSteps = Math.max(1, Math.min(5, Number.isInteger(input.target_steps) ? input.target_steps : 4));
       const query = {
         subject: recommendation.subject,
         grade,
         ...(recommendation.knowledge_point ? { knowledge_point: recommendation.knowledge_point } : {}),
-        limit: Math.max(1, Math.min(5, Number.isInteger(input.target_steps) ? input.target_steps : 4)),
+        // 讀取足夠 candidates 後由 Tutor evaluator boundary 篩選；避免 legacy verified item 被誤當可評量題。
+        limit: 100,
       };
       let bank = await gateway.invoke("verified_bank.read", {
         subjectRef,
@@ -46,7 +49,7 @@ export function createTutorSessionStartOrchestrator({ gateway } = {}) {
         });
         selectionBasis = "director_subject_verified_fallback";
       }
-      const questions = (bank?.questions || []).map(publicQuestion);
+      const questions = (bank?.questions || []).filter(canEvaluateVerifiedQuestion).slice(0, targetSteps).map(publicQuestion);
       if (questions.length === 0) throw new TutorSessionStartError("verified_question_unavailable", 503);
       return Object.freeze({
         ok: true,
