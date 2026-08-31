@@ -1906,3 +1906,4 @@ Hard invariants：未讀寫或搬移 production student data；未修改 product
 - Phase 6.1 Web／Tutor／OpenClaw 更新至 commit `be7d54be87abd884f054dbeb5657faaf3f52e911` immutable tags；五科 remote Assessment／Memory／Director／next-question loop 全數通過。
 - 五科 Chrome／Axe remote evidence 通過；Voice 連續三次 local-only TTS→STT 皆低於 30 秒，分別約 8.6、3.6、3.8 秒。
 - 依實證宣告 `CORE PHASE 6 STAGING READY`、`VOICE STAGING READY` 與 `FULL PHASE 6 STAGING READY`；不代表 production ready，未進行 production cutover。
+- 修正一般 staging browser 沒有 synthetic session 時誤報題庫故障；新增 staging-only password exchange，核發一小時 HttpOnly session。全新 Chrome 已驗證 401 → login 200 → session 200 與題目呈現，production 不註冊此 route。

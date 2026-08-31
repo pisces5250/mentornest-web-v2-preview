@@ -77,3 +77,14 @@ Designer 保留共用的 session shell、auth、answer isolation、focus 與狀�
 - `FULL PHASE 6 STAGING READY`：是。
 
 Remaining UNVERIFIED（非本輪 staging blocker）：Voice 歷史 timeout 的精確 source-level root cause；Learning Memory idempotency 跨 process restart 的 durable guarantee；五科目前只驗證最小正式 multiple-choice evaluator，開放題／口說 rubric 尚未宣稱具備正式能力。
+
+## 人工瀏覽器存取修正
+
+一般瀏覽器原先沒有取得 synthetic staging session，首次點擊被 Tutor 正確回 401，但 UI 誤顯示為題目準備失敗。修正後：
+
+- Web `6a945464f58fe6cbb975bbac`：tag `577325df0b6e7274476248e48e445d6c728a7dde`，digest `sha256:0f97531046163636aef5a7692551648b654b150ac6011a4e4066f6b73530e7b2`。
+- Tutor `6a945464f58fe6cbb975bbad`：tag `8a296a4913f209fef72febf6226988b1f06c3058`，digest `sha256:ae47df655bf2e7883f0e954c62785878f2f9024257c7877d66d00759505e307d`。
+- 未登入的 401 會顯示 staging 存取密碼表單，不再誤報老師／題庫故障。
+- 登入 route 只在 `MENTORNEST_ENV=staging` 註冊，限制 HTTPS exact-host Origin、每 IP 每分鐘五次，並以 constant-time digest comparison 驗證既有 staging `PASSWORD`。
+- 成功後只核發一小時、`Secure`／`SameSite=Lax`／HttpOnly 的 `mn_session`；密碼不進 bundle、Cookie 或 log。
+- 全新無 Cookie Chrome 實證：session start 401 → staging login 200 → session start 200；題目實際 render、無 error，`mn_session.httpOnly=true`。
