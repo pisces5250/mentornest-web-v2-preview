@@ -182,6 +182,15 @@ export function sessionReduce(state, action) {
       };
       if (!nextStep.step_id || !nextStep.question_type) return recorded;
       const steps = recorded.steps.slice(0, idx + 1);
+      // English Specialist 的朗讀 → 即時對話是同一個教學橋接，不是一般
+      // 預排練習題。Director 的下一題接在對話後，不能把對話入口覆蓋掉。
+      const scheduledConversation = recorded.steps[idx + 1];
+      if (step.question_type === "voice_response"
+        && scheduledConversation?.subject === "english"
+        && scheduledConversation?.question_type === "english_conversation"
+        && scheduledConversation.step_id !== nextStep.step_id) {
+        steps.push(scheduledConversation);
+      }
       steps.push(nextStep);
       return { ...recorded, steps };
     }

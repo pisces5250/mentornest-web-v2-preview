@@ -113,3 +113,12 @@ test("a11y: end button is keyboard-reachable (no aria-hidden, no tabindex=-1)", 
   assert.notEqual(btn.getAttribute("aria-hidden"), "true");
   assert.notEqual(btn.getAttribute("tabindex"), "-1");
 });
+
+test("正式對話 STT 使用同源 credentials 與 CSRF，結束後可繼續下一題", () => {
+  const source = readFileSync(resolve(__dirname, "../../src/tutor/ConversationTutor.tsx"), "utf8");
+  const renderer = readFileSync(resolve(__dirname, "../../src/session/QuestionRenderer.tsx"), "utf8");
+  assert.match(source, /credentials:\s*"same-origin"/);
+  assert.match(source, /"X-MentorNest-CSRF":\s*browserCsrfToken\(\)/);
+  assert.match(source, /data-testid="conversation-next"/);
+  assert.match(renderer, /onComplete=\{onAdvance\}/);
+});

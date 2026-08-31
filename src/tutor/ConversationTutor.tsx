@@ -27,6 +27,7 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { TTSPlayer } from "../input/TTSPlayer";
 import { buildVoiceUrl } from "../foundation/voice_api";
+import { browserCsrfToken } from "../foundation/browser_security";
 import {
   startConversationSession,
   postConversationTurn,
@@ -50,6 +51,8 @@ export interface ConversationTutorProps {
   /** Where to POST transcripts (defaults to
    *  /api/tutor/english-conversation/turn).  Provided for testability. */
   sttEndpoint?: string;
+  /** 正式 learning session 在摘要安全寫入後，由孩子決定何時前往下一題。 */
+  onComplete?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,7 +120,11 @@ async function transcribeBlob(
 ): Promise<string> {
   const r = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": blob.type || "audio/webm" },
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": blob.type || "audio/webm",
+      "X-MentorNest-CSRF": browserCsrfToken(),
+    },
     body: blob,
   });
   if (!r.ok) throw new Error(`stt failed: ${r.status}`);
@@ -389,9 +396,17 @@ export function ConversationTutor(props: ConversationTutorProps) {
           )}
 
           {state.phase === "ENDED" && (
-            <p className="mn-conversation__ended" data-testid="ended">
-              {state.errorMessage || "對話結束，下次再聊！"}
-            </p>
+            <div className="mn-conversation__ended" data-testid="ended">
+              <p>{state.errorMessage || "對話結束，老師已整理好這次的練習。"}</p>
+              {!state.errorMessage && props.onComplete && (
+                <button
+                  type="button"
+                  className="mn-conversation__btn mn-conversation__btn--primary"
+                  data-testid="conversation-next"
+                  onClick={props.onComplete}
+                >繼續下一題</button>
+              )}
+            </div>
           )}
         </div>
       )}

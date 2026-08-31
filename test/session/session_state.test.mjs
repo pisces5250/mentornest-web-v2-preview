@@ -127,6 +127,28 @@ test("session: Tutor result 使用 Director 的安全 next step 取代預排題"
   assert.equal(s.steps[1].expected_answer, undefined);
 });
 
+test("session: 英文朗讀後保留即時對話，再接 Director 下一題", () => {
+  const readAloud = fakeStep({
+    step_id: "read-aloud", subject: "english", question_type: "voice_response",
+    knowledge_point: "english.G5.READ.read-aloud", representation_type: "text",
+  });
+  const conversation = fakeStep({
+    step_id: "conversation", subject: "english", question_type: "english_conversation",
+    knowledge_point: "english.G5.SPEAK.short-dialog", representation_type: "text",
+  });
+  let s = sessionInitial({ student_id: "student_t_phase6_conversation", steps: [readAloud, conversation] });
+  s = sessionReduce(s, { type: "submit", verdict: "correct", next_step: {
+    id: "director-next", type: "multiple_choice", knowledge_point: "english.G5.GRAMMAR.present-progressive",
+    subject: "english", stem: "They ___ now.", choices: ["play", "are playing"], representation_type: "text",
+    difficulty: "medium", source: "verified", license: "AI_ORIGINAL",
+  } });
+  assert.deepEqual(s.steps.map((item) => item.step_id), ["read-aloud", "conversation", "director-next"]);
+  s = sessionReduce(s, { type: "advance" });
+  assert.equal(s.steps[s.current_index].question_type, "english_conversation");
+  s = sessionReduce(s, { type: "advance" });
+  assert.equal(s.steps[s.current_index].step_id, "director-next");
+});
+
 test("session: advance moves to next step", () => {
   let s = sessionInitial({
     student_id: "student_t_phase5c_001",

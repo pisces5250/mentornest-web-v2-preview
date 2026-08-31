@@ -333,6 +333,7 @@ export function QuestionRenderer(props: QuestionRendererProps) {
           studentId={studentId}
           knowledgePoint={step.knowledge_point}
           ageBand={ageBand}
+          onComplete={onAdvance}
         />
       </section>
     );
