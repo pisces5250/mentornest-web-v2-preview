@@ -88,11 +88,19 @@ try {
   page.setDefaultTimeout(60_000);
 
   const requests = [];
+  const spokenPayloads = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
     if (/\/api\/(stt\/transcribe|tts\/synthesize|tutor\/english-conversation\/turn)$/.test(url.pathname)) {
       requests.push({ path: url.pathname, at: Date.now() });
     }
+  });
+  page.on("response", async (response) => {
+    const pathname = new URL(response.url()).pathname;
+    if (!/\/api\/tutor\/english-conversation\/(start|turn)$/.test(pathname)) return;
+    const body = await response.json().catch(() => null);
+    const spoken = pathname.endsWith("/start") ? body?.greeting : body?.tts_text;
+    if (typeof spoken === "string") spokenPayloads.push(spoken);
   });
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
@@ -176,6 +184,12 @@ try {
   assert.ok(sttRequests.length >= 10, "至少需要 10 輪真實 STT");
   assert.ok(tutorRequests.length >= 10, "至少需要 10 輪 Tutor decision");
   assert.ok(ttsRequests.length >= 11, "greeting 加 10 輪都需要 TTS");
+  assert.ok(spokenPayloads.length >= 11, "必須取得 greeting 加 10 輪 spoken contract");
+  assert.equal(
+    spokenPayloads.some((text) => /[\u3400-\u9fff]/u.test(text)),
+    false,
+    "英文 Voice 的 greeting／tts_text 不得包含中文字元",
+  );
   const conversationStartedAt = transitions.find((item) => item.phase === "SPEAKING")?.at ?? 0;
   for (const request of sttRequests.filter((item) => item.at >= conversationStartedAt)) {
     const phaseAtRequest = transitions.filter((item) => item.at <= request.at).at(-1)?.phase;
@@ -211,6 +225,7 @@ try {
     manualPlayRequired: false,
     speakingMicTracks: 0,
     sttDuringSpeaking: 0,
+    spokenPayloadsWithCjk: 0,
     recoveryVisible: true,
     recoveryReturnedToListening: true,
   }));
