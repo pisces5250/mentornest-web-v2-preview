@@ -85,7 +85,7 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
   if (!transcript || !transcript.trim()) {
     return {
       action: "ask_question",
-      utterance: "我在聽喔，你想說什麼呢？",
+      utterance: "I'm listening. What would you like to talk about?",
       subskill: "fluency",
       rationale: "empty transcript; invite the child to speak",
       confidence: 0.7,
@@ -98,8 +98,8 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
         action: turnIndex >= 4 ? "extend" : "ask_question",
         utterance:
           turnIndex >= 4
-            ? "說得很好！可以再多說一點嗎？"
-            : "嗯嗯，不錯喔。還想說什麼？",
+            ? "Great job! Can you tell me a little more?"
+            : "That sounds good. What else would you like to tell me?",
         subskill: "fluency",
         rationale: `correct; ${isOpening ? "first turn" : "follow-up"}; turnIndex=${turnIndex}`,
         confidence: 0.9,
@@ -108,7 +108,7 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
     case "tol_correct":
       return {
         action: "acknowledge",
-        utterance: "可以的！再試一次看看？",
+        utterance: "Good try! Would you like to say that one more time?",
         subskill: "fluency",
         rationale: "tol_correct; soft praise",
         confidence: 0.7,
@@ -117,8 +117,8 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
     case "ambiguous":
       return {
         action: "model_phrase",
-        utterance: "我示範一次給你聽。",
-        prompt: { exemplar: "(老師說一遍簡單的英文示範)" },
+        utterance: "Let me show you an example. You can say, I like playing with my friends.",
+        prompt: { exemplar: "I like playing with my friends." },
         subskill: "pronunciation",
         rationale: "ambiguous; provide a model so the child can imitate",
         confidence: 0.6,
@@ -127,8 +127,8 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
     case "incorrect":
       return {
         action: "correct_gently",
-        utterance: "差一點點！我們再說一次。",
-        prompt: { exemplar: "(老師重複正確的說法)" },
+        utterance: "Almost! Let's try that sentence one more time.",
+        prompt: { exemplar: "Let's try that sentence one more time." },
         subskill: "vocab",
         rationale: "incorrect; gentle correction + repeat",
         confidence: 0.65,
@@ -138,7 +138,7 @@ export function decideToTurnAction({ specialistResult, transcript, turnIndex, ri
       // Unknown verdict — fall back to a safe continuation question.
       return {
         action: "ask_question",
-        utterance: "然後呢？",
+        utterance: "What happened next?",
         subskill: "fluency",
         rationale: `unknown verdict '${specialistResult}'; default to ask_question`,
         confidence: 0.5,

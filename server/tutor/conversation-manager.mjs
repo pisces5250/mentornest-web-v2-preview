@@ -63,12 +63,12 @@ function nowMs() {
 }
 
 function makeGreeting(req) {
-  // Trivial zh-TW greeting. Real specialists may replace this later.
-  // Kept short and child-friendly.
+  // Conversation greeting 是第一個英文 spoken turn。中文 UI 輔助文字若需要，
+  // 必須走獨立 display contract，不得混入交給 en-US Voice 的 greeting。
   const age = req.age_band;
-  if (age === "G1-G2") return "哈囉！我們來說英文吧～";
-  if (age === "G3-G4") return "哈囉！今天想聊什麼呢？";
-  return "嗨，老師在聽喔，隨時開始吧。";
+  if (age === "G1-G2") return "Hello! Let's speak English together.";
+  if (age === "G3-G4") return "Hello! What would you like to talk about today?";
+  return "Hi! I'm listening. You can start whenever you're ready.";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

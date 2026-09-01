@@ -34,7 +34,8 @@ test("happy path: start -> turn x2 -> end", async () => {
   });
   assert.equal(s.ok, true);
   assert.ok(s.session.session_id);
-  assert.match(s.greeting, /[\u4e00-\u9fff]/); // contains Chinese chars
+  assert.match(s.greeting, /[A-Za-z]/);
+  assert.doesNotMatch(s.greeting, /[\u3400-\u9fff]/); // en-US TTS 不得收到中文
   assert.equal(_sessionCount(), 1);
 
   const t1 = turnConversation({

@@ -78,7 +78,8 @@ test("AC1 start -> ok with greeting", async () => {
   const data = await r.json();
   assert.equal(data.ok, true);
   assert.ok(data.session.session_id);
-  assert.match(data.greeting, /[\u4e00-\u9fff]/);
+  assert.match(data.greeting, /[A-Za-z]/);
+  assert.doesNotMatch(data.greeting, /[\u3400-\u9fff]/, "英文 greeting 不得把中文字元送入 en-US TTS");
 });
 
 test("AC2 turn -> ok with decision + tts_text", async () => {
@@ -105,6 +106,8 @@ test("AC2 turn -> ok with decision + tts_text", async () => {
   assert.equal(data.ok, true);
   assert.ok(typeof data.decision.action === "string");
   assert.ok(data.tts_text.length > 0);
+  assert.match(data.tts_text, /[A-Za-z]/);
+  assert.doesNotMatch(data.tts_text, /[\u3400-\u9fff]/, "英文 conversation tts_text 不得包含中文教學前綴");
   assert.equal(data.turn_index, 1);
 });
 
