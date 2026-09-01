@@ -61,6 +61,8 @@ export interface ConversationTutorProps {
 
 const SILENCE_MS = 700;
 const MIN_SPEECH_MS = 250;
+const VAD_ARM_SILENCE_MS = 450;
+const POST_PLAYBACK_GUARD_MS = 600;
 const STT_TIMEOUT_MS = 20_000;
 const TTS_TIMEOUT_MS = 20_000;
 
@@ -77,6 +79,8 @@ function attachVad(
   const THRESHOLD = 8; // 0..255; calibrated for typical laptop mic
   let speechStartedAt: number | null = null;
   let lastSoundAt = performance.now();
+  let quietStartedAt: number | null = null;
+  let armed = false;
   let raf = 0;
   let stopped = false;
 
@@ -91,6 +95,21 @@ function attachVad(
     rms = Math.sqrt(rms / data.length);
     const isSpeech = rms * 128 > THRESHOLD;
     const now = performance.now();
+    // 新開麥時先等待連續安靜，避免 iPad 外放尾音或尚未收斂的
+    // echo cancellation 被誤認為孩子的新發言。
+    if (!armed) {
+      if (isSpeech) {
+        quietStartedAt = null;
+      } else {
+        if (quietStartedAt === null) quietStartedAt = now;
+        if (now - quietStartedAt >= VAD_ARM_SILENCE_MS) {
+          armed = true;
+          lastSoundAt = now;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+      return;
+    }
     if (isSpeech) {
       lastSoundAt = now;
       if (speechStartedAt === null) speechStartedAt = now;
@@ -173,6 +192,7 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const playbackObjectUrlRef = useRef<string | null>(null);
   const playbackGenerationRef = useRef(0);
   const playbackActiveRef = useRef(false);
+  const resumeListeningTimerRef = useRef<number | null>(null);
   const startListeningRef = useRef<(() => Promise<void>) | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -197,6 +217,10 @@ export function ConversationTutor(props: ConversationTutorProps) {
   }, []);
 
   const releaseConversationAudio = useCallback(() => {
+    if (resumeListeningTimerRef.current !== null) {
+      window.clearTimeout(resumeListeningTimerRef.current);
+      resumeListeningTimerRef.current = null;
+    }
     playbackAbortRef.current?.abort();
     playbackAbortRef.current = null;
     playbackActiveRef.current = false;
@@ -326,10 +350,24 @@ export function ConversationTutor(props: ConversationTutorProps) {
       playbackObjectUrlRef.current = null;
     }
     const shouldResume = stateRef.current.lastAction !== "wrap_up";
-    dispatch({ type: "TTS_DONE" });
     if (shouldResume && sessionIdRef.current) {
-      void startListeningRef.current?.();
+      // 保留短暫 acoustic guard，讓外放尾音消失、系統 echo cancellation
+      // 穩定後才重新取得 microphone。成功開麥後才宣告 LISTENING。
+      resumeListeningTimerRef.current = window.setTimeout(() => {
+        resumeListeningTimerRef.current = null;
+        if (!sessionIdRef.current) return;
+        const start = startListeningRef.current;
+        if (!start) return;
+        void start()
+          .then(() => dispatch({ type: "TTS_DONE" }))
+          .catch(() => dispatch({
+            type: "ENDED",
+            errorMessage: "無法重新開啟麥克風，請檢查權限後再開始。",
+          }));
+      }, POST_PLAYBACK_GUARD_MS);
+      return;
     }
+    dispatch({ type: "TTS_DONE" });
   }, []);
 
   // Tear down any in-flight media on unmount.
@@ -352,7 +390,13 @@ export function ConversationTutor(props: ConversationTutorProps) {
   const startListening = useCallback(async () => {
     if (mediaStreamRef.current || stateRef.current.phase === "ENDED") return;
     if (!navigator.mediaDevices?.getUserMedia) return;
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
     mediaStreamRef.current = stream;
     const ctx = new AudioContext();
     audioCtxRef.current = ctx;

@@ -162,6 +162,17 @@ test("Conversation greeting 與每輪老師回應皆為 hands-free spoken turn",
   assert.doesNotMatch(source, /<TTSPlayer/);
 });
 
+test("Conversation 開麥有 acoustic guard，VAD 需先確認安靜且啟用回音抑制", () => {
+  const source = readFileSync(resolve(__dirname, "../../src/tutor/ConversationTutor.tsx"), "utf8");
+  assert.match(source, /POST_PLAYBACK_GUARD_MS\s*=\s*600/);
+  assert.match(source, /VAD_ARM_SILENCE_MS\s*=\s*450/);
+  assert.match(source, /if\s*\(!armed\)[\s\S]*quietStartedAt[\s\S]*VAD_ARM_SILENCE_MS/);
+  assert.match(source, /echoCancellation:\s*true/);
+  assert.match(source, /noiseSuppression:\s*true/);
+  assert.match(source, /autoGainControl:\s*true/);
+  assert.match(source, /start\(\)[\s\S]*TTS_DONE/);
+});
+
 test("Conversation 正常播放不顯示一般播放鍵，錯誤恢復仍可鍵盤操作", async () => {
   const html = `<!doctype html><html lang="zh-Hant"><head><title>英文對話</title></head><body>
     <section role="region" aria-label="和老師說英文" data-phase="SPEAKING">
